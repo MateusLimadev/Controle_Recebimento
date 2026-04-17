@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Fiscal & Logística - FZ/HC</title>
+    <style>
+        :root {
+            --primary: #0f172a; --secondary: #334155; --accent: #0284c7;
+            --success: #16a34a; --warning: #f59e0b; --bg: #f1f5f9;
+            --white: #ffffff; --border: #e2e8f0;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--primary); }
+        
+        nav { background: var(--primary); display: flex; justify-content: center; gap: 5px; padding: 12px 0 0 0; }
+        .nav-btn { background: transparent; color: #94a3b8; border: none; padding: 14px 28px; cursor: pointer; font-weight: 700; font-size: 0.85rem; border-radius: 8px 8px 0 0; transition: 0.3s; }
+        .nav-btn.active { background: var(--white); color: var(--accent); border-bottom: 3px solid var(--accent); }
+
+        .container { background: var(--white); padding: 2.5rem; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin: 25px auto; max-width: 1200px; display: none; }
+        #loginScreen { width: 340px; text-align: center; margin-top: 15vh; display: block; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .field-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 0.7rem; font-weight: 800; color: var(--secondary); text-transform: uppercase; }
+        input, select { padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.95rem; }
+
+        /* CARDS DE STATUS/LOGÍSTICA */
+        .status-card {
+            grid-column: span 3;
+            background: #f8fafc;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .status-row { display: flex; align-items: center; gap: 20px; }
+        .status-label { font-size: 0.75rem; font-weight: 900; color: var(--accent); min-width: 100px; }
+        .radio-group { display: flex; gap: 20px; flex-wrap: wrap; }
+        .radio-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+
+        .btn { padding: 14px 24px; border-radius: 10px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; font-size: 0.95rem; width: 100%; }
+        .btn-add { background: var(--secondary); color: white; }
+        .btn-copy { background: var(--accent); color: white; }
+        .btn-send { background: var(--success); color: white; }
+
+        .table-container { overflow-x: auto; margin-top: 30px; border: 1px solid var(--border); border-radius: 12px; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th { background: #f8fafc; padding: 15px; text-align: left; font-size: 0.75rem; color: var(--secondary); text-transform: uppercase; border-bottom: 2px solid var(--border); }
+        td { padding: 15px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        
+        .badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; }
+        .badge-wait { background: #fef3c7; color: #92400e; } /* Laranja para espera */
+        .badge-sent { background: #dcfce7; color: #166534; } /* Verde para enviado */
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen" class="container">
+        <h2 style="margin-bottom:25px">Controle Interno FZ/HC</h2>
+        <input type="text" id="userInput" placeholder="Usuário" style="margin-bottom:12px">
+        <input type="password" id="passInput" placeholder="Senha">
+        <button class="btn btn-add" style="margin-top:20px" onclick="realizarLogin()">Entrar</button>
+    </div>
+
+    <div id="app" style="display:none">
+        <nav>
+            <button class="nav-btn active" id="btn-digitadas" onclick="switchTab('Digitadas')">NOTAS DIGITADAS</button>
+            <button class="nav-btn" id="btn-recebimento" onclick="switchTab('Recebimento')">NOTAS RECEBIDAS</button>
+        </nav>
+
+        <div class="container" style="display:block">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px">
+                <h2 id="tabTitle">Protocolo</h2>
+                <span id="userDisplay" style="color: var(--accent); font-weight: 800"></span>
+            </div>
+
+            <form id="notaForm">
+                <div class="form-grid">
+                    <div class="field-group"><label>Número NF</label><input type="text" id="f_nf" required></div>
+                    <div class="field-group" style="grid-column: span 2;"><label>Fornecedor</label><input type="text" id="f_fornecedor" required></div>
+                    <div class="field-group">
+                        <label>Razão Social</label>
+                        <select id="f_razao">
+                            <option value="Fundação Zerbini">Fundação Zerbini</option>
+                            <option value="Hospital das Clínicas">Hospital das Clínicas</option>
+                        </select>
+                    </div>
+                    <div class="field-group"><label>Vencimento</label><input type="date" id="f_vencimento" required></div>
+                    <div class="field-group"><label>Emissão</label><input type="date" id="f_data" required></div>
+                    <div class="field-group"><label>Valor (R$)</label><input type="number" step="0.01" id="f_valor" required></div>
+                    <div class="field-group"><label>Setor Destino</label><input type="text" id="f_setor" placeholder="Setor que vai receber"></div>
+                    
+                    <div id="fieldStatus" class="status-card">
+                        <div id="statusDigitacaoArea">
+                            <div class="status-row">
+                                <span class="status-label">Sistema:</span>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="gSistema" value="Oracle"> Oracle</label>
+                                    <label class="radio-item"><input type="radio" name="gSistema" value="MV"> MV</label>
+                                </div>
+                            </div>
+                            <div class="status-row" style="margin-top:10px">
+                                <span class="status-label">Processo:</span>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="gProcesso" value="Manual"> Manual</label>
+                                    <label class="radio-item"><input type="radio" name="gProcesso" value="Reprocessada"> Reprocessada</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="statusRecebimentoArea" style="display:none">
+                            <div class="status-row">
+                                <span class="status-label">Logística:</span>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="gLogistica" value="Encaminhado ao Setor"> ✅ Encaminhado ao Setor</label>
+                                    <label class="radio-item"><input type="radio" name="gLogistica" value="Aguardando Retirada"> 📦 Aguarda Retirada (Custódia)</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-add" onclick="adicionarNota()">+ ADICIONAR NOTA AO LOTE</button>
+            </form>
+
+            <div class="table-container">
+                <table id="tabelaDados">
+                    <thead>
+                        <tr>
+                            <th>NF</th>
+                            <th>Fornecedor</th>
+                            <th>Razão Social</th>
+                            <th>Vencimento</th>
+                            <th>Setor Destino</th>
+                            <th id="thStatus">Situação</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="actions-footer" id="areaAcoes" style="display:none">
+                <button class="btn btn-copy" id="btnCopiar" onclick="copiarProtocolo()">📋 COPIAR PARA E-MAIL</button>
+                <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">🚀 ENVIAR PARA PLANILHA</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const USUARIOS = [{login:"mateus", senha:"123", nome:"Mateus"}];
+    let abaAtual = "Digitadas";
+    let listas = { "Digitadas": [], "Recebimento": [] };
+    let usuarioLogado = "";
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T4_rhscRJWTWlQPsCFH_5JM5Kedlq-DJj5IPpTkG3m9zcaHB2Q/exec";
+
+    function realizarLogin() {
+        const u = document.getElementById('userInput').value.toLowerCase();
+        const s = document.getElementById('passInput').value;
+        const user = USUARIOS.find(x => x.login === u && x.senha === s);
+        if(user) {
+            usuarioLogado = user.nome;
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            document.getElementById('userDisplay').innerText = usuarioLogado;
+            switchTab('Digitadas');
+        } else { alert("Acesso negado."); }
+    }
+
+    function switchTab(aba) {
+        abaAtual = aba;
+        document.getElementById('tabTitle').innerText = "Notas " + aba;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + aba.toLowerCase()).classList.add('active');
+        
+        // Alternar áreas do formulário
+        document.getElementById('statusDigitacaoArea').style.display = (aba === 'Digitadas') ? 'block' : 'none';
+        document.getElementById('statusRecebimentoArea').style.display = (aba === 'Recebimento') ? 'block' : 'none';
+        document.getElementById('btnCopiar').style.display = (aba === 'Digitadas') ? 'block' : 'none';
+        document.getElementById('thStatus').innerText = (aba === 'Digitadas') ? 'Status MV' : 'Situação do Material';
+        
+        atualizarTabela();
+    }
+
+    function adicionarNota() {
+        const nf = document.getElementById('f_nf').value;
+        if(!nf) return alert("Número da NF obrigatório!");
+
+        let statusFinal = "";
+        if(abaAtual === 'Digitadas') {
+            const s = document.querySelector('input[name="gSistema"]:checked');
+            const p = document.querySelector('input[name="gProcesso"]:checked');
+            if(!s || !p) return alert("Selecione Sistema e Processo!");
+            statusFinal = s.value + " | " + p.value;
+        } else {
+            const l = document.querySelector('input[name="gLogistica"]:checked');
+            if(!l) return alert("Selecione a situação do material!");
+            statusFinal = l.value;
+        }
+
+        const nota = {
+            destino: abaAtual,
+            responsavel: usuarioLogado,
+            data: document.getElementById('f_data').value,
+            nf: nf,
+            fornecedor: document.getElementById('f_fornecedor').value,
+            razaoSocial: document.getElementById('f_razao').value,
+            vencimento: document.getElementById('f_vencimento').value,
+            valor: document.getElementById('f_valor').value,
+            setor: document.getElementById('f_setor').value || "Não informado",
+            possuiLote: "Não",
+            statusDigitacao: (abaAtual === 'Digitadas') ? statusFinal : "",
+            situacaoMaterial: (abaAtual === 'Recebimento') ? statusFinal : ""
+        };
+
+        listas[abaAtual].push(nota);
+        atualizarTabela();
+        document.getElementById('f_nf').value = "";
+        document.getElementById('f_valor').value = "";
+    }
+
+    function atualizarTabela() {
+        const tbody = document.querySelector("#tabelaDados tbody");
+        tbody.innerHTML = "";
+        listas[abaAtual].forEach((n, i) => {
+            const statusLabel = (abaAtual === 'Digitadas') ? n.statusDigitacao : n.situacaoMaterial;
+            const badgeClass = statusLabel.includes('Retirada') ? 'badge-wait' : 'badge-sent';
+            
+            tbody.innerHTML += `<tr>
+                <td><b>${n.nf}</b></td>
+                <td>${n.fornecedor}</td>
+                <td>${n.razaoSocial === 'Fundação Zerbini' ? 'FZ' : 'HC'}</td>
+                <td>${n.vencimento.split('-').reverse().join('/')}</td>
+                <td>${n.setor}</td>
+                <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+                <td><button onclick="removerNota(${i})" style="border:none; background:none; cursor:pointer; font-size:1.2rem">🗑️</button></td>
+            </tr>`;
+        });
+        document.getElementById('areaAcoes').style.display = listas[abaAtual].length > 0 ? 'grid' : 'none';
+    }
+
+    function removerNota(i) {
+        listas[abaAtual].splice(i, 1);
+        atualizarTabela();
+    }
+
+    function copiarProtocolo() {
+        let texto = `*PROTOCOLO DE DIGITAÇÃO - ${usuarioLogado.toUpperCase()}*\n\n`;
+        listas['Digitadas'].forEach(n => {
+            texto += `NF: ${n.nf} | FORN: ${n.fornecedor} | VENC: ${n.vencimento.split('-').reverse().join('/')} | STATUS: ${n.statusDigitacao}\n`;
+        });
+        navigator.clipboard.writeText(texto).then(() => alert("Copiado!"));
+    }
+
+    function enviarTudo() {
+        const btn = document.getElementById('btnEnviar');
+        btn.disabled = true; btn.innerText = "Sincronizando...";
+        fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(listas[abaAtual]) })
+        .then(() => {
+            alert("🚀 Sucesso! Planilha atualizada.");
+            listas[abaAtual] = [];
+            atualizarTabela();
+        })
+        .finally(() => { btn.disabled = false; btn.innerText = "🚀 ENVIAR PARA PLANILHA"; });
+    }
+</script>
+</body>
+</html>

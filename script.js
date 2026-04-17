@@ -1,5 +1,5 @@
 const USUARIOS = [{ login: "mateus", senha: "123", nome: "Mateus" }];
-const URL_SCRIPT = "SUA_URL_AQUI"; 
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T4_rhscRJWTWlQPsCFH_5JM5Kedlq-DJj5IPpTkG3m9zcaHB2Q/exec"; 
 
 let abaAtual = "Digitadas";
 let listas = { "Digitadas": [], "Recebimento": [] };

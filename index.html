@@ -4,131 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suprimentos - FZ/HC</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <style>
-        :root {
-            /* TEMA CLARO */
-            --primary: #0f172a;
-            --header-text: #ffffff;
-            --accent: #0284c7;
-            --success: #16a34a;
-            --bg: #f1f5f9;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --nav-bg: #ffffff;
-        }
-
-        [data-theme="dark"] {
-            /* TEMA ESCURO */
-            --primary: #1e293b;
-            --header-text: #f8fafc;
-            --accent: #38bdf8;
-            --success: #22c55e;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --nav-bg: #1e293b;
-        }
-
-        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text-main); transition: 0.3s; overflow-x: hidden; }
-        
-        /* HEADER COM LOGO E DARK MODE */
-        header { 
-            background: var(--primary); color: var(--header-text); 
-            padding: 15px 30px; display: flex; justify-content: space-between; 
-            align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .brand { display: flex; align-items: center; gap: 12px; }
-        .brand i { font-size: 28px; color: var(--accent); }
-        .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; }
-
-        .theme-toggle { 
-            cursor: pointer; display: flex; align-items: center; gap: 8px; 
-            font-size: 12px; font-weight: 700; padding: 10px 16px; 
-            border-radius: 30px; background: rgba(255,255,255,0.1); 
-            border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; color: var(--header-text);
-        }
-
-        /* NAVEGAÇÃO POR ABAS */
-        nav { background: var(--nav-bg); display: flex; justify-content: center; gap: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; }
-        .nav-btn { 
-            background: transparent; color: var(--text-muted); border: none; padding: 18px 25px; 
-            cursor: pointer; font-weight: 800; font-size: 13px; display: flex; align-items: center; gap: 10px;
-            white-space: nowrap; border-bottom: 4px solid transparent; transition: 0.3s;
-        }
-        .nav-btn i { font-size: 22px; }
-        .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-        /* CONTAINER PRINCIPAL */
-        .container { background: var(--card-bg); padding: 2rem; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); margin: 30px auto; width: 92%; max-width: 1200px; display: none; box-sizing: border-box; }
-        #loginScreen { width: 350px; text-align: center; margin-top: 10vh; display: block; }
-
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .field-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; }
-        
-        input, select { padding: 14px; border: 2px solid var(--border); border-radius: 12px; font-size: 15px; background: var(--card-bg); color: var(--text-main); transition: 0.2s; }
-        input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.1); }
-
-        /* QUADRADINHO DE STATUS (BONITO) */
-        .status-card { grid-column: 1 / -1; background: var(--bg); border: 2px solid var(--border); border-radius: 18px; padding: 25px; display: flex; flex-direction: column; gap: 18px; }
-        .status-row { display: flex; align-items: center; gap: 25px; flex-wrap: wrap; }
-        .status-label { font-size: 11px; font-weight: 900; color: var(--accent); min-width: 100px; text-transform: uppercase; }
-        .radio-group { display: flex; gap: 20px; flex-wrap: wrap; }
-        .radio-item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; cursor: pointer; color: var(--text-main); }
-        .radio-item input { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent); }
-
-        /* BOTÕES */
-        .btn { padding: 16px; border-radius: 14px; border: none; font-weight: 800; cursor: pointer; transition: 0.3s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-add { background: var(--accent); color: white; width: 100%; margin-top: 10px; }
-        .btn-copy { background: #64748b; color: white; }
-        .btn-send { background: var(--success); color: white; }
-        .btn:hover { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-
-        /* TABELA RESPONSIVA */
-        .table-container { overflow-x: auto; margin-top: 40px; border: 1px solid var(--border); border-radius: 15px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1000px; background: var(--card-bg); }
-        th { background: var(--bg); padding: 20px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 900; }
-        td { padding: 18px; border-bottom: 1px solid var(--border); font-size: 14px; }
-        
-        .badge { padding: 6px 14px; border-radius: 8px; font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .badge-wait { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-        .badge-sent { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-
-        .actions-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 35px; }
-
-        @media (max-width: 768px) {
-            header { justify-content: center; padding: 15px; }
-            .container { padding: 1.5rem; width: 95%; margin: 15px auto; }
-            .form-grid { grid-template-columns: 1fr; }
-            .actions-footer { grid-template-columns: 1fr; }
-            .status-row { flex-direction: column; align-items: flex-start; gap: 10px; }
-        }
-    </style>
 </head>
 <body>
 
     <header id="mainHeader" style="display:none">
         <div class="brand">
             <i class="ph-fill ph-package"></i>
-            <h1>Unidade de Suprimentos | FZ/HC</h1>
+            <h1>CONTROLE DE NOTAS FISCAIS UN SUPRIMENTOS</h1>
         </div>
-        <div class="theme-toggle" onclick="toggleTheme()">
-            <i id="themeIcon" class="ph ph-moon"></i>
-            <span id="themeText">MODO ESCURO</span>
+        <div class="header-controls">
+            <div class="theme-toggle" onclick="toggleTheme()">
+                <i id="themeIcon" class="ph ph-moon"></i>
+                <span id="themeText">MODO ESCURO</span>
+            </div>
+            <div class="logout-btn" onclick="logout()">
+                <i class="ph ph-sign-out"></i>
+                <span>SAIR</span>
+            </div>
         </div>
     </header>
 
-    <div id="loginScreen" class="container">
+    <div id="loginScreen" class="container login-box">
         <i class="ph-fill ph-shield-check" style="font-size: 50px; color: var(--accent)"></i>
-        <h2 style="margin: 20px 0 30px">Controle de Notas</h2>
+        <h2 style="margin: 20px 0 30px">Acesso ao Sistema</h2>
         <input type="text" id="userInput" placeholder="Usuário">
-        <input type="password" id="passInput" placeholder="Senha" style="margin-top:10px">
-        <button class="btn btn-add" style="margin-top:25px" onclick="realizarLogin()">ENTRAR NO SISTEMA</button>
+        <input type="password" id="passInput" placeholder="Senha">
+        <button class="btn btn-add" style="margin-top:25px" onclick="realizarLogin()">ENTRAR</button>
     </div>
 
     <div id="app" style="display:none">
@@ -141,19 +44,19 @@
             </button>
         </nav>
 
-        <div class="container" style="display:block">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px">
+        <main class="container">
+            <div class="header-tab">
                 <h2 id="tabTitle">Lote de Notas</h2>
-                <div style="text-align: right">
-                    <small style="color: var(--text-muted); font-weight: 800; font-size: 10px;">OPERADOR</small><br>
-                    <span id="userDisplay" style="color: var(--accent); font-weight: 900; font-size: 18px;"></span>
+                <div class="user-badge">
+                    <small>OPERADOR</small><br>
+                    <span id="userDisplay"></span>
                 </div>
             </div>
 
             <form id="notaForm">
                 <div class="form-grid">
                     <div class="field-group"><label>Número NF</label><input type="text" id="f_nf" placeholder="000.000" required></div>
-                    <div class="field-group" style="grid-column: span 2;"><label>Fornecedor</label><input type="text" id="f_fornecedor" placeholder="Nome da empresa" required></div>
+                    <div class="field-group fg-2"><label>Fornecedor</label><input type="text" id="f_fornecedor" required></div>
                     <div class="field-group">
                         <label>Razão Social</label>
                         <select id="f_razao">
@@ -165,13 +68,9 @@
                     <div class="field-group"><label>Emissão</label><input type="date" id="f_data" required></div>
                     <div class="field-group"><label>Valor (R$)</label><input type="number" step="0.01" id="f_valor" required></div>
                     <div class="field-group"><label>Setor Destino</label><input type="text" id="f_setor" placeholder="Ex: Farmácia"></div>
-                    
                     <div class="field-group">
                         <label>Possui Lote?</label>
-                        <select id="f_lote">
-                            <option value="Sim">Sim</option>
-                            <option value="Não">Não</option>
-                        </select>
+                        <select id="f_lote"><option value="Sim">Sim</option><option value="Não">Não</option></select>
                     </div>
 
                     <div id="fieldStatus" class="status-card">
@@ -183,7 +82,7 @@
                                     <label class="radio-item"><input type="radio" name="gSistema" value="MV"> MV</label>
                                 </div>
                             </div>
-                            <div class="status-row" style="margin-top:10px">
+                            <div class="status-row" style="margin-top:15px">
                                 <span class="status-label">Processo:</span>
                                 <div class="radio-group">
                                     <label class="radio-item"><input type="radio" name="gProcesso" value="Manual"> MANUAL</label>
@@ -196,7 +95,7 @@
                             <div class="status-row">
                                 <span class="status-label">Logística:</span>
                                 <div class="radio-group">
-                                    <label class="radio-item"><input type="radio" name="gLogistica" value="Encaminhado ao Setor"> 🚚 ENCAMINHADO AO SETOR</label>
+                                    <label class="radio-item"><input type="radio" name="gLogistica" value="Encaminhado ao Setor"> 🚚 ENCAMINHADO</label>
                                     <label class="radio-item"><input type="radio" name="gLogistica" value="Aguardando Retirada"> 📦 AGUARDA RETIRADA</label>
                                 </div>
                             </div>
@@ -204,7 +103,7 @@
                     </div>
                 </div>
                 <button type="button" class="btn btn-add" onclick="adicionarNota()">
-                    <i class="ph-bold ph-plus"></i> ADICIONAR NOTA AO LOTE
+                    <i class="ph-bold ph-plus"></i> ADICIONAR AO LOTE
                 </button>
             </form>
 
@@ -214,7 +113,7 @@
                         <tr>
                             <th>NF</th>
                             <th>Fornecedor</th>
-                            <th>Razão</th>
+                            <th>Unidade</th>
                             <th>Vencimento</th>
                             <th>Setor</th>
                             <th>Lote</th>
@@ -227,153 +126,16 @@
             </div>
 
             <div class="actions-footer" id="areaAcoes" style="display:none">
-                <button class="btn btn-copy" id="btnCopiar" onclick="copiarProtocolo()">
-                    <i class="ph-bold ph-copy"></i> COPIAR PARA E-MAIL
-                </button>
-                <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">
-                    <i class="ph-bold ph-cloud-arrow-up"></i> ENVIAR PARA PLANILHA
-                </button>
+                <button class="btn btn-copy" id="btnCopiar" onclick="copiarProtocolo()">📋 COPIAR PARA E-MAIL</button>
+                <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">🚀 ENVIAR PARA PLANILHA</button>
             </div>
-        </div>
+        </main>
     </div>
 
-<script>
-    const USUARIOS = [{login:"mateus", senha:"123", nome:"Mateus"}];
-    let abaAtual = "Digitadas";
-    let listas = { "Digitadas": [], "Recebimento": [] };
-    let usuarioLogado = "";
-    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T4_rhscRJWTWlQPsCFH_5JM5Kedlq-DJj5IPpTkG3m9zcaHB2Q/exec"; 
+    <footer id="mainFooter" style="display:none">
+        <p>Desenvolvido por Mateus lima</p>
+    </footer>
 
-    function toggleTheme() {
-        const body = document.body;
-        const icon = document.getElementById('themeIcon');
-        const text = document.getElementById('themeText');
-        if (body.getAttribute('data-theme') === 'dark') {
-            body.removeAttribute('data-theme');
-            icon.className = 'ph ph-moon';
-            text.innerText = 'MODO ESCURO';
-            localStorage.setItem('theme', 'light');
-        } else {
-            body.setAttribute('data-theme', 'dark');
-            icon.className = 'ph ph-sun';
-            text.innerText = 'MODO CLARO';
-            localStorage.setItem('theme', 'dark');
-        }
-    }
-
-    if (localStorage.getItem('theme') === 'dark') toggleTheme();
-
-    function realizarLogin() {
-        const u = document.getElementById('userInput').value.toLowerCase();
-        const s = document.getElementById('passInput').value;
-        const user = USUARIOS.find(x => x.login === u && x.senha === s);
-        if(user) {
-            usuarioLogado = user.nome;
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('mainHeader').style.display = 'flex';
-            document.getElementById('app').style.display = 'block';
-            document.getElementById('userDisplay').innerText = usuarioLogado.toUpperCase();
-            switchTab('Digitadas');
-        } else { alert("Acesso negado."); }
-    }
-
-    function switchTab(aba) {
-        abaAtual = aba;
-        document.getElementById('tabTitle').innerText = "Lote de Notas " + aba;
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-' + aba.toLowerCase()).classList.add('active');
-        
-        document.getElementById('statusDigitacaoArea').style.display = (aba === 'Digitadas') ? 'block' : 'none';
-        document.getElementById('statusRecebimentoArea').style.display = (aba === 'Recebimento') ? 'block' : 'none';
-        document.getElementById('btnCopiar').style.display = (aba === 'Digitadas') ? 'flex' : 'none';
-        document.getElementById('thStatus').innerText = (aba === 'Digitadas') ? 'STATUS MV' : 'LOGÍSTICA';
-        
-        atualizarTabela();
-    }
-
-    function adicionarNota() {
-        const nf = document.getElementById('f_nf').value;
-        if(!nf) return alert("Número da NF obrigatório!");
-
-        let statusFinal = "";
-        if(abaAtual === 'Digitadas') {
-            const s = document.querySelector('input[name="gSistema"]:checked');
-            const p = document.querySelector('input[name="gProcesso"]:checked');
-            if(!s || !p) return alert("Selecione o Sistema e o Processo!");
-            statusFinal = s.value + " | " + p.value;
-        } else {
-            const l = document.querySelector('input[name="gLogistica"]:checked');
-            if(!l) return alert("Selecione a situação logística!");
-            statusFinal = l.value;
-        }
-
-        const nota = {
-            destino: abaAtual,
-            responsavel: usuarioLogado,
-            data: document.getElementById('f_data').value,
-            nf: nf,
-            fornecedor: document.getElementById('f_fornecedor').value,
-            razaoSocial: document.getElementById('f_razao').value,
-            vencimento: document.getElementById('f_vencimento').value,
-            valor: document.getElementById('f_valor').value,
-            setor: document.getElementById('f_setor').value || "GERAL",
-            possuiLote: document.getElementById('f_lote').value,
-            statusDigitacao: (abaAtual === 'Digitadas') ? statusFinal : "",
-            situacaoMaterial: (abaAtual === 'Recebimento') ? statusFinal : ""
-        };
-
-        listas[abaAtual].push(nota);
-        atualizarTabela();
-        document.getElementById('f_nf').value = "";
-        document.getElementById('f_valor').value = "";
-    }
-
-    function atualizarTabela() {
-        const tbody = document.querySelector("#tabelaDados tbody");
-        tbody.innerHTML = "";
-        listas[abaAtual].forEach((n, i) => {
-            const st = (abaAtual === 'Digitadas') ? n.statusDigitacao : n.situacaoMaterial;
-            const badgeClass = st.includes('Retirada') ? 'badge-wait' : 'badge-sent';
-            
-            tbody.innerHTML += `<tr>
-                <td><b>${n.nf}</b></td>
-                <td>${n.fornecedor}</td>
-                <td>${n.razaoSocial === 'Fundação Zerbini' ? 'FZ' : 'HC'}</td>
-                <td>${n.vencimento.split('-').reverse().join('/')}</td>
-                <td>${n.setor}</td>
-                <td>${n.possuiLote}</td>
-                <td><span class="badge ${badgeClass}">${st}</span></td>
-                <td><button onclick="removerNota(${i})" style="border:none; background:none; cursor:pointer; color: var(--text-muted)"><i class="ph ph-trash" style="font-size:20px"></i></button></td>
-            </tr>`;
-        });
-        document.getElementById('areaAcoes').style.display = listas[abaAtual].length > 0 ? 'grid' : 'none';
-    }
-
-    function removerNota(i) {
-        listas[abaAtual].splice(i, 1);
-        atualizarTabela();
-    }
-
-    function copiarProtocolo() {
-        let texto = `*PROTOCOLO DE DIGITAÇÃO - ${usuarioLogado.toUpperCase()}*\n\n`;
-        texto += `NF\t| FORNECEDOR\t| RAZÃO\t| VENCIMENTO\t| SETOR\t| LOTE\n`;
-        listas['Digitadas'].forEach(n => {
-            texto += `${n.nf}\t| ${n.fornecedor}\t| ${n.razaoSocial === 'Fundação Zerbini' ? 'FZ' : 'HC'}\t| ${n.vencimento.split('-').reverse().join('/')}\t| ${n.setor}\t| ${n.possuiLote}\n`;
-        });
-        navigator.clipboard.writeText(texto).then(() => alert("✅ Protocolo copiado!"));
-    }
-
-    function enviarTudo() {
-        const btn = document.getElementById('btnEnviar');
-        btn.disabled = true; btn.innerText = "SINCRONIZANDO...";
-        fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(listas[abaAtual]) })
-        .then(() => {
-            alert("🚀 Sucesso! Notas enviadas para a planilha.");
-            listas[abaAtual] = [];
-            atualizarTabela();
-        })
-        .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-cloud-arrow-up"></i> ENVIAR PARA PLANILHA'; });
-    }
-</script>
+    <script src="script.js"></script>
 </body>
 </html>

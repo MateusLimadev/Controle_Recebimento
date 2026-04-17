@@ -30,7 +30,7 @@
         <i class="ph-fill ph-shield-check" style="font-size: 50px; color: var(--accent)"></i>
         <h2 style="margin: 20px 0 30px">Acesso ao Sistema</h2>
         <input type="text" id="userInput" placeholder="Usuário">
-        <input type="password" id="passInput" placeholder="Senha">
+        <input type="password" id="passInput" placeholder="Senha" style="margin-top:10px">
         <button class="btn btn-add" style="margin-top:25px" onclick="realizarLogin()">ENTRAR</button>
     </div>
 
@@ -44,7 +44,7 @@
             </button>
         </nav>
 
-        <main class="container">
+        <div class="container" style="display:block">
             <div class="header-tab">
                 <h2 id="tabTitle">Lote de Notas</h2>
                 <div class="user-badge">
@@ -70,7 +70,10 @@
                     <div class="field-group"><label>Setor Destino</label><input type="text" id="f_setor" placeholder="Ex: Farmácia"></div>
                     <div class="field-group">
                         <label>Possui Lote?</label>
-                        <select id="f_lote"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+                        <select id="f_lote">
+                            <option value="Sim">Sim</option>
+                            <option value="Não">Não</option>
+                        </select>
                     </div>
 
                     <div id="fieldStatus" class="status-card">
@@ -82,7 +85,7 @@
                                     <label class="radio-item"><input type="radio" name="gSistema" value="MV"> MV</label>
                                 </div>
                             </div>
-                            <div class="status-row" style="margin-top:15px">
+                            <div class="status-row" style="margin-top:10px">
                                 <span class="status-label">Processo:</span>
                                 <div class="radio-group">
                                     <label class="radio-item"><input type="radio" name="gProcesso" value="Manual"> MANUAL</label>
@@ -126,10 +129,14 @@
             </div>
 
             <div class="actions-footer" id="areaAcoes" style="display:none">
-                <button class="btn btn-copy" id="btnCopiar" onclick="copiarProtocolo()">📋 COPIAR PARA E-MAIL</button>
-                <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">🚀 ENVIAR PARA PLANILHA</button>
+                <button class="btn btn-copy" id="btnCopiar" onclick="copiarProtocolo()">
+                    <i class="ph-bold ph-copy"></i> COPIAR PARA E-MAIL
+                </button>
+                <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">
+                    <i class="ph-bold ph-cloud-arrow-up"></i> ENVIAR PARA PLANILHA
+                </button>
             </div>
-        </main>
+        </div>
     </div>
 
     <footer id="mainFooter" style="display:none">

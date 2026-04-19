@@ -2,9 +2,12 @@
 const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T4_rhscRJWTWlQPsCFH_5JM5Kedlq-DJj5IPpTkG3m9zcaHB2Q/exec";
 
 let usuarioAtual = null;
-let loginAtual = null; // guarda o login para usar na troca de senha
+let loginAtual = null;
 let abaAtual = "Digitadas";
 let listas = { "Digitadas": [], "Recebimento": [], "Adiantamento": [] };
+
+// Garante que o alerta só dispara uma vez por sessão (ao fazer login)
+let alertaJaExibido = false;
 
 // --- UTILITÁRIOS ---
 
@@ -51,6 +54,102 @@ function mostrarErro(elementId, mensagem) {
     setTimeout(() => el.style.display = 'none', 3500);
 }
 
+// =========================================================
+// SOM TIPO MSN MESSENGER (Web Audio API)
+// =========================================================
+function tocarSomMSN() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Arpejo ascendente em três notas — feel de notificação dos anos 2000
+        const notas = [
+            { freq: 1046.5, t: 0.00, dur: 0.18 },   // C6
+            { freq: 1318.5, t: 0.19, dur: 0.18 },   // E6
+            { freq: 1760.0, t: 0.38, dur: 0.35 },   // A6 — nota longa de encerramento
+        ];
+
+        notas.forEach(({ freq, t, dur }) => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            const now = ctx.currentTime + t;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.28, now + 0.008);       // ataque rápido
+            gain.gain.exponentialRampToValueAtTime(0.001, now + dur);   // decay suave
+
+            osc.start(now);
+            osc.stop(now + dur + 0.05);
+        });
+    } catch (err) {
+        console.warn('Som indisponível no navegador:', err);
+    }
+}
+
+// =========================================================
+// POPUP DE ALERTA DE ADIANTAMENTOS
+// =========================================================
+function exibirAlertaAdiantamento(lista) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    // Filtra apenas vencidos e urgentes (≤ 7 dias)
+    const criticos = lista.filter(adi => {
+        const diff = Math.ceil((new Date(adi.venc) - hoje) / (1000 * 60 * 60 * 24));
+        return diff <= 7;
+    }).sort((a, b) => new Date(a.venc) - new Date(b.venc));
+
+    if (criticos.length === 0) return; // sem alertas, não exibe nada
+
+    // Contadores
+    const numVencidas = criticos.filter(a => {
+        return Math.ceil((new Date(a.venc) - hoje) / (1000 * 60 * 60 * 24)) < 0;
+    }).length;
+    const numUrgentes = criticos.length - numVencidas;
+
+    document.getElementById('numVencidas').innerText = numVencidas;
+    document.getElementById('numUrgentes').innerText = numUrgentes;
+
+    // Oculta contador zerado para não poluir
+    document.getElementById('cntVencido').style.display = numVencidas > 0 ? 'flex' : 'none';
+    document.getElementById('cntUrgente').style.display = numUrgentes > 0 ? 'flex' : 'none';
+
+    // Preenche tabela
+    const tbody = document.querySelector('#tabelaAlertaAdi tbody');
+    tbody.innerHTML = '';
+    criticos.forEach(adi => {
+        const diff = Math.ceil((new Date(adi.venc) - hoje) / (1000 * 60 * 60 * 24));
+        let cls, txt;
+        if (diff < 0) {
+            cls = 'prazo-vencido';
+            txt = `⚠️ VENCIDA há ${Math.abs(diff)} dia(s)`;
+        } else if (diff === 0) {
+            cls = 'prazo-vencido';
+            txt = '⚠️ VENCE HOJE';
+        } else {
+            cls = 'prazo-urgente';
+            txt = `⏳ ${diff} dia(s)`;
+        }
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${adi.nf}</b></td>
+                <td>${adi.fornecedor}</td>
+                <td>${new Date(adi.venc).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                <td>R$ ${formatarValor(adi.valor)}</td>
+                <td><span class="status-prazo ${cls}">${txt}</span></td>
+            </tr>`;
+    });
+
+    // Exibe o modal e toca o som
+    document.getElementById('modalAlertaAdi').style.display = 'flex';
+    tocarSomMSN();
+    alertaJaExibido = true;
+}
+
 // --- SISTEMA DE LOGIN ---
 
 async function realizarLogin() {
@@ -69,8 +168,6 @@ async function realizarLogin() {
 
         if (data.ok) {
             loginAtual = u;
-
-            // PRIMEIRO ACESSO — exibe tela de troca de senha
             if (data.primeiroAcesso) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('primeiroAcessoScreen').style.display = 'flex';
@@ -92,22 +189,21 @@ async function realizarLogin() {
 // --- TROCA DE SENHA (PRIMEIRO ACESSO) ---
 
 async function confirmarNovaSenha() {
-    const nova = document.getElementById('novaSenha').value.trim();
+    const nova     = document.getElementById('novaSenha').value.trim();
     const confirma = document.getElementById('confirmaSenha').value.trim();
 
     if (!nova || nova.length < 6) return mostrarErro('trocaErro', '⚠️ A senha deve ter pelo menos 6 caracteres.');
-    if (nova !== confirma) return mostrarErro('trocaErro', '⚠️ As senhas não coincidem.');
+    if (nova !== confirma)        return mostrarErro('trocaErro', '⚠️ As senhas não coincidem.');
 
     const btn = document.getElementById('btnConfirmarSenha');
     btn.disabled = true;
     btn.innerText = "SALVANDO...";
 
     try {
-        const res = await fetch(`${URL_SCRIPT}?action=trocarSenha&login=${encodeURIComponent(loginAtual)}&novaSenha=${encodeURIComponent(nova)}`);
+        const res  = await fetch(`${URL_SCRIPT}?action=trocarSenha&login=${encodeURIComponent(loginAtual)}&novaSenha=${encodeURIComponent(nova)}`);
         const data = await res.json();
 
         if (data.ok) {
-            // Login automático após troca bem-sucedida
             document.getElementById('primeiroAcessoScreen').style.display = 'none';
             entrarNoSistema(data);
         } else {
@@ -122,6 +218,7 @@ async function confirmarNovaSenha() {
 }
 
 function entrarNoSistema(data) {
+    alertaJaExibido = false; // reseta o flag ao entrar
     usuarioAtual = { nome: data.nome, role: data.role };
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
@@ -136,8 +233,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') realizarLogin(); });
     document.getElementById('userInput').addEventListener('keydown', e => { if (e.key === 'Enter') realizarLogin(); });
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
-    document.getElementById('searchModal').addEventListener('click', function(e) {
-        if (e.target === this) fecharModal('searchModal');
+
+    // Fecha modais clicando fora
+    ['searchModal', 'modalAlertaAdi'].forEach(id => {
+        document.getElementById(id).addEventListener('click', function(e) {
+            if (e.target === this) fecharModal(id);
+        });
     });
 });
 
@@ -148,11 +249,11 @@ async function carregarEstatisticas() {
     document.getElementById('dash-content').style.display = 'none';
 
     try {
-        const res = await fetch(URL_SCRIPT);
+        const res  = await fetch(URL_SCRIPT);
         const data = await res.json();
 
         document.getElementById('setorMediaGeral').innerText = data.statsSetor.mediaGeral;
-        document.getElementById('setorForn').innerText = data.statsSetor.topForn;
+        document.getElementById('setorForn').innerText       = data.statsSetor.topForn;
 
         const tbodyAdi = document.querySelector("#tabelaMonitorAdi tbody");
         tbodyAdi.innerHTML = "";
@@ -175,7 +276,7 @@ async function carregarEstatisticas() {
                     const venc = new Date(adi.venc);
                     const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
                     let cls = "prazo-ok", txt = "No Prazo";
-                    if (diff < 0) { cls = "prazo-vencido"; txt = "⚠️ VENCIDO"; }
+                    if (diff < 0)      { cls = "prazo-vencido"; txt = "⚠️ VENCIDO"; }
                     else if (diff <= 7) { cls = "prazo-urgente"; txt = "⏳ URGENTE"; }
                     tbodyAdi.innerHTML += `
                         <tr>
@@ -188,8 +289,15 @@ async function carregarEstatisticas() {
                         </tr>`;
                 });
             }
+
+            // ── ALERTA DE LOGIN: dispara apenas uma vez por sessão ──
+            if (!alertaJaExibido) {
+                exibirAlertaAdiantamento(adiantamentosParaExibir);
+            }
+
         } else {
-            document.querySelector("#tabelaMonitorAdi tbody").innerHTML = "<tr><td colspan='6' style='text-align:center'>Nenhum adiantamento pendente.</td></tr>";
+            document.querySelector("#tabelaMonitorAdi tbody").innerHTML =
+                "<tr><td colspan='6' style='text-align:center'>Nenhum adiantamento pendente.</td></tr>";
         }
 
         if (usuarioAtual.role === 'gestor') {
@@ -207,7 +315,8 @@ async function carregarEstatisticas() {
         document.getElementById('dash-loading').style.display = 'none';
         document.getElementById('dash-content').style.display = 'block';
     } catch (e) {
-        document.getElementById('dash-loading').innerHTML = "<p style='color:var(--danger)'>Erro ao carregar dados do Google Sheets.</p>";
+        document.getElementById('dash-loading').innerHTML =
+            "<p style='color:var(--danger)'>Erro ao carregar dados do Google Sheets.</p>";
     }
 }
 
@@ -228,7 +337,7 @@ function switchTab(aba) {
         document.getElementById('view-forms').style.display = 'block';
         document.getElementById('tabTitle').innerText = "Lote de Notas: " + aba;
         document.getElementById('fieldNumAdi').style.display = (aba === 'Adiantamento') ? 'flex' : 'none';
-        document.getElementById('fieldLote').style.display = (aba === 'Adiantamento') ? 'none' : 'flex';
+        document.getElementById('fieldLote').style.display   = (aba === 'Adiantamento') ? 'none' : 'flex';
         configurarStatusCard(aba);
         configurarTableHeader();
         atualizarTabela();
@@ -279,18 +388,20 @@ function adicionarNota() {
     if (!nf) return alert("Número da NF é obrigatório!");
 
     const nota = {
-        destino: abaAtual,
-        responsavel: usuarioAtual.nome,
-        data: document.getElementById('f_data').value,
-        nf: nf,
-        fornecedor: document.getElementById('f_fornecedor').value,
-        razaoSocial: document.getElementById('f_razao').value,
-        vencimento: document.getElementById('f_vencimento').value,
-        valor: document.getElementById('f_valor').value,
-        setor: document.getElementById('f_setor').value || "GERAL",
-        possuiLote: document.getElementById('f_lote').value,
+        destino:         abaAtual,
+        responsavel:     usuarioAtual.nome,
+        data:            document.getElementById('f_data').value,
+        nf:              nf,
+        fornecedor:      document.getElementById('f_fornecedor').value,
+        razaoSocial:     document.getElementById('f_razao').value,
+        vencimento:      document.getElementById('f_vencimento').value,
+        valor:           document.getElementById('f_valor').value,
+        setor:           document.getElementById('f_setor').value || "GERAL",
+        possuiLote:      document.getElementById('f_lote').value,
         numAdiantamento: document.getElementById('f_num_adi').value,
-        statusDigitacao: abaAtual === 'Digitadas' ? (document.querySelector('input[name="gSis"]:checked')?.value + " | " + document.querySelector('input[name="gPro"]:checked')?.value) : ""
+        statusDigitacao: abaAtual === 'Digitadas'
+            ? (document.querySelector('input[name="gSis"]:checked')?.value + " | " + document.querySelector('input[name="gPro"]:checked')?.value)
+            : ""
     };
 
     listas[abaAtual].push(nota);
@@ -349,7 +460,7 @@ function copiarProtocolo() {
 // --- BUSCA GLOBAL ---
 
 async function buscarNoBanco() {
-    const q = document.getElementById('inputBusca').value;
+    const q   = document.getElementById('inputBusca').value;
     const btn = document.querySelector('.btn-search-global');
     if (q.length < 3) return alert("Digite ao menos 3 caracteres.");
 
@@ -358,9 +469,9 @@ async function buscarNoBanco() {
     btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
 
     try {
-        const res = await fetch(`${URL_SCRIPT}?search=${encodeURIComponent(q)}&tab=${abaAtual}`);
+        const res     = await fetch(`${URL_SCRIPT}?search=${encodeURIComponent(q)}&tab=${abaAtual}`);
         const results = await res.json();
-        const tbody = document.querySelector("#tabelaResultados tbody");
+        const tbody   = document.querySelector("#tabelaResultados tbody");
         tbody.innerHTML = "";
 
         if (results.length === 0) {

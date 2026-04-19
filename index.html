@@ -110,6 +110,62 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         MODAL ALERTA DE ADIANTAMENTOS — POPUP DE LOGIN
+    ====================================================== -->
+    <div id="modalAlertaAdi" class="modal" style="display:none;">
+        <div class="modal-content alerta-adi-content">
+
+            <!-- Cabeçalho do alerta -->
+            <div class="alerta-adi-header">
+                <div class="alerta-adi-icon-wrap">
+                    <i class="ph ph-warning-diamond alerta-adi-icon"></i>
+                </div>
+                <div>
+                    <h3 class="alerta-adi-titulo">ATENÇÃO — ADIANTAMENTOS COM PRAZO</h3>
+                    <p class="alerta-adi-subtitulo">
+                        Você possui notas de adiantamento que requerem atenção imediata.
+                        Verifique os itens abaixo e tome as providências necessárias.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Contadores rápidos -->
+            <div class="alerta-adi-counters">
+                <div class="alerta-counter vencido" id="cntVencido">
+                    <span class="counter-num" id="numVencidas">0</span>
+                    <span class="counter-label">VENCIDAS</span>
+                </div>
+                <div class="alerta-counter urgente" id="cntUrgente">
+                    <span class="counter-num" id="numUrgentes">0</span>
+                    <span class="counter-label">VENCEM EM ATÉ 7 DIAS</span>
+                </div>
+            </div>
+
+            <!-- Tabela de notas críticas -->
+            <div class="table-container" style="margin-top: 20px;">
+                <table id="tabelaAlertaAdi">
+                    <thead>
+                        <tr>
+                            <th>NF</th>
+                            <th>FORNECEDOR</th>
+                            <th>VENCIMENTO</th>
+                            <th>VALOR</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Botão de fechar -->
+            <button class="btn-alerta-fechar" onclick="fecharModal('modalAlertaAdi')">
+                <i class="ph ph-check-circle"></i> ESTOU CIENTE — FECHAR AVISO
+            </button>
+
+        </div>
+    </div>
+
     <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
         <nav>

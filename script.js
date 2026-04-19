@@ -18,6 +18,19 @@ let listas = { "Digitadas": [], "Recebimento": [], "Adiantamento": [] };
 
 // --- UTILITÁRIOS ---
 
+// Converte valor de forma segura, aceitando vírgula ou ponto como separador decimal
+function parseValor(valor) {
+    const num = parseFloat(String(valor ?? '0').replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+}
+
+// Formata valor para moeda brasileira de forma segura
+function formatarValor(valor) {
+    if (valor === null || valor === undefined || valor === "") return "---";
+    const num = parseFloat(String(valor).replace(',', '.'));
+    return isNaN(num) ? "---" : num.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+}
+
 // Corrige a exibição da data para o padrão brasileiro sem erro de fuso
 function formatarDataBR(iso) {
     if (!iso) return "---";
@@ -37,18 +50,14 @@ function logout() { location.reload(); }
 // --- BOTÃO DE REFRESH DINÂMICO ---
 async function refreshData() {
     const icon = document.getElementById('refreshIcon');
-    icon.classList.add('rotating'); // Inicia animação de giro no CSS
+    icon.classList.add('rotating');
     
-    // Recarrega estatísticas e adiantamentos
     await carregarEstatisticas();
     
-    // Remove a animação após 1 segundo para feedback visual
     setTimeout(() => icon.classList.remove('rotating'), 1000);
 }
 
 // --- SISTEMA DE LOGIN ---
-
-// --- DENTRO DA FUNÇÃO realizarLogin() ---
 
 function realizarLogin() {
     const u = document.getElementById('userInput').value.toLowerCase();
@@ -58,12 +67,10 @@ function realizarLogin() {
     if (user) {
         usuarioAtual = user;
         
-        // Esconde login e mostra app
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('mainHeader').style.display = 'flex';
         document.getElementById('app').style.display = 'block';
         
-        // ATUALIZA O NOME NO HEADER (Novo ID)
         document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
         
         switchTab('Dashboard');
@@ -94,13 +101,11 @@ async function carregarEstatisticas() {
             const hoje = new Date(); 
             hoje.setHours(0,0,0,0);
 
-            // REGRA: Gestor vê tudo | Digitador vê apenas o dele
             let adiantamentosParaExibir = data.adiantamentosSetor;
             if (usuarioAtual.role === "digitador") {
                 adiantamentosParaExibir = data.adiantamentosSetor.filter(adi => adi.responsavel === usuarioAtual.nome);
             }
 
-            // Ordenação por Vencimento (mais urgentes primeiro)
             adiantamentosParaExibir.sort((a,b) => new Date(a.venc) - new Date(b.venc));
             
             if (adiantamentosParaExibir.length === 0) {
@@ -120,7 +125,7 @@ async function carregarEstatisticas() {
                             <td>${adi.nf}</td>
                             <td>${adi.fornecedor}</td>
                             <td>${new Date(adi.venc).toLocaleDateString('pt-BR', {timeZone:'UTC'})}</td>
-                            <td>R$ ${parseFloat(adi.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                            <td>R$ ${formatarValor(adi.valor)}</td>
                             <td><span class="status-prazo ${cls}">${txt}</span></td>
                         </tr>`;
                 });
@@ -164,7 +169,6 @@ function switchTab(aba) {
         document.getElementById('view-forms').style.display = 'block';
         document.getElementById('tabTitle').innerText = "Lote de Notas: " + aba;
         
-        // Exibe campos específicos conforme a aba
         document.getElementById('fieldNumAdi').style.display = (aba === 'Adiantamento') ? 'flex' : 'none';
         document.getElementById('fieldLote').style.display = (aba === 'Adiantamento') ? 'none' : 'flex';
         
@@ -223,11 +227,11 @@ function adicionarNota() {
         data: document.getElementById('f_data').value,
         nf: nf,
         fornecedor: document.getElementById('f_fornecedor').value,
-        razaoSocial: document.getElementById('f_razao').value, // HC / FZ / OUTROS
+        razaoSocial: document.getElementById('f_razao').value,
         vencimento: document.getElementById('f_vencimento').value,
         valor: document.getElementById('f_valor').value,
         setor: document.getElementById('f_setor').value || "GERAL",
-        possuiLote: document.getElementById('f_lote').value, // Sim / Não (irá para a última coluna)
+        possuiLote: document.getElementById('f_lote').value,
         numAdiantamento: document.getElementById('f_num_adi').value,
         statusDigitacao: abaAtual === 'Digitadas' ? (document.querySelector('input[name="gSis"]:checked')?.value + " | " + document.querySelector('input[name="gPro"]:checked')?.value) : ""
     };
@@ -235,7 +239,6 @@ function adicionarNota() {
     listas[abaAtual].push(nota);
     atualizarTabela();
     
-    // Limpa e foca no próximo lançamento
     document.getElementById('f_nf').value = "";
     document.getElementById('f_nf').focus();
 }
@@ -250,7 +253,7 @@ function atualizarTabela() {
                 <td>${n.fornecedor}</td>
                 <td>${n.razaoSocial}</td>
                 <td>${formatarDataBR(n.vencimento)}</td>
-                <td>R$ ${parseFloat(n.valor).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+                <td>R$ ${formatarValor(n.valor)}</td>
                 <td><button onclick="removerNota(${i})" style="border:none;background:none;cursor:pointer;color:var(--danger)"><i class="ph ph-trash" style="font-size:20px"></i></button></td>
             </tr>`;
     });
@@ -282,7 +285,7 @@ async function enviarTudo() {
 
 function copiarProtocolo() {
     let t = `*PROTOCOLO - ${usuarioAtual.nome.toUpperCase()}*\n`;
-    listas[abaAtual].forEach(n => t += `NF: ${n.nf} | ${n.fornecedor} | R$ ${n.valor}\n`);
+    listas[abaAtual].forEach(n => t += `NF: ${n.nf} | ${n.fornecedor} | R$ ${formatarValor(n.valor)}\n`);
     navigator.clipboard.writeText(t).then(() => alert("Copiado para a área de transferência!"));
 }
 
@@ -290,22 +293,51 @@ function copiarProtocolo() {
 
 async function buscarNoBanco() {
     const q = document.getElementById('inputBusca').value;
-    if (q.length < 3) return alert("Digite ao menos 3 caracteres.");
+    const btn = document.querySelector('.btn-search-global');
     
+    if (q.length < 3) return alert("Digite ao menos 3 caracteres.");
+
+    const originalContent = btn.innerHTML;
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
+
     try {
         const res = await fetch(`${URL_SCRIPT}?search=${q}&tab=${abaAtual}`);
         const results = await res.json();
+        
         const tbody = document.querySelector("#tabelaResultados tbody");
         tbody.innerHTML = "";
         
-        results.forEach(r => {
-            const dF = r.data ? new Date(r.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : "---";
-            tbody.innerHTML += `<tr><td><b>${r.responsavel}</b></td><td>${dF}</td><td><b>${r.nf}</b></td><td>${r.fornecedor}</td><td>R$ ${r.valor}</td><td>${r.status}</td></tr>`;
-        });
-        document.getElementById('searchModal').style.display = 'block';
+        if (results.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='6' style='text-align:center'>Nenhum registro encontrado.</td></tr>";
+        } else {
+            results.forEach(r => {
+                const dF = r.data ? new Date(r.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : "---";
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${r.responsavel}</b></td>
+                        <td>${dF}</td>
+                        <td><b>${r.nf}</b></td>
+                        <td>${r.fornecedor}</td>
+                        <td>R$ ${formatarValor(r.valor)}</td>
+                        <td>${r.status || 'FINALIZADO'}</td>
+                    </tr>`;
+            });
+        }
+
+        document.getElementById('searchModal').style.display = 'flex';
+
     } catch (e) {
-        alert("Erro na busca global.");
+        alert("Erro na busca global. Verifique a conexão com a planilha.");
+    } finally {
+        btn.classList.remove('loading');
+        btn.innerHTML = originalContent;
     }
 }
 
 function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// Fecha modal ao clicar fora do conteúdo
+document.getElementById('searchModal').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal('searchModal');
+});

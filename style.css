@@ -250,7 +250,7 @@ header {
     color: white;
     padding: 10px 40px;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-evenly;
     align-items: center;
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     z-index: 1100;
@@ -281,7 +281,7 @@ header {
 .header-center h1 span {
     font-family: 'Inter', sans-serif;
     font-size: 8.5px;
-    font-weight: 300;
+    font-weight: 800;
     letter-spacing: 4px;
     color: var(--accent);
     text-transform: uppercase;
@@ -504,53 +504,149 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
 
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-/* --- 10. BUSCA GLOBAL --- */
+/* --- 10. BUSCA GLOBAL (CORRIGIDA E INTERATIVA) --- */
 
-.search-section { margin-top: 30px; }
+.search-section {
+    margin-top: 40px;
+    display: flex;        /* Ativa o flexbox */
+    justify-content: center; /* Centraliza a barra de busca no meio da tela */
+    width: 100%;
+}
 
 .search-box {
     display: flex;
-    gap: 12px;
+    gap: 15px;
     background: var(--bg-system);
-    padding: 8px 8px 8px 20px;
-    border-radius: 15px;
+    padding: 10px 10px 10px 25px;
+    border-radius: 20px;
     align-items: center;
     border: 1.5px solid var(--border);
+    transition: var(--transition);
+    width: 100%;
+    max-width: 800px; /* Limita a largura para a barra não esticar demais */
 }
 
-.search-box input { border: none; background: transparent; flex: 1; outline: none; }
+.search-box:focus-within {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: var(--shadow-md);
+}
 
+.search-box input {
+    border: none;
+    background: transparent;
+    flex: 1;
+    color: var(--text-main);
+    font-size: 15px;
+    outline: none;
+}
+
+/* --- 10. BUSCA GLOBAL (CENTRALIZADA E INTERATIVA) --- */
+
+.search-section {
+    margin-top: 40px;
+    width: 100%;
+    display: flex;           /* Ativa o flexbox */
+    justify-content: center;  /* Centraliza o conteúdo horizontalmente */
+    padding: 0 20px;
+}
+
+.search-box {
+    display: flex;
+    gap: 15px;
+    background: var(--bg-system);
+    padding: 8px 8px 8px 25px;
+    border-radius: 20px;
+    align-items: center;
+    border: 1.5px solid var(--border);
+    width: 100%;
+    max-width: 800px;        /* Define um tamanho limite para não esticar na tela toda */
+    transition: var(--transition);
+}
+
+.search-box:focus-within {
+    background: var(--card-bg);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+}
+
+.search-box input {
+    border: none;
+    background: transparent;
+    flex: 1;
+    color: var(--text-main);
+    font-size: 15px;
+    outline: none;
+}
+
+/* BOTÃO COM ANIMAÇÃO DE HOVER E CLIQUE */
 .btn-search-global {
     background: var(--accent);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-weight: 900;
+    padding: 10px 25px;
+    border-radius: 12px;
+    font-weight: 800;
     font-size: 11px;
+    text-transform: uppercase;
     cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transição suave */
 }
 
-/* --- 11. MODAL (BLINDAGEM TOTAL) --- */
+.btn-search-global:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px); /* Eleva o botão no mouse */
+    box-shadow: 0 8px 15px rgba(2, 132, 199, 0.3); /* Adiciona o brilho azul */
+}
 
+.btn-search-global:active {
+    transform: scale(0.95); /* Efeito de "apertar" ao clicar */
+}
+
+/* --- AJUSTE DO MODAL (CENTRALIZADO E SCROLLÁVEL) --- */
 .modal {
-    display: none;
+    display: none; /* Alterado para flex via JS quando aberto */
     position: fixed;
     z-index: 4000;
-    left: 0; top: 0; width: 100%; height: 100%;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
     background: rgba(0,0,0,0.8);
     backdrop-filter: blur(10px);
+    
+    /* Centralização absoluta */
     align-items: center;
     justify-content: center;
 }
 
 .modal-content {
-    background: #fff;
+    background: var(--card-bg);
     padding: 35px;
     border-radius: 24px;
     width: 90%;
     max-width: 1100px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    
+    /* Scroll interno corrigido */
+    max-height: 85vh; /* Não deixa o modal passar da altura da tela */
+    overflow-y: auto; /* Cria a barra de rolagem se houver muitas notas */
+}
+
+/* --- ANIMAÇÃO DE CARREGAMENTO NO BOTÃO --- */
+.rotating {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Estilo do botão quando estiver "carregando" */
+.btn-search-global.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* --- 12. BOTÕES DE AÇÃO --- */
@@ -578,17 +674,24 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .rotating { animation: spin 1s linear infinite; }
 
-.monitor-section{margin-top: 30px};
+.monitor-section { margin-top: 30px; }
+
+
 
 
 /* --- 14. RODAPÉ --- */
-
-footer {
-    padding: 35px;
+.mainFooter {
+    width: 100%;
+    padding: 25px 0; /* Ajustei para ficar mais elegante */
     text-align: center;
-    background: var(--primary);
-    color: rgba(255,255,255,0.2);
-    font-size: 10px;
+    background: var(--primary); /* O azul escuro do InCor */
+    color: rgba(255, 255, 255, 0.4); /* Texto sutil */
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: auto; /* Empurra o footer para o fim da página se houver pouco conteúdo */
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* --- 15. RESPONSIVIDADE --- */

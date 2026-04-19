@@ -9,13 +9,13 @@
 </head>
 <body>
 
+    <!-- TELA DE LOGIN -->
     <section id="loginScreen">
         <div class="login-box">
             <div class="login-header">
                 <img src="logo core csm.png" alt="CORE SCM Logo" class="login-logo">
-                <h2>Acesso ao CORE SCM <br>  Unidade de Suprimentos </h2>
+                <h2>Acesso ao CORE SCM <br> Unidade de Suprimentos</h2>
             </div>
-            
             <div class="login-inputs">
                 <div class="field-group">
                     <label>Usuário</label>
@@ -26,43 +26,57 @@
                     <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password">
                 </div>
             </div>
-
-            <button class="btn-login-final" onclick="realizarLogin()">
-                ENTRAR NO SISTEMA
-            </button>
+            <div class="login-erro" id="loginErro"></div>
+            <button class="btn-login-final" onclick="realizarLogin()">ENTRAR NO SISTEMA</button>
         </div>
     </section>
 
+    <!-- TELA DE PRIMEIRO ACESSO / TROCA DE SENHA -->
+    <section id="primeiroAcessoScreen" style="display:none">
+        <div class="login-box troca-senha-box">
+            <div class="login-header">
+                <img src="logo core csm.png" alt="CORE SCM Logo" class="login-logo">
+                <h2>Bem-vindo(a), <span id="nomeBoasVindas" style="color:var(--accent)"></span>!</h2>
+                <p class="troca-subtitulo">Este é seu primeiro acesso. Por segurança, crie uma senha pessoal para continuar.</p>
+            </div>
+            <div class="login-inputs">
+                <div class="field-group">
+                    <label>Nova Senha</label>
+                    <input type="password" id="novaSenha" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="field-group">
+                    <label>Confirmar Nova Senha</label>
+                    <input type="password" id="confirmaSenha" placeholder="Repita a senha">
+                </div>
+            </div>
+            <div class="login-erro" id="trocaErro"></div>
+            <button class="btn-login-final" id="btnConfirmarSenha" onclick="confirmarNovaSenha()">SALVAR E ENTRAR</button>
+        </div>
+    </section>
+
+    <!-- HEADER -->
     <header id="mainHeader" style="display:none">
         <div class="header-left">
             <img src="logo core csm.png" alt="CORE SCM Logo" class="logo-img">
         </div>
-
         <div class="header-center">
             <div class="brand-title">
-                <h1>
-                    CORE SCM
-                    <span>Supply Chain Management Engine</span>
-                </h1>
+                <h1>CORE SCM<span>Supply Chain Management Engine</span></h1>
             </div>
         </div>
-
         <div class="header-right">
             <div class="user-info-header">
                 <i class="ph ph-user-circle"></i>
                 <span id="userNameHeader">USUÁRIO</span>
             </div>
-
             <div class="refresh-btn" onclick="refreshData()" title="Sincronizar base agora">
                 <i id="refreshIcon" class="ph ph-arrows-clockwise"></i>
                 <span>ATUALIZAR</span>
             </div>
-            
             <div class="theme-toggle" onclick="toggleTheme()">
                 <i id="themeIcon" class="ph ph-moon"></i>
                 <span>DARK</span>
             </div>
-            
             <div class="logout-btn" onclick="logout()">
                 <i class="ph ph-sign-out"></i>
                 <span>SAIR</span>
@@ -70,6 +84,7 @@
         </div>
     </header>
 
+    <!-- MODAL BUSCA GLOBAL -->
     <div id="searchModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -94,8 +109,8 @@
         </div>
     </div>
 
+    <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
-        
         <nav>
             <button class="nav-btn" id="btn-dashboard" onclick="switchTab('Dashboard')">
                 <i class="ph ph-chart-line"></i> DASHBOARD
@@ -112,15 +127,13 @@
         </nav>
 
         <main class="container">
-            
+
             <div id="view-dashboard" style="display:none">
                 <h2 class="view-title">Performance Operacional</h2>
-
                 <div id="dash-loading" class="loading-overlay">
                     <div class="spinner"></div>
                     <p>Sincronizando com Google Sheets...</p>
                 </div>
-
                 <div id="dash-content" style="display:none">
                     <div class="dashboard-grid">
                         <div class="stat-card">
@@ -134,7 +147,6 @@
                             <h3 id="setorForn">---</h3>
                         </div>
                     </div>
-
                     <div class="monitor-section">
                         <h3 class="section-subtitle"><i class="ph ph-clock-countdown"></i> MEUS ADIANTAMENTOS E PRAZOS</h3>
                         <div class="table-container">
@@ -153,7 +165,6 @@
                             </table>
                         </div>
                     </div>
-
                     <div id="dash-gestor" style="display:none; margin-top: 40px;">
                         <h3 class="section-subtitle"><i class="ph ph-presentation-chart"></i> PRODUTIVIDADE INDIVIDUAL DO SETOR</h3>
                         <div class="table-container">
@@ -178,7 +189,6 @@
                 <div class="header-tab">
                     <h2 id="tabTitle">Relatório de Notas</h2>
                 </div>
-
                 <form id="notaForm">
                     <div class="form-grid">
                         <div class="field-group">
@@ -220,15 +230,12 @@
                                 <option value="Não">Não</option>
                             </select>
                         </div>
-
                         <div class="field-group" id="fieldNumAdi" style="display:none">
                             <label>Nº Entrada Adiantamento</label>
                             <input type="text" id="f_num_adi">
                         </div>
-                        
                         <div id="fieldStatus" class="status-card"></div>
                     </div>
-                    
                     <button type="button" class="btn-add-lote" onclick="adicionarNota()">
                         <i class="ph ph-plus-circle"></i> ADICIONAR AO LOTE ATUAL
                     </button>

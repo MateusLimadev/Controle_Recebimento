@@ -3,27 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suprimentos Pro - InCor</title>
+    <title>CORE SCM - Supply Chain Management Engine</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
 
-    <header id="mainHeader" style="display:none">
-        <div class="brand">
-            <i class="ph-fill ph-package"></i>
-            <h1>CONTROLE DE NOTAS FISCAIS UN SUPRIMENTOS</h1>
+    <section id="loginScreen">
+        <div class="login-box">
+            <div class="login-header">
+                <img src="logo core csm.png" alt="CORE SCM Logo" class="login-logo">
+                <h2>Acesso Unidade Suprimentos</h2>
+            </div>
+            
+            <div class="login-inputs">
+                <div class="field-group">
+                    <label>Usuário</label>
+                    <input type="text" id="userInput" placeholder="Digite seu login" autocomplete="username">
+                </div>
+                <div class="field-group">
+                    <label>Senha</label>
+                    <input type="password" id="passInput" placeholder="••••••••" autocomplete="current-password">
+                </div>
+            </div>
+
+            <button class="btn-login-final" onclick="realizarLogin()">
+                ENTRAR NO SISTEMA
+            </button>
         </div>
-        <div class="header-controls">
-            <div class="refresh-btn" onclick="refreshData()" title="Sincronizar dados agora">
+    </section>
+
+    <header id="mainHeader" style="display:none">
+        <div class="header-left">
+            <img src="logo core csm.png" alt="CORE SCM Logo" class="logo-img">
+        </div>
+
+        <div class="header-center">
+            <div class="brand-title">
+                <i class="ph-fill ph-cube"></i>
+                <h1>
+                    CORE SCM
+                    <span>Supply Chain Management Engine</span>
+                </h1>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="user-info-header">
+                <i class="ph ph-user-circle"></i>
+                <span id="userNameHeader">USUÁRIO</span>
+            </div>
+
+            <div class="refresh-btn" onclick="refreshData()" title="Sincronizar base agora">
                 <i id="refreshIcon" class="ph ph-arrows-clockwise"></i>
                 <span>ATUALIZAR</span>
             </div>
             
             <div class="theme-toggle" onclick="toggleTheme()">
                 <i id="themeIcon" class="ph ph-moon"></i>
-                <span id="themeText">DARK</span>
+                <span>DARK</span>
             </div>
+            
             <div class="logout-btn" onclick="logout()">
                 <i class="ph ph-sign-out"></i>
                 <span>SAIR</span>
@@ -31,25 +71,13 @@
         </div>
     </header>
 
-    <div id="loginScreen" class="container login-box">
-        <i class="ph-fill ph-shield-check" style="font-size: 60px; color: var(--accent)"></i>
-        <h2 style="margin: 20px 0;">Acesso Unidade Suprimentos</h2>
-        <div class="login-inputs">
-            <input type="text" id="userInput" placeholder="Usuário">
-            <input type="password" id="passInput" placeholder="Senha" style="margin-top:12px">
-        </div>
-        <button class="btn btn-add" style="margin-top:30px" onclick="realizarLogin()">
-            ENTRAR NO SISTEMA
-        </button>
-    </div>
-
     <div id="searchModal" class="modal" style="display: none;">
-        <div class="modal-content modal-large">
+        <div class="modal-content">
             <div class="modal-header">
-                <h3>🔍 RESULTADOS DA BUSCA GLOBAL</h3>
+                <h3><i class="ph ph-magnifying-glass"></i> RESULTADOS DA BUSCA GLOBAL</h3>
                 <i class="ph ph-x" onclick="fecharModal('searchModal')" style="cursor:pointer; font-size: 24px;"></i>
             </div>
-            <div class="table-container" style="max-height: 500px;">
+            <div class="table-container">
                 <table id="tabelaResultados">
                     <thead>
                         <tr>
@@ -68,6 +96,7 @@
     </div>
 
     <div id="app" style="display:none">
+        
         <nav>
             <button class="nav-btn" id="btn-dashboard" onclick="switchTab('Dashboard')">
                 <i class="ph ph-chart-line"></i> DASHBOARD
@@ -86,29 +115,29 @@
         <main class="container">
             
             <div id="view-dashboard" style="display:none">
-                <h2 id="dashTitle">Performance Operacional</h2>
+                <h2 class="view-title">Performance Operacional</h2>
 
                 <div id="dash-loading" class="loading-overlay">
                     <div class="spinner"></div>
-                    <p>Sincronizando com a base do Google Sheets...</p>
+                    <p>Sincronizando com CORE SCM...</p>
                 </div>
 
                 <div id="dash-content" style="display:none">
                     <div class="dashboard-grid">
-                        <div class="stat-card large">
+                        <div class="stat-card">
                             <i class="ph ph-users-three"></i>
                             <small>MÉDIA TOTAL DO SETOR (NOTAS/DIA)</small>
                             <h3 id="setorMediaGeral">0.0</h3>
                         </div>
-                        <div class="stat-card large">
+                        <div class="stat-card">
                             <i class="ph ph-factory"></i>
                             <small>TOP FORNECEDOR (GERAL)</small>
-                            <h3 id="setorForn" style="font-size: 1.6rem;">---</h3>
+                            <h3 id="setorForn">---</h3>
                         </div>
                     </div>
 
-                    <div class="monitor-section" style="margin-top: 40px;">
-                        <h3 class="section-title"><i class="ph ph-clock-countdown"></i> MEUS ADIANTAMENTOS E PRAZOS</h3>
+                    <div class="monitor-section">
+                        <h3 class="section-subtitle"><i class="ph ph-clock-countdown"></i> MEUS ADIANTAMENTOS E PRAZOS</h3>
                         <div class="table-container">
                             <table id="tabelaMonitorAdi">
                                 <thead>
@@ -126,8 +155,8 @@
                         </div>
                     </div>
 
-                    <div id="dash-gestor" style="display:none; margin-top: 50px;">
-                        <h3 class="section-title"><i class="ph ph-presentation-chart"></i> PRODUTIVIDADE INDIVIDUAL DO SETOR</h3>
+                    <div id="dash-gestor" style="display:none; margin-top: 40px;">
+                        <h3 class="section-subtitle"><i class="ph ph-presentation-chart"></i> PRODUTIVIDADE INDIVIDUAL DO SETOR</h3>
                         <div class="table-container">
                             <table id="tabelaGestao">
                                 <thead>
@@ -149,17 +178,13 @@
             <div id="view-forms">
                 <div class="header-tab">
                     <h2 id="tabTitle">Lote de Notas</h2>
-                    <div class="user-badge">
-                        <small>OPERADOR</small><br>
-                        <span id="userDisplay"></span>
-                    </div>
                 </div>
 
                 <form id="notaForm">
                     <div class="form-grid">
                         <div class="field-group">
                             <label>Número NF</label>
-                            <input type="text" id="f_nf" required placeholder="Ex: 123.456">
+                            <input type="text" id="f_nf" required placeholder="000.000">
                         </div>
                         <div class="field-group fg-2">
                             <label>Fornecedor</label>
@@ -187,14 +212,8 @@
                         </div>
                         <div class="field-group">
                             <label>Setor Destino</label>
-                            <input type="text" id="f_setor" placeholder="Ex: Farmácia">
+                            <input type="text" id="f_setor">
                         </div>
-
-                        <div class="field-group" id="fieldNumAdi" style="display:none">
-                            <label>Nº Entrada Adiantamento</label>
-                            <input type="text" id="f_num_adi">
-                        </div>
-
                         <div class="field-group" id="fieldLote">
                             <label>Possui Lote?</label>
                             <select id="f_lote">
@@ -203,19 +222,24 @@
                             </select>
                         </div>
 
+                        <div class="field-group" id="fieldNumAdi" style="display:none">
+                            <label>Nº Entrada Adiantamento</label>
+                            <input type="text" id="f_num_adi">
+                        </div>
+                        
                         <div id="fieldStatus" class="status-card"></div>
                     </div>
                     
-                    <button type="button" class="btn btn-add" onclick="adicionarNota()">
-                        <i class="ph ph-plus-circle"></i> ADIANTAR PARA O LOTE ATUAL
+                    <button type="button" class="btn-add-lote" onclick="adicionarNota()">
+                        <i class="ph ph-plus-circle"></i> ADICIONAR AO LOTE ATUAL
                     </button>
                 </form>
 
                 <div class="search-section">
                     <div class="search-box">
                         <i class="ph ph-magnifying-glass"></i>
-                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico...">
-                        <button class="btn-search" onclick="buscarNoBanco()">PESQUISAR GLOBAL</button>
+                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico do CORE SCM...">
+                        <button class="btn-search-global" onclick="buscarNoBanco()">PESQUISAR GLOBAL</button>
                     </div>
                 </div>
 
@@ -227,15 +251,15 @@
                 </div>
 
                 <div class="actions-footer" id="areaAcoes" style="display:none">
-                    <button class="btn btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
-                    <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
+                    <button class="btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
+                    <button class="btn-sync" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
                 </div>
             </div>
         </main>
     </div>
 
     <footer id="mainFooter" style="display:none">
-        Supply Unit - InCor | Desenvolvido por Mateus Lima &copy; 2026
+        CORE SCM - Supply Chain Management Engine | InCor - Unidade Suprimentos &copy; 2026
     </footer>
 
     <script src="script.js"></script>

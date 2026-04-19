@@ -48,6 +48,8 @@ async function refreshData() {
 
 // --- SISTEMA DE LOGIN ---
 
+// --- DENTRO DA FUNÇÃO realizarLogin() ---
+
 function realizarLogin() {
     const u = document.getElementById('userInput').value.toLowerCase();
     const s = document.getElementById('passInput').value;
@@ -55,13 +57,18 @@ function realizarLogin() {
     
     if (user) {
         usuarioAtual = user;
+        
+        // Esconde login e mostra app
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('mainHeader').style.display = 'flex';
         document.getElementById('app').style.display = 'block';
-        document.getElementById('userDisplay').innerText = usuarioAtual.nome.toUpperCase();
-        switchTab('Dashboard'); // Inicia direto no Dashboard para ver os indicadores
+        
+        // ATUALIZA O NOME NO HEADER (Novo ID)
+        document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+        
+        switchTab('Dashboard');
     } else {
-        alert("Usuário ou senha incorretos.");
+        alert("Acesso negado.");
     }
 }
 

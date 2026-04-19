@@ -43,11 +43,19 @@
     --bg-login: #0f172a;
     --card-bg: #1e293b; 
     --nav-bg: #1e293b;
+    --text-muted: #cbd5e1; /* Cor clara para os labels aparecerem no fundo escuro */
     --text-main: #f1f5f9; 
-    --text-muted: #94a3b8; 
     --border: #334155; 
     --input-bg: rgba(0,0,0,0.2);
     --shadow-lg: 0 20px 60px rgba(0,0,0,0.4);
+    
+}
+
+label, .status-label {
+    color: var(--text-muted) !important; /* !important garante que nenhuma outra regra sobrescreva */
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 /* --- 2. RESET E TIPOGRAFIA BASE --- */
@@ -304,6 +312,7 @@ nav {
     border-radius: 20px;
     box-shadow: var(--shadow-lg);
     margin: 40px auto;
+    margin-bottom: 120px;
     width: 92%;
     max-width: 1280px; /* Largura apenas quando logado */
 }
@@ -311,7 +320,7 @@ nav {
 .view-title {
     font-size: 22px;
     font-weight: 900;
-    color: var(--primary);
+    color: var(--accent);
     margin-bottom: 30px;
 }
 
@@ -514,6 +523,9 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
 .spinner { width: 45px; height: 45px; border: 4px solid rgba(2,132,199,0.1); border-left-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .rotating { animation: spin 1s linear infinite; }
+
+.monitor-section{margin-top: 30px};
+
 
 /* --- 14. RODAPÉ --- */
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suprimentos InCor - Gestão Fiscal</title>
+    <title>Suprimentos Pro - InCor</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
@@ -27,20 +27,24 @@
     </header>
 
     <div id="loginScreen" class="container login-box">
-        <i class="ph-fill ph-shield-check" style="font-size: 50px; color: var(--accent)"></i>
-        <h2>Acesso ao Sistema</h2>
-        <input type="text" id="userInput" placeholder="Usuário">
-        <input type="password" id="passInput" placeholder="Senha" style="margin-top:10px">
-        <button class="btn btn-add" style="margin-top:25px" onclick="realizarLogin()">ENTRAR</button>
+        <i class="ph-fill ph-shield-check" style="font-size: 60px; color: var(--accent)"></i>
+        <h2 style="margin: 20px 0;">Acesso Unidade Suprimentos</h2>
+        <div class="login-inputs">
+            <input type="text" id="userInput" placeholder="Usuário">
+            <input type="password" id="passInput" placeholder="Senha" style="margin-top:12px">
+        </div>
+        <button class="btn btn-add" style="margin-top:30px" onclick="realizarLogin()">
+            ENTRAR NO SISTEMA
+        </button>
     </div>
 
     <div id="searchModal" class="modal">
         <div class="modal-content modal-large">
             <div class="modal-header">
-                <h3>🔍 BUSCA GLOBAL NO HISTÓRICO</h3>
-                <i class="ph ph-x" onclick="fecharModal('searchModal')"></i>
+                <h3>🔍 RESULTADOS DA BUSCA GLOBAL</h3>
+                <i class="ph ph-x" onclick="fecharModal('searchModal')" style="cursor:pointer; font-size: 24px;"></i>
             </div>
-            <div class="table-container" style="max-height: 450px;">
+            <div class="table-container" style="max-height: 500px;">
                 <table id="tabelaResultados">
                     <thead>
                         <tr>
@@ -75,36 +79,65 @@
         </nav>
 
         <main class="container">
+            
             <div id="view-dashboard" style="display:none">
-                <h2 id="dashTitle">Performance Un Suprimentos</h2>
-                <div class="dashboard-grid">
-                    <div class="stat-card large">
-                        <i class="ph ph-users-three"></i>
-                        <small>MÉDIA DE DIGITAÇÃO DO SETOR</small>
-                        <h3 id="setorMediaGeral">0.0</h3>
-                        <span>Notas / Dia</span>
-                    </div>
-                    <div class="stat-card large">
-                        <i class="ph ph-factory"></i>
-                        <small>TOP FORNECEDOR (SETOR)</small>
-                        <h3 id="setorForn">---</h3>
-                    </div>
+                <h2 id="dashTitle">Performance Operacional</h2>
+
+                <div id="dash-loading" class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Sincronizando com a base do Google Sheets...</p>
                 </div>
-                <div id="dash-gestor" style="display:none; margin-top: 40px;">
-                    <h3 style="margin-bottom: 20px; font-size: 14px; color: var(--text-muted);">DETALHAMENTO POR COLABORADOR</h3>
-                    <div class="table-container">
-                        <table id="tabelaGestao">
-                            <thead>
-                                <tr>
-                                    <th>DIGITADOR</th>
-                                    <th>TOTAL</th>
-                                    <th>MÉDIA</th>
-                                    <th>PICO</th>
-                                    <th>ATIVIDADES</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+
+                <div id="dash-content" style="display:none">
+                    <div class="dashboard-grid">
+                        <div class="stat-card large">
+                            <i class="ph ph-users-three"></i>
+                            <small>MÉDIA TOTAL DO SETOR (NOTAS/DIA)</small>
+                            <h3 id="setorMediaGeral">0.0</h3>
+                            <span>Capacidade de Produção Coletiva</span>
+                        </div>
+                        <div class="stat-card large">
+                            <i class="ph ph-factory"></i>
+                            <small>TOP FORNECEDOR (GERAL)</small>
+                            <h3 id="setorForn" style="font-size: 1.6rem;">---</h3>
+                        </div>
+                    </div>
+
+                    <div class="monitor-section" style="margin-top: 40px;">
+                        <h3 class="section-title"><i class="ph ph-clock-countdown"></i> MONITORAMENTO GLOBAL DE ADIANTAMENTOS</h3>
+                        <div class="table-container">
+                            <table id="tabelaMonitorAdi">
+                                <thead>
+                                    <tr>
+                                        <th>RESPONSÁVEL</th>
+                                        <th>NF</th>
+                                        <th>FORNECEDOR</th>
+                                        <th>VENCIMENTO</th>
+                                        <th>VALOR</th>
+                                        <th>STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="dash-gestor" style="display:none; margin-top: 50px;">
+                        <h3 class="section-title"><i class="ph ph-presentation-chart"></i> PRODUTIVIDADE INDIVIDUAL (RELATÓRIO)</h3>
+                        <div class="table-container">
+                            <table id="tabelaGestao">
+                                <thead>
+                                    <tr>
+                                        <th>DIGITADOR</th>
+                                        <th>TOTAL</th>
+                                        <th>MÉDIA</th>
+                                        <th>PICO</th>
+                                        <th>ATIVIDADES</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -112,31 +145,46 @@
             <div id="view-forms">
                 <div class="header-tab">
                     <h2 id="tabTitle">Lote de Notas</h2>
-                    <span id="userDisplay"></span>
+                    <div class="user-badge">
+                        <small>OPERADOR</small><br>
+                        <span id="userDisplay"></span>
+                    </div>
                 </div>
 
                 <form id="notaForm">
                     <div class="form-grid">
-                        <div class="field-group"><label>Número NF</label><input type="text" id="f_nf" required></div>
+                        <div class="field-group"><label>Número NF</label><input type="text" id="f_nf" required placeholder="Ex: 123.456"></div>
                         <div class="field-group fg-2"><label>Fornecedor</label><input type="text" id="f_fornecedor" required></div>
                         <div class="field-group"><label>Vencimento</label><input type="date" id="f_vencimento" required></div>
                         <div class="field-group"><label>Emissão</label><input type="date" id="f_data" required></div>
                         <div class="field-group"><label>Valor (R$)</label><input type="number" step="0.01" id="f_valor" required></div>
-                        <div class="field-group"><label>Setor</label><input type="text" id="f_setor"></div>
-                        <div class="field-group" id="fieldLote"><label>Possui Lote?</label>
-                            <select id="f_lote"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+                        <div class="field-group"><label>Setor Destino</label><input type="text" id="f_setor" placeholder="Ex: Farmácia"></div>
+                        
+                        <div class="field-group" id="fieldLote">
+                            <label>Possui Lote?</label>
+                            <select id="f_lote">
+                                <option value="Sim">Sim</option>
+                                <option value="Não">Não</option>
+                            </select>
                         </div>
-                        <div class="field-group" id="fieldNumAdi" style="display:none"><label>Nº Adiantamento</label><input type="text" id="f_num_adi"></div>
+
+                        <div class="field-group" id="fieldNumAdi" style="display:none">
+                            <label>Nº Entrada Adiantamento</label>
+                            <input type="text" id="f_num_adi">
+                        </div>
+
                         <div id="fieldStatus" class="status-card"></div>
                     </div>
-                    <button type="button" class="btn btn-add" onclick="adicionarNota()">+ ADICIONAR AO LOTE</button>
+                    <button type="button" class="btn btn-add" onclick="adicionarNota()">
+                        <i class="ph ph-plus-circle"></i> ADIANTAR PARA O LOTE ATUAL
+                    </button>
                 </form>
 
                 <div class="search-section">
                     <div class="search-box">
                         <i class="ph ph-magnifying-glass"></i>
-                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico global...">
-                        <button class="btn-search" onclick="buscarNoBanco()">PESQUISAR</button>
+                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico do setor...">
+                        <button class="btn-search" onclick="buscarNoBanco()">PESQUISAR GLOBAL</button>
                     </div>
                 </div>
 
@@ -149,13 +197,16 @@
 
                 <div class="actions-footer" id="areaAcoes" style="display:none">
                     <button class="btn btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
-                    <button class="btn btn-send" onclick="enviarTudo()">🚀 SINCRONIZAR</button>
+                    <button class="btn btn-send" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
                 </div>
             </div>
         </main>
     </div>
 
-    <footer id="mainFooter" style="display:none">Desenvolvido por Mateus lima</footer>
+    <footer id="mainFooter" style="display:none">
+         Desenvolvido por Mateus Lima &copy; 2026
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -15,6 +15,11 @@
             <h1>CONTROLE DE NOTAS FISCAIS UN SUPRIMENTOS</h1>
         </div>
         <div class="header-controls">
+            <div class="refresh-btn" onclick="refreshData()" title="Sincronizar dados agora">
+                <i id="refreshIcon" class="ph ph-arrows-clockwise"></i>
+                <span>ATUALIZAR</span>
+            </div>
+            
             <div class="theme-toggle" onclick="toggleTheme()">
                 <i id="themeIcon" class="ph ph-moon"></i>
                 <span id="themeText">DARK</span>
@@ -38,7 +43,7 @@
         </button>
     </div>
 
-    <div id="searchModal" class="modal">
+    <div id="searchModal" class="modal" style="display: none;">
         <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3>🔍 RESULTADOS DA BUSCA GLOBAL</h3>
@@ -94,7 +99,6 @@
                             <i class="ph ph-users-three"></i>
                             <small>MÉDIA TOTAL DO SETOR (NOTAS/DIA)</small>
                             <h3 id="setorMediaGeral">0.0</h3>
-                            <span>Capacidade de Produção Coletiva</span>
                         </div>
                         <div class="stat-card large">
                             <i class="ph ph-factory"></i>
@@ -104,7 +108,7 @@
                     </div>
 
                     <div class="monitor-section" style="margin-top: 40px;">
-                        <h3 class="section-title"><i class="ph ph-clock-countdown"></i> MONITORAMENTO GLOBAL DE ADIANTAMENTOS</h3>
+                        <h3 class="section-title"><i class="ph ph-clock-countdown"></i> MEUS ADIANTAMENTOS E PRAZOS</h3>
                         <div class="table-container">
                             <table id="tabelaMonitorAdi">
                                 <thead>
@@ -123,7 +127,7 @@
                     </div>
 
                     <div id="dash-gestor" style="display:none; margin-top: 50px;">
-                        <h3 class="section-title"><i class="ph ph-presentation-chart"></i> PRODUTIVIDADE INDIVIDUAL (RELATÓRIO)</h3>
+                        <h3 class="section-title"><i class="ph ph-presentation-chart"></i> PRODUTIVIDADE INDIVIDUAL DO SETOR</h3>
                         <div class="table-container">
                             <table id="tabelaGestao">
                                 <thead>
@@ -153,13 +157,44 @@
 
                 <form id="notaForm">
                     <div class="form-grid">
-                        <div class="field-group"><label>Número NF</label><input type="text" id="f_nf" required placeholder="Ex: 123.456"></div>
-                        <div class="field-group fg-2"><label>Fornecedor</label><input type="text" id="f_fornecedor" required></div>
-                        <div class="field-group"><label>Vencimento</label><input type="date" id="f_vencimento" required></div>
-                        <div class="field-group"><label>Emissão</label><input type="date" id="f_data" required></div>
-                        <div class="field-group"><label>Valor (R$)</label><input type="number" step="0.01" id="f_valor" required></div>
-                        <div class="field-group"><label>Setor Destino</label><input type="text" id="f_setor" placeholder="Ex: Farmácia"></div>
-                        
+                        <div class="field-group">
+                            <label>Número NF</label>
+                            <input type="text" id="f_nf" required placeholder="Ex: 123.456">
+                        </div>
+                        <div class="field-group fg-2">
+                            <label>Fornecedor</label>
+                            <input type="text" id="f_fornecedor" required>
+                        </div>
+                        <div class="field-group">
+                            <label>Razão Social</label>
+                            <select id="f_razao">
+                                <option value="HC">HC</option>
+                                <option value="FZ">FZ</option>
+                                <option value="OUTROS">OUTROS</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label>Vencimento</label>
+                            <input type="date" id="f_vencimento" required>
+                        </div>
+                        <div class="field-group">
+                            <label>Emissão</label>
+                            <input type="date" id="f_data" required>
+                        </div>
+                        <div class="field-group">
+                            <label>Valor (R$)</label>
+                            <input type="number" step="0.01" id="f_valor" required>
+                        </div>
+                        <div class="field-group">
+                            <label>Setor Destino</label>
+                            <input type="text" id="f_setor" placeholder="Ex: Farmácia">
+                        </div>
+
+                        <div class="field-group" id="fieldNumAdi" style="display:none">
+                            <label>Nº Entrada Adiantamento</label>
+                            <input type="text" id="f_num_adi">
+                        </div>
+
                         <div class="field-group" id="fieldLote">
                             <label>Possui Lote?</label>
                             <select id="f_lote">
@@ -168,13 +203,9 @@
                             </select>
                         </div>
 
-                        <div class="field-group" id="fieldNumAdi" style="display:none">
-                            <label>Nº Entrada Adiantamento</label>
-                            <input type="text" id="f_num_adi">
-                        </div>
-
                         <div id="fieldStatus" class="status-card"></div>
                     </div>
+                    
                     <button type="button" class="btn btn-add" onclick="adicionarNota()">
                         <i class="ph ph-plus-circle"></i> ADIANTAR PARA O LOTE ATUAL
                     </button>
@@ -183,7 +214,7 @@
                 <div class="search-section">
                     <div class="search-box">
                         <i class="ph ph-magnifying-glass"></i>
-                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico do setor...">
+                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico...">
                         <button class="btn-search" onclick="buscarNoBanco()">PESQUISAR GLOBAL</button>
                     </div>
                 </div>
@@ -204,7 +235,7 @@
     </div>
 
     <footer id="mainFooter" style="display:none">
-         Desenvolvido por Mateus Lima &copy; 2026
+        Supply Unit - InCor | Desenvolvido por Mateus Lima &copy; 2026
     </footer>
 
     <script src="script.js"></script>

@@ -78,12 +78,65 @@
                 <i id="themeIcon" class="ph ph-moon"></i>
                 <span>DARK</span>
             </div>
+            <div class="carrinho-btn" onclick="abrirCarrinho()" title="Lista de compras">
+                <i class="ph ph-shopping-cart"></i>
+                <span>COMPRAS</span>
+                <span id="carrinhoContador" class="carrinho-contador" style="display:none">0</span>
+            </div>
             <div class="logout-btn" onclick="logout()">
                 <i class="ph ph-sign-out"></i>
                 <span>SAIR</span>
             </div>
         </div>
     </header>
+
+    <!-- DRAWER CARRINHO DE COMPRAS -->
+    <div id="carrinhoOverlay" class="carrinho-overlay" onclick="fecharCarrinho()" style="display:none"></div>
+    <div id="carrinhoDrawer" class="carrinho-drawer">
+        <div class="carrinho-header">
+            <div class="carrinho-header-title">
+                <i class="ph ph-shopping-cart"></i>
+                <h3>LISTA DE COMPRAS</h3>
+                <span id="carrinhoQtdHeader" class="carrinho-qtd-header">0 itens</span>
+            </div>
+            <button class="carrinho-fechar-btn" onclick="fecharCarrinho()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+
+        <div id="carrinhoVazio" class="carrinho-vazio">
+            <i class="ph ph-shopping-cart-simple"></i>
+            <p>Nenhum item adicionado.</p>
+            <small>Clique no 🛒 ao lado de um item na Projeção para adicionar.</small>
+        </div>
+
+        <div id="carrinhoLista" class="carrinho-lista" style="display:none">
+            <table class="carrinho-table">
+                <thead>
+                    <tr>
+                        <th>CÓDIGO</th>
+                        <th>DESCRIÇÃO</th>
+                        <th>QTD</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="carrinhoTbody"></tbody>
+            </table>
+        </div>
+
+        <div id="carrinhoFooter" class="carrinho-footer" style="display:none">
+            <div class="carrinho-obs-group">
+                <label>OBSERVAÇÃO (opcional)</label>
+                <textarea id="carrinhoObs" placeholder="Ex: urgente, para setor X..."></textarea>
+            </div>
+            <button class="carrinho-enviar-btn" onclick="enviarCarrinho()">
+                <i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA PLANILHA
+            </button>
+            <button class="carrinho-limpar-btn" onclick="limparCarrinho()">
+                <i class="ph ph-trash"></i> LIMPAR LISTA
+            </button>
+        </div>
+    </div>
 
     <!-- MODAL BUSCA GLOBAL -->
     <div id="searchModal" class="modal" style="display: none;">
@@ -384,6 +437,17 @@
                 </div>
 
                 <div id="proj-content" style="display:none">
+                    <!-- BUSCA NA PROJEÇÃO -->
+                    <div class="search-section" style="margin-top:0; margin-bottom: 20px;">
+                        <div class="search-box">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="inputBuscaProjecao" placeholder="Pesquisar por código ou descrição do item..." oninput="buscarNaProjecao()">
+                            <button class="btn-search-global" onclick="limparBuscaProjecao()" id="btnLimparBuscaProj" style="display:none; background:var(--text-muted);">
+                                <i class="ph ph-x"></i> LIMPAR
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- FILTROS -->
                     <div class="filtros-projecao">
                         <button class="filtro-btn filtro-ativo" onclick="filtrarProjecao('todos')">
@@ -418,6 +482,7 @@
                                     <th>RP</th>
                                     <th>EMPENHO</th>
                                     <th>STATUS</th>
+                                    <th style="text-align:center; width:60px;"><i class="ph ph-shopping-cart"></i></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -429,6 +494,9 @@
                         <span id="projTotal">Total: 0 itens</span>
                         <span id="projExibindo">Exibindo: 0 itens</span>
                     </div>
+
+                    <!-- PAGINAÇÃO -->
+                    <div id="projPaginacao" class="proj-paginacao"></div>
                 </div>
             </div>
         </main>

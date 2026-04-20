@@ -6,8 +6,11 @@ let loginAtual = null;
 let abaAtual = "Digitadas";
 let listas = { "Digitadas": [], "Recebimento": [], "Adiantamento": [] };
 
-// Garante que o alerta só dispara uma vez por sessão (ao fazer login)
-let alertaJaExibido = false;
+// Garante que cada alerta só dispara uma vez por sessão (ao fazer login)
+let alertaAdiJaExibido = false;
+let alertaProjJaExibido = false;
+let alertaJaExibido = false; // mantido por compatibilidade
+let alertaProjPendente = false; // projeção carregou mas adi ainda estava aberto
 
 // --- UTILITÁRIOS ---
 
@@ -147,7 +150,8 @@ function exibirAlertaAdiantamento(lista) {
     // Exibe o modal e toca o som
     document.getElementById('modalAlertaAdi').style.display = 'flex';
     tocarSomMSN();
-    alertaJaExibido = true;
+    alertaAdiJaExibido = true;
+    alertaJaExibido = true; // compatibilidade
 }
 
 // --- SISTEMA DE LOGIN ---
@@ -219,6 +223,9 @@ async function confirmarNovaSenha() {
 
 function entrarNoSistema(data) {
     alertaJaExibido = false; // reseta o flag ao entrar
+    alertaAdiJaExibido = false;
+    alertaProjJaExibido = false;
+    alertaProjPendente = false;
     usuarioAtual = { nome: data.nome, role: data.role };
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
@@ -291,7 +298,7 @@ async function carregarEstatisticas() {
             }
 
             // ── ALERTA DE LOGIN: dispara apenas uma vez por sessão ──
-            if (!alertaJaExibido) {
+            if (!alertaAdiJaExibido) {
                 exibirAlertaAdiantamento(adiantamentosParaExibir);
             }
 
@@ -334,8 +341,15 @@ async function carregarProjecaoBackground() {
             dadosProjecao = data.itens || [];
             
             // Exibe alerta de projeção apenas uma vez no login
-            if (!alertaJaExibido && data.zeradosTotal > 0) {
-                exibirAlertaProjecao(dadosProjecao);
+            if (!alertaProjJaExibido && data.zeradosTotal > 0) {
+                const modalAdiAberto = document.getElementById('modalAlertaAdi').style.display === 'flex';
+                if (!modalAdiAberto) {
+                    // Modal de adi já foi fechado (ou nunca abriu): dispara agora
+                    exibirAlertaProjecao(dadosProjecao);
+                } else {
+                    // Modal de adi ainda está aberto: marca pendente para disparar ao fechar
+                    alertaProjPendente = true;
+                }
             }
         }
     } catch (e) {
@@ -346,7 +360,13 @@ async function carregarProjecaoBackground() {
 // --- VARIÁVEL GLOBAL PARA ARMAZENAR DADOS DE PROJEÇÃO ---
 let dadosProjecao = [];
 let filtroProjecaoAtual = 'todos';
-let ordenacaoCobertura = 'asc'; // 'asc' = crescente, 'desc' = decrescente
+let ordenacaoCobertura = 'asc';
+let paginaAtualProjecao = 1;
+const ITENS_POR_PAGINA = 100;
+let itensFiltradosProjecao = [];
+
+// --- CARRINHO DE COMPRAS ---
+let carrinho = []; // { codigo, descricao, quantidade }
 
 // --- CARREGAMENTO E FILTRO DE PROJEÇÃO ---
 
@@ -456,16 +476,30 @@ function filtrarProjecao(tipo) {
 }
 
 function atualizarTabelaProjecao(itens) {
+    itensFiltradosProjecao = itens;
+    paginaAtualProjecao = 1;
+    renderizarPaginaProjecao();
+}
+
+function renderizarPaginaProjecao() {
     const tbody = document.querySelector('#tabelaProjecao tbody');
     tbody.innerHTML = '';
 
-    if (itens.length === 0) {
+    const totalItens = itensFiltradosProjecao.length;
+    const totalPaginas = Math.ceil(totalItens / ITENS_POR_PAGINA);
+
+    if (totalItens === 0) {
         tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding: 20px;'>Nenhum item encontrado para este filtro.</td></tr>";
         document.getElementById('projExibindo').innerText = 'Exibindo: 0 itens';
+        document.getElementById('projPaginacao').innerHTML = '';
         return;
     }
 
-    itens.forEach(item => {
+    const inicio = (paginaAtualProjecao - 1) * ITENS_POR_PAGINA;
+    const fim = Math.min(inicio + ITENS_POR_PAGINA, totalItens);
+    const itensDaPagina = itensFiltradosProjecao.slice(inicio, fim);
+
+    itensDaPagina.forEach(item => {
         let statusBadges = '';
         let temAlgumStatus = false;
 
@@ -486,7 +520,6 @@ function atualizarTabelaProjecao(itens) {
             temAlgumStatus = true;
         }
 
-        // Se não tem nenhuma cobertura, mostra "COMPRAR"
         if (!temAlgumStatus) {
             statusBadges = '<span class="badge-status" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;"><i class="ph ph-shopping-cart"></i> COMPRAR</span>';
         }
@@ -500,24 +533,107 @@ function atualizarTabelaProjecao(itens) {
                 <td>${item.temRP ? '✓' : '✗'}</td>
                 <td>${item.temEmpenho ? '✓' : '✗'}</td>
                 <td>${statusBadges}</td>
+                <td style="text-align:center;">
+                    <button class="btn-add-carrinho ${carrinho.some(c => c.codigo === item.codigo) ? 'no-carrinho' : ''}"
+                        data-codigo="${item.codigo}"
+                        title="${carrinho.some(c => c.codigo === item.codigo) ? 'Remover do carrinho' : 'Adicionar ao carrinho'}"
+                        onclick="toggleCarrinhoItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}')">
+                        <i class="${carrinho.some(c => c.codigo === item.codigo) ? 'ph ph-check-circle' : 'ph ph-shopping-cart'}"></i>
+                    </button>
+                </td>
             </tr>`;
     });
 
     document.getElementById('projTotal').innerText = `Total: ${dadosProjecao.length} itens`;
-    document.getElementById('projExibindo').innerText = `Exibindo: ${itens.length} itens`;
+    document.getElementById('projExibindo').innerText = `Exibindo: ${inicio + 1}–${fim} de ${totalItens} itens`;
+
+    // Renderiza controles de paginação
+    renderizarControlesPaginacao(totalPaginas);
 }
 
+function renderizarControlesPaginacao(totalPaginas) {
+    const container = document.getElementById('projPaginacao');
+    if (!container) return;
+
+    if (totalPaginas <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+
+    // Botão anterior
+    html += `<button class="pag-btn ${paginaAtualProjecao === 1 ? 'pag-disabled' : ''}" 
+                onclick="irParaPagina(${paginaAtualProjecao - 1})" 
+                ${paginaAtualProjecao === 1 ? 'disabled' : ''}>
+                <i class="ph ph-caret-left"></i>
+             </button>`;
+
+    // Páginas
+    for (let i = 1; i <= totalPaginas; i++) {
+        // Exibe sempre: primeira, última, atual e as 2 vizinhas
+        if (
+            i === 1 || i === totalPaginas ||
+            (i >= paginaAtualProjecao - 2 && i <= paginaAtualProjecao + 2)
+        ) {
+            html += `<button class="pag-btn ${i === paginaAtualProjecao ? 'pag-ativa' : ''}" 
+                        onclick="irParaPagina(${i})">${i}</button>`;
+        } else if (
+            i === paginaAtualProjecao - 3 ||
+            i === paginaAtualProjecao + 3
+        ) {
+            html += `<span class="pag-reticencias">…</span>`;
+        }
+    }
+
+    // Botão próximo
+    html += `<button class="pag-btn ${paginaAtualProjecao === totalPaginas ? 'pag-disabled' : ''}" 
+                onclick="irParaPagina(${paginaAtualProjecao + 1})"
+                ${paginaAtualProjecao === totalPaginas ? 'disabled' : ''}>
+                <i class="ph ph-caret-right"></i>
+             </button>`;
+
+    container.innerHTML = html;
+}
+
+function irParaPagina(pagina) {
+    const totalPaginas = Math.ceil(itensFiltradosProjecao.length / ITENS_POR_PAGINA);
+    if (pagina < 1 || pagina > totalPaginas) return;
+    paginaAtualProjecao = pagina;
+    renderizarPaginaProjecao();
+    // Scrolla suavemente para o topo da tabela
+    document.querySelector('#tabelaProjecao').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// --- PAGINAÇÃO DO MODAL DE PROJEÇÃO CRÍTICA ---
+let zeradosAlerta = [];
+let paginaAlertaProj = 1;
+const ITENS_PAG_ALERTA = 15;
+
 function exibirAlertaProjecao(lista) {
-    const zerados = lista.filter(i => i.zeradoSemCobertura);
+    zeradosAlerta = lista.filter(i => i.zeradoSemCobertura);
 
-    if (zerados.length === 0) return;
+    if (zeradosAlerta.length === 0) return;
 
-    document.getElementById('numZerados').innerText = zerados.length;
+    document.getElementById('numZerados').innerText = zeradosAlerta.length;
+    paginaAlertaProj = 1;
+    renderizarPaginaAlertaProj();
+
+    document.getElementById('modalAlertaProj').style.display = 'flex';
+    tocarSomMSN();
+    alertaProjJaExibido = true;
+}
+
+function renderizarPaginaAlertaProj() {
+    const total = zeradosAlerta.length;
+    const totalPags = Math.ceil(total / ITENS_PAG_ALERTA);
+    const inicio = (paginaAlertaProj - 1) * ITENS_PAG_ALERTA;
+    const fim = Math.min(inicio + ITENS_PAG_ALERTA, total);
 
     const tbody = document.querySelector('#tabelaAlertaProj tbody');
     tbody.innerHTML = '';
-    
-    zerados.slice(0, 15).forEach(item => {
+
+    zeradosAlerta.slice(inicio, fim).forEach(item => {
         tbody.innerHTML += `
             <tr>
                 <td><b>${item.codigo}</b></td>
@@ -527,12 +643,55 @@ function exibirAlertaProjecao(lista) {
             </tr>`;
     });
 
-    if (zerados.length > 15) {
-        tbody.innerHTML += `<tr><td colspan='4' style='text-align:center; font-size:11px; color:var(--text-muted);'>+ ${zerados.length - 15} itens não exibidos</td></tr>`;
+    // Controles de paginação dentro do modal
+    let pagCtrl = document.getElementById('pagAlertaProj');
+    if (!pagCtrl) {
+        pagCtrl = document.createElement('div');
+        pagCtrl.id = 'pagAlertaProj';
+        pagCtrl.className = 'proj-paginacao';
+        pagCtrl.style.marginTop = '14px';
+        document.querySelector('#tabelaAlertaProj').parentElement.after(pagCtrl);
     }
 
-    document.getElementById('modalAlertaProj').style.display = 'flex';
-    tocarSomMSN();
+    if (totalPags <= 1) {
+        pagCtrl.innerHTML = '';
+        return;
+    }
+
+    let html = `<button class="pag-btn ${paginaAlertaProj === 1 ? 'pag-disabled' : ''}" 
+                    onclick="mudarPaginaAlerta(${paginaAlertaProj - 1})" 
+                    ${paginaAlertaProj === 1 ? 'disabled' : ''}>
+                    <i class="ph ph-caret-left"></i>
+                </button>`;
+
+    for (let i = 1; i <= totalPags; i++) {
+        if (i === 1 || i === totalPags || (i >= paginaAlertaProj - 2 && i <= paginaAlertaProj + 2)) {
+            html += `<button class="pag-btn ${i === paginaAlertaProj ? 'pag-ativa' : ''}" 
+                        onclick="mudarPaginaAlerta(${i})">${i}</button>`;
+        } else if (i === paginaAlertaProj - 3 || i === paginaAlertaProj + 3) {
+            html += `<span class="pag-reticencias">…</span>`;
+        }
+    }
+
+    html += `<button class="pag-btn ${paginaAlertaProj === totalPags ? 'pag-disabled' : ''}" 
+                onclick="mudarPaginaAlerta(${paginaAlertaProj + 1})"
+                ${paginaAlertaProj === totalPags ? 'disabled' : ''}>
+                <i class="ph ph-caret-right"></i>
+             </button>`;
+
+    // Info de página
+    html += `<span style="font-size:11px; font-weight:700; color:var(--text-muted); margin-left:8px;">
+                Página ${paginaAlertaProj} de ${totalPags}
+             </span>`;
+
+    pagCtrl.innerHTML = html;
+}
+
+function mudarPaginaAlerta(pagina) {
+    const totalPags = Math.ceil(zeradosAlerta.length / ITENS_PAG_ALERTA);
+    if (pagina < 1 || pagina > totalPags) return;
+    paginaAlertaProj = pagina;
+    renderizarPaginaAlertaProj();
 }
 
 // --- NAVEGAÇÃO ---
@@ -724,4 +883,229 @@ async function buscarNoBanco() {
     }
 }
 
-function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+// =========================================================
+// CARRINHO DE COMPRAS
+// =========================================================
+
+function abrirCarrinho() {
+    document.getElementById('carrinhoOverlay').style.display = 'block';
+    document.getElementById('carrinhoDrawer').classList.add('aberto');
+    renderizarCarrinho();
+}
+
+function fecharCarrinho() {
+    document.getElementById('carrinhoOverlay').style.display = 'none';
+    document.getElementById('carrinhoDrawer').classList.remove('aberto');
+}
+
+function toggleCarrinhoItem(codigo, descricao) {
+    const idx = carrinho.findIndex(i => i.codigo === codigo);
+    if (idx >= 0) {
+        carrinho.splice(idx, 1);
+    } else {
+        carrinho.push({ codigo, descricao, quantidade: 1 });
+    }
+    atualizarContadorCarrinho();
+    // Atualiza visual do botão na tabela sem re-renderizar tudo
+    const btn = document.querySelector(`.btn-add-carrinho[data-codigo="${codigo}"]`);
+    if (btn) {
+        const noCarrinho = carrinho.some(i => i.codigo === codigo);
+        btn.classList.toggle('no-carrinho', noCarrinho);
+        btn.title = noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho';
+        btn.querySelector('i').className = noCarrinho ? 'ph ph-check-circle' : 'ph ph-shopping-cart';
+    }
+}
+
+function atualizarContadorCarrinho() {
+    const contador = document.getElementById('carrinhoContador');
+    if (carrinho.length > 0) {
+        contador.innerText = carrinho.length;
+        contador.style.display = 'flex';
+    } else {
+        contador.style.display = 'none';
+    }
+}
+
+function renderizarCarrinho() {
+    const vazio   = document.getElementById('carrinhoVazio');
+    const lista   = document.getElementById('carrinhoLista');
+    const footer  = document.getElementById('carrinhoFooter');
+    const qtdH    = document.getElementById('carrinhoQtdHeader');
+
+    qtdH.innerText = `${carrinho.length} ${carrinho.length === 1 ? 'item' : 'itens'}`;
+
+    if (carrinho.length === 0) {
+        vazio.style.display  = 'flex';
+        lista.style.display  = 'none';
+        footer.style.display = 'none';
+        return;
+    }
+
+    vazio.style.display  = 'none';
+    lista.style.display  = 'block';
+    footer.style.display = 'flex';
+
+    const tbody = document.getElementById('carrinhoTbody');
+    tbody.innerHTML = '';
+    carrinho.forEach((item, idx) => {
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${item.codigo}</b></td>
+                <td style="max-width:180px; font-size:11px;">${item.descricao}</td>
+                <td>
+                    <input type="number" min="1" value="${item.quantidade}"
+                        class="carrinho-qtd-input"
+                        onchange="atualizarQtd(${idx}, this.value)">
+                </td>
+                <td>
+                    <button class="carrinho-remover-btn" onclick="removerDoCarrinho(${idx})" title="Remover">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+}
+
+function atualizarQtd(idx, valor) {
+    const v = parseInt(valor);
+    carrinho[idx].quantidade = (isNaN(v) || v < 1) ? 1 : v;
+}
+
+function removerDoCarrinho(idx) {
+    const codigo = carrinho[idx].codigo;
+    carrinho.splice(idx, 1);
+    atualizarContadorCarrinho();
+    renderizarCarrinho();
+    // Atualiza visual do botão na tabela
+    const btn = document.querySelector(`.btn-add-carrinho[data-codigo="${codigo}"]`);
+    if (btn) {
+        btn.classList.remove('no-carrinho');
+        btn.title = 'Adicionar ao carrinho';
+        btn.querySelector('i').className = 'ph ph-shopping-cart';
+    }
+}
+
+function limparCarrinho() {
+    if (!confirm('Deseja limpar toda a lista de compras?')) return;
+    carrinho = [];
+    atualizarContadorCarrinho();
+    renderizarCarrinho();
+    // Resetar todos os botões da tabela
+    document.querySelectorAll('.btn-add-carrinho.no-carrinho').forEach(btn => {
+        btn.classList.remove('no-carrinho');
+        btn.title = 'Adicionar ao carrinho';
+        btn.querySelector('i').className = 'ph ph-shopping-cart';
+    });
+}
+
+async function enviarCarrinho() {
+    if (carrinho.length === 0) return;
+    const btn = document.querySelector('.carrinho-enviar-btn');
+    const obs = document.getElementById('carrinhoObs').value.trim();
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> ENVIANDO...';
+
+    // Nome da aba: "Carrinho_PrimeiroNome"
+    const primeiroNome = usuarioAtual.nome.split(' ')[0];
+    const abaDestino   = `Carrinho_${primeiroNome}`;
+
+    const payload = carrinho.map(item => ({
+        codigo:      item.codigo,
+        descricao:   item.descricao,
+        quantidade:  item.quantidade,
+        responsavel: usuarioAtual.nome,
+        observacao:  obs,
+        data:        new Date().toLocaleDateString('pt-BR'),
+        aba:         abaDestino
+    }));
+
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'carrinho', itens: payload })
+        });
+        tocarSomMSN();
+        alert(`✅ ${carrinho.length} item(s) enviado(s) para a planilha "${abaDestino}"!`);
+        carrinho = [];
+        atualizarContadorCarrinho();
+        renderizarCarrinho();
+        document.getElementById('carrinhoObs').value = '';
+        document.querySelectorAll('.btn-add-carrinho.no-carrinho').forEach(btn => {
+            btn.classList.remove('no-carrinho');
+            btn.title = 'Adicionar ao carrinho';
+            btn.querySelector('i').className = 'ph ph-shopping-cart';
+        });
+        fecharCarrinho();
+    } catch (e) {
+        alert('Erro ao enviar. Verifique a conexão com a planilha.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA PLANILHA';
+    }
+}
+
+// =========================================================
+// BUSCA NA ABA PROJEÇÃO
+// =========================================================
+
+function buscarNaProjecao() {
+    const termo = document.getElementById('inputBuscaProjecao').value.trim().toLowerCase();
+    const btnLimpar = document.getElementById('btnLimparBuscaProj');
+    btnLimpar.style.display = termo.length > 0 ? 'flex' : 'none';
+
+    if (termo.length === 0) {
+        // Volta ao filtro atual sem busca
+        aplicarFiltroAtual();
+        return;
+    }
+
+    const filtrado = dadosProjecao.filter(i =>
+        i.codigo.toLowerCase().includes(termo) ||
+        i.descricao.toLowerCase().includes(termo)
+    );
+
+    // Aplica o filtro de aba por cima da busca
+    let resultado = filtrado;
+    if (filtroProjecaoAtual === 'rp')      resultado = filtrado.filter(i => i.temRP);
+    else if (filtroProjecaoAtual === 'cd') resultado = filtrado.filter(i => i.saldoCD > 0);
+    else if (filtroProjecaoAtual === 'empenho') resultado = filtrado.filter(i => i.temEmpenho);
+    else if (filtroProjecaoAtual === 'zerado')  resultado = filtrado.filter(i => i.zeradoSemCobertura);
+
+    atualizarTabelaProjecao(resultado);
+}
+
+function limparBuscaProjecao() {
+    document.getElementById('inputBuscaProjecao').value = '';
+    document.getElementById('btnLimparBuscaProj').style.display = 'none';
+    aplicarFiltroAtual();
+}
+
+function aplicarFiltroAtual() {
+    let itens = dadosProjecao;
+    if (filtroProjecaoAtual === 'rp')      itens = dadosProjecao.filter(i => i.temRP);
+    else if (filtroProjecaoAtual === 'cd') itens = dadosProjecao.filter(i => i.saldoCD > 0);
+    else if (filtroProjecaoAtual === 'empenho') itens = dadosProjecao.filter(i => i.temEmpenho);
+    else if (filtroProjecaoAtual === 'zerado')  itens = dadosProjecao.filter(i => i.zeradoSemCobertura);
+
+    itens.sort((a, b) => ordenacaoCobertura === 'asc' ? a.cobertura - b.cobertura : b.cobertura - a.cobertura);
+    atualizarTabelaProjecao(itens);
+}
+
+function fecharModal(id) {
+    document.getElementById(id).style.display = 'none';
+
+    // Ao fechar o alerta de adiantamento, dispara o de projeção se necessário
+    if (id === 'modalAlertaAdi' && !alertaProjJaExibido) {
+        // Caso 1: projeção já carregou e tem itens críticos
+        // Caso 2: projeção ainda vai carregar (alertaProjPendente será true quando chegar)
+        const zerados = dadosProjecao.filter(i => i.zeradoSemCobertura);
+        if (zerados.length > 0) {
+            setTimeout(() => exibirAlertaProjecao(dadosProjecao), 300);
+        } else if (dadosProjecao.length === 0) {
+            // Projeção ainda não carregou — marca que deve abrir assim que chegar
+            alertaProjPendente = true;
+        }
+    }
+}

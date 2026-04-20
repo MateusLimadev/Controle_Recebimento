@@ -1397,3 +1397,172 @@ table thead th[onclick]:hover {
 
 /* Barra busca da projeção — sem margin-top extra */
 #view-projecao .search-section { margin-top: 0; }
+
+/* ==========================================================================
+   21. BOTÃO DE SAÍDA DE ADIANTAMENTO
+   ========================================================================== */
+
+.btn-saida-adi {
+    background: transparent;
+    border: 1.5px solid var(--danger);
+    color: var(--danger);
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    transition: var(--transition);
+}
+
+.btn-saida-adi:hover {
+    background: var(--danger);
+    color: #fff;
+    transform: scale(1.1);
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+/* ==========================================================================
+   22. MODAL DE CONFIRMAÇÃO DE SAÍDA DE ADIANTAMENTO
+   ========================================================================== */
+
+@keyframes pulsarSaida {
+    0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0   rgba(239,68,68,0.45); }
+    50%       { transform: scale(1.08); box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+}
+
+.saida-confirm-content {
+    max-width: 480px;
+    border-top: 5px solid var(--danger);
+    animation: alertaEntrada 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.saida-confirm-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.saida-confirm-icon-wrap {
+    width: 54px;
+    height: 54px;
+    min-width: 54px;
+    background: rgba(239, 68, 68, 0.12);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulsarSaida 2s ease-in-out infinite;
+}
+
+.saida-confirm-icon {
+    font-size: 28px;
+    color: var(--danger);
+}
+
+.saida-confirm-titulo {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--danger);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.saida-confirm-subtitulo {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+.saida-confirm-info {
+    background: var(--bg-system);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.saida-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.saida-info-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.saida-info-label i { font-size: 14px; }
+
+.saida-info-valor {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.saida-confirm-btns {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 12px;
+}
+
+.btn-saida-cancelar {
+    padding: 14px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.btn-saida-cancelar:hover {
+    border-color: var(--text-muted);
+    color: var(--text-main);
+}
+
+.btn-saida-confirmar {
+    padding: 14px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 900;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.btn-saida-confirmar:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
+}

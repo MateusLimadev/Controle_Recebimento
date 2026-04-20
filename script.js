@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -262,9 +262,6 @@ async function carregarEstatisticas() {
         document.getElementById('setorMediaGeral').innerText = data.statsSetor.mediaGeral;
         document.getElementById('setorForn').innerText       = data.statsSetor.topForn;
 
-        const tbodyAdi = document.querySelector("#tabelaMonitorAdi tbody");
-        tbodyAdi.innerHTML = "";
-
         if (data.adiantamentosSetor && data.adiantamentosSetor.length > 0) {
             const hoje = new Date();
             hoje.setHours(0, 0, 0, 0);
@@ -273,38 +270,17 @@ async function carregarEstatisticas() {
             if (usuarioAtual.role === "digitador") {
                 adiantamentosParaExibir = data.adiantamentosSetor.filter(adi => adi.responsavel === usuarioAtual.nome);
             }
-
             adiantamentosParaExibir.sort((a, b) => new Date(a.venc) - new Date(b.venc));
 
-            if (adiantamentosParaExibir.length === 0) {
-                tbodyAdi.innerHTML = "<tr><td colspan='6' style='text-align:center'>Nenhum adiantamento pendente.</td></tr>";
-            } else {
-                adiantamentosParaExibir.forEach(adi => {
-                    const venc = new Date(adi.venc);
-                    const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
-                    let cls = "prazo-ok", txt = "No Prazo";
-                    if (diff < 0)      { cls = "prazo-vencido"; txt = "⚠️ VENCIDO"; }
-                    else if (diff <= 7) { cls = "prazo-urgente"; txt = "⏳ URGENTE"; }
-                    tbodyAdi.innerHTML += `
-                        <tr>
-                            <td><b>${adi.responsavel}</b></td>
-                            <td>${adi.nf}</td>
-                            <td>${adi.fornecedor}</td>
-                            <td>${new Date(adi.venc).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
-                            <td>R$ ${formatarValor(adi.valor)}</td>
-                            <td><span class="status-prazo ${cls}">${txt}</span></td>
-                        </tr>`;
-                });
-            }
+            // Salva no cache global
+            adiantamentosCarregados = adiantamentosParaExibir;
 
             // ── ALERTA DE LOGIN: dispara apenas uma vez por sessão ──
             if (!alertaAdiJaExibido) {
                 exibirAlertaAdiantamento(adiantamentosParaExibir);
             }
-
         } else {
-            document.querySelector("#tabelaMonitorAdi tbody").innerHTML =
-                "<tr><td colspan='6' style='text-align:center'>Nenhum adiantamento pendente.</td></tr>";
+            adiantamentosCarregados = [];
         }
 
         if (usuarioAtual.role === 'gestor') {
@@ -330,7 +306,75 @@ async function carregarEstatisticas() {
     }
 }
 
-// Carrega projeção em background sem interromper dashboard
+// --- RENDERIZAÇÃO DA TABELA DE ADIANTAMENTOS (aba Adiantamento) ---
+
+function renderizarTabelaAdiantamentos(lista) {
+    const tbody = document.querySelector("#tabelaMonitorAdi tbody");
+    tbody.innerHTML = "";
+
+    if (!lista || lista.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Nenhum adiantamento pendente.</td></tr>";
+        return;
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    lista.forEach(adi => {
+        const diff = Math.ceil((new Date(adi.venc) - hoje) / (1000 * 60 * 60 * 24));
+        let cls = "prazo-ok", txt = "No Prazo";
+        if (diff < 0)       { cls = "prazo-vencido"; txt = "⚠️ VENCIDO"; }
+        else if (diff <= 7) { cls = "prazo-urgente"; txt = "⏳ URGENTE"; }
+
+        tbody.innerHTML += `
+            <tr id="row-adi-${adi.nf}">
+                <td><b>${adi.responsavel}</b></td>
+                <td>${adi.nf}</td>
+                <td>${adi.fornecedor}</td>
+                <td>${new Date(adi.venc).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                <td>R$ ${formatarValor(adi.valor)}</td>
+                <td><span class="status-prazo ${cls}">${txt}</span></td>
+                <td style="text-align:center">
+                    <button class="btn-saida-adi"
+                        title="Registrar saída / quitar adiantamento"
+                        onclick="deletarAdiantamento('${adi.nf}', '${adi.responsavel}')">
+                        <i class="ph ph-door-open"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+}
+
+async function carregarAdiantamentos() {
+    const secao = document.getElementById('monitorAdiantamentosSection');
+    secao.style.display = 'block';
+
+    // Se já temos os dados em cache, renderiza direto
+    if (adiantamentosCarregados.length > 0) {
+        renderizarTabelaAdiantamentos(adiantamentosCarregados);
+        return;
+    }
+
+    // Senão, busca da planilha
+    document.getElementById('adi-loading').style.display = 'flex';
+    try {
+        const res  = await fetch(URL_SCRIPT);
+        const data = await res.json();
+
+        let lista = data.adiantamentosSetor || [];
+        if (usuarioAtual.role === "digitador") {
+            lista = lista.filter(a => a.responsavel === usuarioAtual.nome);
+        }
+        lista.sort((a, b) => new Date(a.venc) - new Date(b.venc));
+        adiantamentosCarregados = lista;
+        renderizarTabelaAdiantamentos(lista);
+    } catch (e) {
+        document.querySelector("#tabelaMonitorAdi tbody").innerHTML =
+            "<tr><td colspan='7' style='text-align:center; color:var(--danger)'>Erro ao carregar dados.</td></tr>";
+    } finally {
+        document.getElementById('adi-loading').style.display = 'none';
+    }
+}
 async function carregarProjecaoBackground() {
     try {
         const nomeUsuario = usuarioAtual.nome.split(' ')[0].toUpperCase(); // pega primeiro nome em maiúscula
@@ -364,6 +408,9 @@ let ordenacaoCobertura = 'asc';
 let paginaAtualProjecao = 1;
 const ITENS_POR_PAGINA = 100;
 let itensFiltradosProjecao = [];
+
+// Cache de adiantamentos (compartilhado entre dashboard e aba Adiantamento)
+let adiantamentosCarregados = [];
 
 // --- CARRINHO DE COMPRAS ---
 let carrinho = []; // { codigo, descricao, quantidade }
@@ -701,6 +748,10 @@ function switchTab(aba) {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('btn-' + aba.toLowerCase()).classList.add('active');
 
+    // Esconde a seção de adiantamentos ao sair da aba
+    const monitorSec = document.getElementById('monitorAdiantamentosSection');
+    if (monitorSec) monitorSec.style.display = 'none';
+
     if (aba === 'Dashboard') {
         document.getElementById('view-dashboard').style.display = 'block';
         document.getElementById('view-forms').style.display = 'none';
@@ -725,6 +776,11 @@ function switchTab(aba) {
         configurarStatusCard(aba);
         configurarTableHeader();
         atualizarTabela();
+
+        // Ao entrar na aba Adiantamento, exibe a tabela de abertos
+        if (aba === 'Adiantamento') {
+            carregarAdiantamentos();
+        }
     }
 }
 
@@ -1043,6 +1099,65 @@ async function enviarCarrinho() {
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA PLANILHA';
+    }
+}
+
+// =========================================================
+// SAÍDA DE ADIANTAMENTO — remove do site e da planilha
+// =========================================================
+
+let _saidaNFPendente = null;
+let _saidaResponsavelPendente = null;
+
+function deletarAdiantamento(nf, responsavel) {
+    // Guarda os dados para usar ao confirmar
+    _saidaNFPendente = nf;
+    _saidaResponsavelPendente = responsavel;
+
+    // Preenche o modal com os dados da linha
+    document.getElementById('saidaNF').innerText = nf;
+    document.getElementById('saidaResponsavel').innerText = responsavel;
+
+    // Abre o modal
+    document.getElementById('modalConfirmaSaida').style.display = 'flex';
+}
+
+async function confirmarSaida() {
+    const nf = _saidaNFPendente;
+    const responsavel = _saidaResponsavelPendente;
+
+    if (!nf || !responsavel) return;
+
+    // Fecha modal imediatamente
+    fecharModal('modalConfirmaSaida');
+    _saidaNFPendente = null;
+    _saidaResponsavelPendente = null;
+
+    // Remove do cache global também
+    adiantamentosCarregados = adiantamentosCarregados.filter(a => a.nf.toString() !== nf.toString());
+
+    // Remove visualmente com animação
+    const row = document.getElementById(`row-adi-${nf}`);
+    if (row) {
+        row.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(30px)';
+        setTimeout(() => row.remove(), 380);
+    }
+
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                tipo: 'deletarAdiantamento',
+                nf: nf,
+                responsavel: responsavel
+            })
+        });
+        tocarSomMSN();
+    } catch (e) {
+        console.warn('Erro ao deletar adiantamento:', e);
     }
 }
 

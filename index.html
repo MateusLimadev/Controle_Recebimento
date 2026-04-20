@@ -268,6 +268,45 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         MODAL CONFIRMAÇÃO DE SAÍDA DE ADIANTAMENTO
+    ====================================================== -->
+    <div id="modalConfirmaSaida" class="modal" style="display:none;">
+        <div class="modal-content saida-confirm-content">
+
+            <div class="saida-confirm-header">
+                <div class="saida-confirm-icon-wrap">
+                    <i class="ph ph-door-open saida-confirm-icon"></i>
+                </div>
+                <div>
+                    <h3 class="saida-confirm-titulo">CONFIRMAR SAÍDA DE ADIANTAMENTO</h3>
+                    <p class="saida-confirm-subtitulo">Essa ação removerá o registro permanentemente da planilha e do sistema.</p>
+                </div>
+            </div>
+
+            <div class="saida-confirm-info">
+                <div class="saida-info-row">
+                    <span class="saida-info-label"><i class="ph ph-receipt"></i> NF</span>
+                    <span class="saida-info-valor" id="saidaNF">—</span>
+                </div>
+                <div class="saida-info-row">
+                    <span class="saida-info-label"><i class="ph ph-user"></i> RESPONSÁVEL</span>
+                    <span class="saida-info-valor" id="saidaResponsavel">—</span>
+                </div>
+            </div>
+
+            <div class="saida-confirm-btns">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalConfirmaSaida')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-saida-confirmar" id="btnConfirmarSaida" onclick="confirmarSaida()">
+                    <i class="ph ph-check-circle"></i> SIM, REGISTRAR SAÍDA
+                </button>
+            </div>
+
+        </div>
+    </div>
+
     <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
         <nav>
@@ -307,24 +346,6 @@
                             <i class="ph ph-factory"></i>
                             <small>TOP FORNECEDOR (GERAL)</small>
                             <h3 id="setorForn">---</h3>
-                        </div>
-                    </div>
-                    <div class="monitor-section">
-                        <h3 class="section-subtitle"><i class="ph ph-clock-countdown"></i> MEUS ADIANTAMENTOS E PRAZOS</h3>
-                        <div class="table-container">
-                            <table id="tabelaMonitorAdi">
-                                <thead>
-                                    <tr>
-                                        <th>RESPONSÁVEL</th>
-                                        <th>NF</th>
-                                        <th>FORNECEDOR</th>
-                                        <th>VENCIMENTO</th>
-                                        <th>VALOR</th>
-                                        <th>STATUS</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
                         </div>
                     </div>
                     <div id="dash-gestor" style="display:none; margin-top: 40px;">
@@ -421,6 +442,33 @@
                 <div class="actions-footer" id="areaAcoes" style="display:none">
                     <button class="btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
                     <button class="btn-sync" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
+                </div>
+
+                <!-- TABELA DE ADIANTAMENTOS — visível só na aba Adiantamento -->
+                <div id="monitorAdiantamentosSection" style="display:none; margin-top: 40px;">
+                    <div id="adi-loading" class="loading-overlay" style="display:none">
+                        <div class="spinner"></div>
+                        <p>Carregando adiantamentos...</p>
+                    </div>
+                    <div class="monitor-section">
+                        <h3 class="section-subtitle"><i class="ph ph-clock-countdown"></i> ADIANTAMENTOS EM ABERTO E PRAZOS</h3>
+                        <div class="table-container">
+                            <table id="tabelaMonitorAdi">
+                                <thead>
+                                    <tr>
+                                        <th>RESPONSÁVEL</th>
+                                        <th>NF</th>
+                                        <th>FORNECEDOR</th>
+                                        <th>VENCIMENTO</th>
+                                        <th>VALOR</th>
+                                        <th>STATUS</th>
+                                        <th style="text-align:center; width:70px;">SAÍDA</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 

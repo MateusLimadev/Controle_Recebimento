@@ -166,6 +166,55 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         MODAL ALERTA DE PROJEÇÃO — ITENS ZERADOS
+    ====================================================== -->
+    <div id="modalAlertaProj" class="modal" style="display:none;">
+        <div class="modal-content alerta-proj-content">
+
+            <!-- Cabeçalho do alerta -->
+            <div class="alerta-proj-header">
+                <div class="alerta-proj-icon-wrap">
+                    <i class="ph ph-package alerta-proj-icon"></i>
+                </div>
+                <div>
+                    <h3 class="alerta-proj-titulo">ATENÇÃO — ITENS SEM COBERTURA</h3>
+                    <p class="alerta-proj-subtitulo">
+                        Você possui itens em falta com cobertura zerada (sem RP, sem CD, sem empenho).
+                        Verifique a lista abaixo para tomar providências urgentes.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Contador -->
+            <div class="alerta-proj-counter">
+                <span class="counter-num" id="numZerados">0</span>
+                <span class="counter-label">ITENS CRÍTICOS</span>
+            </div>
+
+            <!-- Tabela de itens zerados -->
+            <div class="table-container" style="margin-top: 20px;">
+                <table id="tabelaAlertaProj">
+                    <thead>
+                        <tr>
+                            <th>CÓDIGO</th>
+                            <th>DESCRIÇÃO</th>
+                            <th>COBERTURA</th>
+                            <th>SALDO CD</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Botão de fechar -->
+            <button class="btn-alerta-fechar" onclick="fecharModal('modalAlertaProj')">
+                <i class="ph ph-check-circle"></i> ESTOU CIENTE — FECHAR AVISO
+            </button>
+
+        </div>
+    </div>
+
     <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
         <nav>
@@ -180,6 +229,9 @@
             </button>
             <button class="nav-btn" id="btn-adiantamento" onclick="switchTab('Adiantamento')">
                 <i class="ph ph-clock-counter-clockwise"></i> ADIANTAMENTO
+            </button>
+            <button class="nav-btn" id="btn-projecao" onclick="switchTab('Projecao')">
+                <i class="ph ph-package"></i> PROJEÇÃO
             </button>
         </nav>
 
@@ -316,6 +368,67 @@
                 <div class="actions-footer" id="areaAcoes" style="display:none">
                     <button class="btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
                     <button class="btn-sync" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
+                </div>
+            </div>
+
+            <!-- ABA PROJEÇÃO DE COMPRAS -->
+            <div id="view-projecao" style="display:none">
+                <div class="header-tab">
+                    <h2>Projeção de Compras — Decisão Cris</h2>
+                    <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">Filtrar itens por cobertura e status</p>
+                </div>
+
+                <div id="proj-loading" class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Carregando dados de projeção...</p>
+                </div>
+
+                <div id="proj-content" style="display:none">
+                    <!-- FILTROS -->
+                    <div class="filtros-projecao">
+                        <button class="filtro-btn filtro-ativo" onclick="filtrarProjecao('todos')">
+                            <i class="ph ph-list"></i> TODOS
+                        </button>
+                        <button class="filtro-btn" onclick="filtrarProjecao('rp')">
+                            <span class="badge-filtro rp">RP</span> COM REGISTRO
+                        </button>
+                        <button class="filtro-btn" onclick="filtrarProjecao('cd')">
+                            <span class="badge-filtro cd">CD</span> COM SALDO
+                        </button>
+                        <button class="filtro-btn" onclick="filtrarProjecao('empenho')">
+                            <span class="badge-filtro empenho">EMP</span> COM EMPENHO
+                        </button>
+                        <button class="filtro-btn perigo" onclick="filtrarProjecao('zerado')">
+                            <span class="badge-filtro zerado">!</span> ZERADO S/ COBERTURA
+                        </button>
+                    </div>
+
+                    <!-- TABELA -->
+                    <div class="table-container">
+                        <table id="tabelaProjecao">
+                            <thead>
+                                <tr>
+                                    <th>CÓDIGO</th>
+                                    <th>DESCRIÇÃO</th>
+                                    <th style="cursor: pointer; user-select: none;" onclick="ordenarPorCobertura()">
+                                        COBERTURA 
+                                        <i id="iconOrdenacao" class="ph ph-sort-ascending" style="margin-left: 6px; font-size: 14px;"></i>
+                                    </th>
+                                    <th>SALDO CD</th>
+                                    <th>RP</th>
+                                    <th>EMPENHO</th>
+                                    <th>STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <!-- RESUMO -->
+                    <div class="proj-resumo">
+                        <span id="projTotal">Total: 0 itens</span>
+                        <span id="projExibindo">Exibindo: 0 itens</span>
+                    </div>
                 </div>
             </div>
         </main>

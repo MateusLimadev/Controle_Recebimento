@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -314,10 +314,225 @@ async function carregarEstatisticas() {
 
         document.getElementById('dash-loading').style.display = 'none';
         document.getElementById('dash-content').style.display = 'block';
+
+        // Carrega dados de projeção em background
+        await carregarProjecaoBackground();
     } catch (e) {
         document.getElementById('dash-loading').innerHTML =
             "<p style='color:var(--danger)'>Erro ao carregar dados do Google Sheets.</p>";
     }
+}
+
+// Carrega projeção em background sem interromper dashboard
+async function carregarProjecaoBackground() {
+    try {
+        const nomeUsuario = usuarioAtual.nome.split(' ')[0].toUpperCase(); // pega primeiro nome em maiúscula
+        const res = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
+        const data = await res.json();
+
+        if (!data.erro) {
+            dadosProjecao = data.itens || [];
+            
+            // Exibe alerta de projeção apenas uma vez no login
+            if (!alertaJaExibido && data.zeradosTotal > 0) {
+                exibirAlertaProjecao(dadosProjecao);
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao carregar projeção em background:', e);
+    }
+}
+
+// --- VARIÁVEL GLOBAL PARA ARMAZENAR DADOS DE PROJEÇÃO ---
+let dadosProjecao = [];
+let filtroProjecaoAtual = 'todos';
+let ordenacaoCobertura = 'asc'; // 'asc' = crescente, 'desc' = decrescente
+
+// --- CARREGAMENTO E FILTRO DE PROJEÇÃO ---
+
+async function carregarProjecao() {
+    // Se dados já foram carregados em background, mostra logo
+    if (dadosProjecao.length > 0) {
+        filtroProjecaoAtual = 'todos';
+        atualizarTabelaProjecao(dadosProjecao);
+        document.getElementById('proj-loading').style.display = 'none';
+        document.getElementById('proj-content').style.display = 'block';
+        return;
+    }
+
+    document.getElementById('proj-loading').style.display = 'flex';
+    document.getElementById('proj-content').style.display = 'none';
+
+    try {
+        const nomeUsuario = usuarioAtual.nome.split(' ')[0].toUpperCase();
+        const res = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
+        const data = await res.json();
+
+        if (data.erro) {
+            document.getElementById('proj-loading').innerHTML = 
+                `<p style='color:var(--danger)'>Erro: ${data.erro}</p>`;
+            return;
+        }
+
+        dadosProjecao = data.itens || [];
+        
+        filtroProjecaoAtual = 'todos';
+        atualizarTabelaProjecao(dadosProjecao);
+
+        document.getElementById('proj-loading').style.display = 'none';
+        document.getElementById('proj-content').style.display = 'block';
+    } catch (e) {
+        document.getElementById('proj-loading').innerHTML = 
+            "<p style='color:var(--danger)'>Erro ao carregar dados de projeção.</p>";
+    }
+}
+
+function ordenarPorCobertura() {
+    // Alterna entre ascendente e descendente
+    ordenacaoCobertura = ordenacaoCobertura === 'asc' ? 'desc' : 'asc';
+
+    // Atualiza o ícone
+    const icon = document.getElementById('iconOrdenacao');
+    if (ordenacaoCobertura === 'asc') {
+        icon.className = 'ph ph-sort-ascending';
+    } else {
+        icon.className = 'ph ph-sort-descending';
+    }
+
+    // Ordena os dados atuais e redesenha
+    let itensParaExibir = dadosProjecao;
+
+    // Aplica o filtro atual
+    if (filtroProjecaoAtual === 'rp') {
+        itensParaExibir = dadosProjecao.filter(i => i.temRP);
+    } else if (filtroProjecaoAtual === 'cd') {
+        itensParaExibir = dadosProjecao.filter(i => i.saldoCD > 0);
+    } else if (filtroProjecaoAtual === 'empenho') {
+        itensParaExibir = dadosProjecao.filter(i => i.temEmpenho);
+    } else if (filtroProjecaoAtual === 'zerado') {
+        itensParaExibir = dadosProjecao.filter(i => i.zeradoSemCobertura);
+    }
+
+    // Ordena por cobertura
+    itensParaExibir.sort((a, b) => {
+        if (ordenacaoCobertura === 'asc') {
+            return a.cobertura - b.cobertura;
+        } else {
+            return b.cobertura - a.cobertura;
+        }
+    });
+
+    atualizarTabelaProjecao(itensParaExibir);
+}
+
+function filtrarProjecao(tipo) {
+    // Atualiza botão ativo
+    document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('filtro-ativo'));
+    event.target.closest('.filtro-btn').classList.add('filtro-ativo');
+
+    filtroProjecaoAtual = tipo;
+    let filtrado = dadosProjecao;
+
+    if (tipo === 'rp') {
+        filtrado = dadosProjecao.filter(i => i.temRP);
+    } else if (tipo === 'cd') {
+        filtrado = dadosProjecao.filter(i => i.saldoCD > 0);
+    } else if (tipo === 'empenho') {
+        filtrado = dadosProjecao.filter(i => i.temEmpenho);
+    } else if (tipo === 'zerado') {
+        filtrado = dadosProjecao.filter(i => i.zeradoSemCobertura);
+    }
+
+    // Aplica ordenação atual
+    filtrado.sort((a, b) => {
+        if (ordenacaoCobertura === 'asc') {
+            return a.cobertura - b.cobertura;
+        } else {
+            return b.cobertura - a.cobertura;
+        }
+    });
+
+    atualizarTabelaProjecao(filtrado);
+}
+
+function atualizarTabelaProjecao(itens) {
+    const tbody = document.querySelector('#tabelaProjecao tbody');
+    tbody.innerHTML = '';
+
+    if (itens.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding: 20px;'>Nenhum item encontrado para este filtro.</td></tr>";
+        document.getElementById('projExibindo').innerText = 'Exibindo: 0 itens';
+        return;
+    }
+
+    itens.forEach(item => {
+        let statusBadges = '';
+        let temAlgumStatus = false;
+
+        if (item.temRP) {
+            statusBadges += '<span class="badge-status rp-sim"><i class="ph ph-check-circle"></i> RP</span> ';
+            temAlgumStatus = true;
+        }
+        if (item.saldoCD > 0) {
+            statusBadges += '<span class="badge-status cd-sim"><i class="ph ph-check-circle"></i> CD</span> ';
+            temAlgumStatus = true;
+        }
+        if (item.temEmpenho) {
+            statusBadges += '<span class="badge-status empenho-sim"><i class="ph ph-check-circle"></i> EMP</span> ';
+            temAlgumStatus = true;
+        }
+        if (item.zeradoSemCobertura) {
+            statusBadges += '<span class="badge-status zerado"><i class="ph ph-warning-diamond"></i> CRÍTICO</span>';
+            temAlgumStatus = true;
+        }
+
+        // Se não tem nenhuma cobertura, mostra "COMPRAR"
+        if (!temAlgumStatus) {
+            statusBadges = '<span class="badge-status" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;"><i class="ph ph-shopping-cart"></i> COMPRAR</span>';
+        }
+
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${item.codigo}</b></td>
+                <td>${item.descricao}</td>
+                <td>${item.cobertura || 0}</td>
+                <td>${item.saldoCD || 0}</td>
+                <td>${item.temRP ? '✓' : '✗'}</td>
+                <td>${item.temEmpenho ? '✓' : '✗'}</td>
+                <td>${statusBadges}</td>
+            </tr>`;
+    });
+
+    document.getElementById('projTotal').innerText = `Total: ${dadosProjecao.length} itens`;
+    document.getElementById('projExibindo').innerText = `Exibindo: ${itens.length} itens`;
+}
+
+function exibirAlertaProjecao(lista) {
+    const zerados = lista.filter(i => i.zeradoSemCobertura);
+
+    if (zerados.length === 0) return;
+
+    document.getElementById('numZerados').innerText = zerados.length;
+
+    const tbody = document.querySelector('#tabelaAlertaProj tbody');
+    tbody.innerHTML = '';
+    
+    zerados.slice(0, 15).forEach(item => {
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${item.codigo}</b></td>
+                <td>${item.descricao}</td>
+                <td>${item.cobertura || 0}</td>
+                <td>${item.saldoCD || 0}</td>
+            </tr>`;
+    });
+
+    if (zerados.length > 15) {
+        tbody.innerHTML += `<tr><td colspan='4' style='text-align:center; font-size:11px; color:var(--text-muted);'>+ ${zerados.length - 15} itens não exibidos</td></tr>`;
+    }
+
+    document.getElementById('modalAlertaProj').style.display = 'flex';
+    tocarSomMSN();
 }
 
 // --- NAVEGAÇÃO ---
@@ -330,11 +545,21 @@ function switchTab(aba) {
     if (aba === 'Dashboard') {
         document.getElementById('view-dashboard').style.display = 'block';
         document.getElementById('view-forms').style.display = 'none';
+        document.getElementById('view-projecao').style.display = 'none';
         document.getElementById('dash-gestor').style.display = (usuarioAtual.role === 'gestor') ? 'block' : 'none';
         carregarEstatisticas();
+    } else if (aba === 'Projecao') {
+        document.getElementById('view-dashboard').style.display = 'none';
+        document.getElementById('view-forms').style.display = 'none';
+        document.getElementById('view-projecao').style.display = 'block';
+        // Atualiza o título para mostrar de quem é a projeção
+        const nomeUsuario = usuarioAtual.nome.split(' ')[0];
+        document.querySelector('#view-projecao .header-tab h2').innerText = `Projeção de Compras — ${nomeUsuario}`;
+        carregarProjecao();
     } else {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'block';
+        document.getElementById('view-projecao').style.display = 'none';
         document.getElementById('tabTitle').innerText = "Lote de Notas: " + aba;
         document.getElementById('fieldNumAdi').style.display = (aba === 'Adiantamento') ? 'flex' : 'none';
         document.getElementById('fieldLote').style.display   = (aba === 'Adiantamento') ? 'none' : 'flex';

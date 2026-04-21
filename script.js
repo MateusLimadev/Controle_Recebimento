@@ -339,6 +339,7 @@ async function realizarLogin() {
                 document.getElementById('nomeBoasVindas').innerText = data.nome.split(' ')[0];
             } else {
                 entrarNoSistema(data);
+                registrarLog('LOGIN', `Acesso ao sistema`);
             }
         } else {
             mostrarErro('loginErro', '⚠️ Usuário ou senha incorretos.');
@@ -1324,13 +1325,15 @@ async function enviarTudo() {
     const btn = document.getElementById('btnEnviar');
     btn.disabled = true;
     btn.innerText = "SINCRONIZANDO...";
+    const total = listas[abaAtual].length;
     try {
         await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(listas[abaAtual]) });
-        alert("🚀 Lote enviado com sucesso!");
+        mostrarToast(`✅ ${total} nota(s) enviadas para a planilha!`, 'success');
+        registrarLog('SYNC NOTAS', `${total} nota(s) enviadas — aba ${abaAtual}`);
         listas[abaAtual] = [];
         atualizarTabela();
     } catch (e) {
-        alert("Erro ao conectar com o Google Sheets.");
+        mostrarToast('Erro ao conectar com o Google Sheets.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = "🚀 SINCRONIZAR COM PLANILHA";
@@ -1637,6 +1640,7 @@ async function confirmarSaida() {
             })
         });
         tocarSomMSN();
+        registrarLog('SAÍDA ADIANTAMENTO', `NF ${nf} — ${responsavel}`);
     } catch (e) {
         console.warn('Erro ao deletar adiantamento:', e);
     }
@@ -1828,6 +1832,7 @@ async function salvarUsuario() {
         if (!data.ok) throw new Error(data.erro || 'Erro desconhecido');
         fecharModal('modalUsuario');
         tocarSomMSN();
+        registrarLog(editando ? 'EDITAR USUÁRIO' : 'CRIAR USUÁRIO', `Login: ${login} — Permissões: ${perms.join(',')}`);
         await carregarUsuarios();
     } catch (e) {
         alert('Erro ao salvar: ' + e.message);
@@ -1867,6 +1872,7 @@ async function confirmarDeletarUsuario() {
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         tocarSomMSN();
+        registrarLog('DELETAR USUÁRIO', `Login removido: ${_loginParaDeletar}`);
         await carregarUsuarios();
     } catch (e) {
         alert('Erro ao remover usuário: ' + e.message);
@@ -1881,9 +1887,110 @@ async function confirmarDeletarUsuario() {
 function switchAdminTab(tab) {
     document.getElementById('adminTabUsuarios').style.display  = tab === 'usuarios'  ? 'block' : 'none';
     document.getElementById('adminTabBlacklist').style.display = tab === 'blacklist' ? 'block' : 'none';
+    document.getElementById('adminTabLog').style.display       = tab === 'log'       ? 'block' : 'none';
     document.getElementById('tabBtnUsuarios').classList.toggle('ativo',  tab === 'usuarios');
     document.getElementById('tabBtnBlacklist').classList.toggle('ativo', tab === 'blacklist');
+    document.getElementById('tabBtnLog').classList.toggle('ativo',       tab === 'log');
     if (tab === 'blacklist') carregarBlacklist();
+    if (tab === 'log')       carregarLog();
+}
+
+// =========================================================
+// LOG DE ATIVIDADES
+// =========================================================
+
+// Grava uma entrada no log (fire-and-forget via POST no-cors)
+function registrarLog(acao, detalhe = '') {
+    fetch(URL_SCRIPT, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+            tipo: 'log',
+            login:   loginAtual || '',
+            nome:    usuarioAtual?.nome || loginAtual || '',
+            acao:    acao,
+            detalhe: detalhe
+        })
+    }).catch(() => {});
+}
+
+let _logCompleto = []; // cache para filtro client-side
+
+async function carregarLog() {
+    document.getElementById('log-loading').style.display = 'flex';
+    document.querySelector('#tabelaLog tbody').innerHTML = '';
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=getLog&solicitante=${encodeURIComponent(loginAtual)}`);
+        const data = await res.json();
+        if (data.erro) throw new Error(data.erro);
+        _logCompleto = [...data].reverse(); // mais recentes primeiro
+        renderizarTabelaLog(_logCompleto);
+    } catch (e) {
+        document.querySelector('#tabelaLog tbody').innerHTML =
+            `<tr><td colspan="4" style="text-align:center;color:var(--danger)">Erro ao carregar log.</td></tr>`;
+    } finally {
+        document.getElementById('log-loading').style.display = 'none';
+    }
+}
+
+function filtrarLog() {
+    const inicio = document.getElementById('logInicio').value;
+    const fim    = document.getElementById('logFim').value;
+
+    if (!inicio || !fim) { mostrarToast('⚠️ Selecione início e fim.', 'warning'); return; }
+
+    const dtInicio = new Date(inicio + 'T00:00:00');
+    const dtFim    = new Date(fim    + 'T23:59:59');
+
+    const filtrado = _logCompleto.filter(entry => {
+        // dataHora formato: "21/04/2026 14:52:53" — converte para Date
+        const partes = entry.dataHora?.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+        if (!partes) return false;
+        const dt = new Date(`${partes[3]}-${partes[2]}-${partes[1]}T${partes[4]}:${partes[5]}:${partes[6]}`);
+        return dt >= dtInicio && dt <= dtFim;
+    });
+
+    renderizarTabelaLog(filtrado);
+    document.getElementById('btnLimparLog').style.display = 'inline-flex';
+    mostrarToast(`${filtrado.length} registro(s) no período.`, filtrado.length ? 'success' : 'info');
+}
+
+function limparFiltroLog() {
+    document.getElementById('logInicio').value = '';
+    document.getElementById('logFim').value    = '';
+    document.getElementById('btnLimparLog').style.display = 'none';
+    renderizarTabelaLog(_logCompleto);
+}
+
+function renderizarTabelaLog(lista) {
+    const tbody = document.querySelector('#tabelaLog tbody');
+    tbody.innerHTML = '';
+    const resumo = document.getElementById('logResumo');
+
+    if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted);">
+            <i class="ph ph-scroll" style="font-size:24px;display:block;margin-bottom:8px;"></i>
+            Nenhuma atividade registrada ainda.</td></tr>`;
+        if (resumo) resumo.textContent = '';
+        return;
+    }
+
+    lista.forEach(entry => {
+        const cor = entry.acao?.includes('LOGIN') ? 'var(--accent)'
+                  : entry.acao?.includes('DELETAR') || entry.acao?.includes('REMOVER') ? 'var(--danger)'
+                  : entry.acao?.includes('SYNC') || entry.acao?.includes('ENVIO') ? 'var(--success)'
+                  : entry.acao?.includes('BLACKLIST') ? '#f59e0b'
+                  : 'var(--text-muted)';
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${entry.dataHora || '—'}</td>
+                <td><b>${entry.nome || entry.login || '—'}</b></td>
+                <td><span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:6px;font-size:10px;font-weight:900;text-transform:uppercase;white-space:nowrap;">${entry.acao || '—'}</span></td>
+                <td style="font-size:12px;color:var(--text-muted);">${entry.detalhe || '—'}</td>
+            </tr>`;
+    });
+
+    if (resumo) resumo.textContent = `${lista.length} registro(s) exibido(s)`;
 }
 
 // =========================================================
@@ -1959,8 +2066,9 @@ async function salvarBlacklist() {
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         fecharModal('modalBlacklist');
-        blacklistCodigos.add(codigo); // atualiza cache local imediatamente
+        blacklistCodigos.add(codigo);
         tocarSomMSN();
+        registrarLog('BLACKLIST ADD', `Código bloqueado: ${codigo}${motivo ? ' — ' + motivo : ''}`);
         await carregarBlacklist();
     } catch (e) {
         alert('Erro ao bloquear código: ' + e.message);
@@ -1993,6 +2101,7 @@ async function removerBlacklist(codigo) {
         if (!data.ok) throw new Error(data.erro);
         blacklistCodigos.delete(codigo.trim().toUpperCase());
         tocarSomMSN();
+        registrarLog('BLACKLIST REMOVE', `Código desbloqueado: ${codigo}`);
         await carregarBlacklist();
     } catch (e) {
         alert('Erro ao remover da blacklist: ' + e.message);

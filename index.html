@@ -352,9 +352,6 @@
                 <i class="ph ph-clock-counter-clockwise"></i> ADIANTAMENTO
                 <span id="badgeAdi" class="nav-badge" style="display:none"></span>
             </button>
-            <button class="nav-btn" id="btn-historico" onclick="switchTab('Historico')">
-                <i class="ph ph-clock-clockwise"></i> HISTÓRICO
-            </button>
             <button class="nav-btn" id="btn-projecao" onclick="switchTab('Projecao')" style="display:none">
                 <i class="ph ph-package"></i> <span id="btnProjecaoLabel">PROJEÇÃO</span>
             </button>
@@ -797,6 +794,24 @@
                             <i class="ph ph-file-csv"></i> EXPORTAR CSV
                         </button>
                     </div>
+
+                    <!-- Filtro de período -->
+                    <div class="periodo-search-box" style="margin-bottom:16px;">
+                        <div class="periodo-search-row">
+                            <i class="ph ph-calendar-blank"></i>
+                            <span>Filtrar por período:</span>
+                            <input type="date" id="logInicio">
+                            <span>até</span>
+                            <input type="date" id="logFim">
+                            <button class="btn-periodo-buscar" onclick="filtrarLog()">
+                                <i class="ph ph-magnifying-glass"></i> FILTRAR
+                            </button>
+                            <button class="btn-periodo-limpar" id="btnLimparLog" onclick="limparFiltroLog()" style="display:none">
+                                <i class="ph ph-x"></i> LIMPAR
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="log-loading" class="loading-overlay" style="display:none">
                         <div class="spinner"></div><p>Carregando log...</p>
                     </div>
@@ -813,6 +828,7 @@
                             <tbody></tbody>
                         </table>
                     </div>
+                    <p id="logResumo" style="font-size:12px;color:var(--text-muted);margin-top:10px;text-align:right;"></p>
                 </div>
 
             </div>

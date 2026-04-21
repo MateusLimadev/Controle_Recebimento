@@ -32,6 +32,9 @@
             </div>
             <div class="login-erro" id="loginErro"></div>
             <button class="btn-login-final" onclick="realizarLogin()">ENTRAR NO SISTEMA</button>
+            <button class="btn-esqueci-senha" onclick="abrirEsqueciSenha()">
+                <i class="ph ph-key"></i> Esqueci minha senha
+            </button>
         </div>
     </section>
 
@@ -44,6 +47,10 @@
                 <p class="troca-subtitulo">Este é seu primeiro acesso. Por segurança, crie uma senha pessoal para continuar.</p>
             </div>
             <div class="login-inputs">
+                <div class="field-group">
+                    <label>Seu E-mail <span style="color:var(--text-muted);font-weight:500;">(para recuperação de senha)</span></label>
+                    <input type="email" id="primeiroEmail" placeholder="seu@email.com.br">
+                </div>
                 <div class="field-group">
                     <label>Nova Senha</label>
                     <input type="password" id="novaSenha" placeholder="Mínimo 6 caracteres">
@@ -333,6 +340,92 @@
             <button class="bv-btn-entrar" onclick="fecharModal('modalBoasVindas')">
                 <i class="ph ph-arrow-right"></i> ENTRAR NO SISTEMA
             </button>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL ESQUECI MINHA SENHA
+    ====================================================== -->
+    <div id="modalEsqueciSenha" class="modal" style="display:none;">
+        <div class="modal-content usuario-modal-content">
+
+            <!-- ETAPA 1: Informar login -->
+            <div id="resetStep1">
+                <div class="modal-header">
+                    <h3><i class="ph ph-key"></i> RECUPERAR SENHA</h3>
+                    <i class="ph ph-x" onclick="fecharModal('modalEsqueciSenha')" style="cursor:pointer;font-size:24px;"></i>
+                </div>
+                <p style="color:var(--text-muted);font-size:13px;margin-top:16px;">
+                    Informe seu login e enviaremos um código de 6 dígitos para o email cadastrado.
+                </p>
+                <div class="field-group" style="margin-top:20px;">
+                    <label>Login</label>
+                    <input type="text" id="resetLogin" placeholder="Digite seu login">
+                </div>
+                <div class="login-erro" id="resetErro1" style="margin-top:8px;"></div>
+                <div class="saida-confirm-btns" style="margin-top:24px;">
+                    <button class="btn-saida-cancelar" onclick="fecharModal('modalEsqueciSenha')">
+                        <i class="ph ph-x-circle"></i> CANCELAR
+                    </button>
+                    <button class="btn-salvar-usuario" onclick="solicitarCodigoReset()">
+                        <i class="ph ph-paper-plane-tilt"></i> ENVIAR CÓDIGO
+                    </button>
+                </div>
+            </div>
+
+            <!-- ETAPA 2: Inserir código -->
+            <div id="resetStep2" style="display:none;">
+                <div class="modal-header">
+                    <h3><i class="ph ph-envelope-open"></i> CÓDIGO ENVIADO</h3>
+                </div>
+                <p style="color:var(--text-muted);font-size:13px;margin-top:16px;" id="resetEmailMsg">
+                    Verifique seu email. O código expira em 15 minutos.
+                </p>
+                <div class="field-group" style="margin-top:20px;">
+                    <label>Código de 6 dígitos</label>
+                    <input type="text" id="resetCodigo" placeholder="000000" maxlength="6"
+                        style="font-size:28px;text-align:center;letter-spacing:12px;font-family:monospace;"
+                        oninput="this.value=this.value.replace(/\D/g,'')">
+                </div>
+                <div class="login-erro" id="resetErro2" style="margin-top:8px;"></div>
+                <div class="saida-confirm-btns" style="margin-top:24px;">
+                    <button class="btn-saida-cancelar" onclick="voltarStep1()">
+                        <i class="ph ph-arrow-left"></i> VOLTAR
+                    </button>
+                    <button class="btn-salvar-usuario" onclick="validarCodigoReset()">
+                        <i class="ph ph-check-circle"></i> VALIDAR CÓDIGO
+                    </button>
+                </div>
+            </div>
+
+            <!-- ETAPA 3: Nova senha -->
+            <div id="resetStep3" style="display:none;">
+                <div class="modal-header">
+                    <h3><i class="ph ph-lock-key-open"></i> NOVA SENHA</h3>
+                </div>
+                <p style="color:var(--text-muted);font-size:13px;margin-top:16px;">
+                    Código validado! Defina sua nova senha.
+                </p>
+                <div class="login-inputs" style="margin-top:20px;">
+                    <div class="field-group">
+                        <label>Nova Senha</label>
+                        <input type="password" id="resetNovaSenha" placeholder="Mínimo 6 caracteres">
+                    </div>
+                    <div class="field-group" style="margin-top:12px;">
+                        <label>Confirmar Senha</label>
+                        <input type="password" id="resetConfirmaSenha" placeholder="Repita a senha">
+                    </div>
+                </div>
+                <div class="login-erro" id="resetErro3" style="margin-top:8px;"></div>
+                <div class="saida-confirm-btns" style="margin-top:24px;">
+                    <button class="btn-saida-cancelar" onclick="fecharModal('modalEsqueciSenha')">
+                        <i class="ph ph-x-circle"></i> CANCELAR
+                    </button>
+                    <button class="btn-salvar-usuario" onclick="confirmarResetSenha()">
+                        <i class="ph ph-check-circle"></i> SALVAR NOVA SENHA
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -720,7 +813,10 @@
 
                 <!-- SUB-ABA USUÁRIOS -->
                 <div id="adminTabUsuarios">
-                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px; margin-top:24px;">
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px; margin-top:24px; gap:12px; flex-wrap:wrap;">
+                        <button class="btn-novo-usuario" style="background:transparent;color:#f59e0b;border:1.5px solid #f59e0b;" onclick="migrarSenhas()" title="Converte todas as senhas para hash SHA-256">
+                            <i class="ph ph-shield-check"></i> MIGRAR SENHAS PARA HASH
+                        </button>
                         <button class="btn-novo-usuario" onclick="abrirModalUsuario()">
                             <i class="ph ph-user-plus"></i> NOVO USUÁRIO
                         </button>
@@ -856,6 +952,10 @@
                     <label>Login</label>
                     <input type="text" id="u_login" placeholder="Ex: joao.silva">
                 </div>
+                <div class="field-group">
+                    <label>E-mail <span style="color:var(--text-muted);font-weight:500;">(recuperação de senha)</span></label>
+                    <input type="email" id="u_email" placeholder="usuario@hc.usp.br">
+                </div>
                 <div class="field-group" id="u_senha_group">
                     <label>Senha Inicial</label>
                     <input type="text" id="u_senha" placeholder="Mínimo 6 caracteres">
@@ -988,6 +1088,45 @@
             </div>
         </div>
     </div>
+    <!-- =====================================================
+         MODAL CONFIRMAR RESET DE SENHA
+    ====================================================== -->
+    <div id="modalResetarSenha" class="modal" style="display:none;">
+        <div class="modal-content saida-confirm-content">
+            <div class="saida-confirm-header">
+                <div class="saida-confirm-icon-wrap" style="background:rgba(245,158,11,0.12);">
+                    <i class="ph ph-key saida-confirm-icon" style="color:#f59e0b;"></i>
+                </div>
+                <div>
+                    <h3 class="saida-confirm-titulo" style="color:#f59e0b;">RESETAR SENHA</h3>
+                    <p class="saida-confirm-subtitulo">A senha será redefinida para o padrão <strong>Core@26</strong>. O usuário deverá trocar no próximo acesso.</p>
+                </div>
+            </div>
+            <div class="saida-confirm-info">
+                <div class="saida-info-row">
+                    <span class="saida-info-label"><i class="ph ph-user"></i> USUÁRIO</span>
+                    <span class="saida-info-valor" id="resetarUsuarioNome">—</span>
+                </div>
+                <div class="saida-info-row">
+                    <span class="saida-info-label"><i class="ph ph-identification-card"></i> LOGIN</span>
+                    <span class="saida-info-valor" id="resetarUsuarioLogin">—</span>
+                </div>
+                <div class="saida-info-row">
+                    <span class="saida-info-label"><i class="ph ph-lock"></i> NOVA SENHA</span>
+                    <span class="saida-info-valor" style="font-family:monospace;color:#f59e0b;font-size:16px;">Core@26</span>
+                </div>
+            </div>
+            <div class="saida-confirm-btns">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalResetarSenha')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-saida-confirmar" style="background:#f59e0b;" onclick="confirmarResetarSenha()">
+                    <i class="ph ph-key"></i> SIM, RESETAR SENHA
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalDeletarUsuario" class="modal" style="display:none;">
         <div class="modal-content saida-confirm-content">
             <div class="saida-confirm-header">

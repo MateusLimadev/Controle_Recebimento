@@ -2,9 +2,25 @@
 const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T4_rhscRJWTWlQPsCFH_5JM5Kedlq-DJj5IPpTkG3m9zcaHB2Q/exec";
 
 let usuarioAtual = null;
-let loginAtual = null;
+let loginAtual   = null;
+let sessaoAtual  = null; // { token, expira }
 let abaAtual = "Digitadas";
 let listas = { "Digitadas": [], "Recebimento": [], "Adiantamento": [] };
+
+// Adiciona token de sessão a qualquer URL do script
+function addAuth(url) {
+    if (!sessaoAtual?.token) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}tok=${encodeURIComponent(sessaoAtual.token)}&al=${encodeURIComponent(loginAtual || '')}`;
+}
+
+// Hash SHA-256 client-side (senha nunca viaja em texto puro)
+async function hashSenha(senha) {
+    const msgBuffer = new TextEncoder().encode(senha);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray  = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Garante que cada alerta só dispara uma vez por sessão (ao fazer login)
 let alertaAdiJaExibido = false;
@@ -115,7 +131,7 @@ async function buscarPorPeriodo() {
     btnBuscar.disabled  = true;
 
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(usuarioAtual.nome)}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}&role=${encodeURIComponent(usuarioAtual.permissoes.join(','))}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(usuarioAtual.nome)}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}&role=${encodeURIComponent(usuarioAtual.permissoes.join(','))}`));
         const data = await res.json();
 
         const tbody  = document.querySelector('#tabelaResultadoPeriodo tbody');
@@ -332,21 +348,35 @@ async function realizarLogin() {
     btn.innerText = "VERIFICANDO...";
 
     try {
-        const res = await fetch(`${URL_SCRIPT}?action=login&login=${encodeURIComponent(u)}&senha=${encodeURIComponent(s)}`);
+        // Envia senha em texto puro — o GS faz o hash server-side (HTTPS protege o transporte)
+        const res  = await fetch(`${URL_SCRIPT}?action=login&login=${encodeURIComponent(u)}&senha=${encodeURIComponent(s)}`);
         const data = await res.json();
 
         if (data.ok) {
             loginAtual = u;
+            // Armazena token de sessão em memória
+            sessaoAtual = {
+                token:  data.token,
+                expira: Date.now() + (8 * 60 * 60 * 1000) // 8 horas
+            };
+            // Timer de expiração automática
+            setTimeout(() => {
+                mostrarToast('⏱️ Sua sessão expirou. Faça login novamente.', 'warning', 6000);
+                setTimeout(() => logout(), 3000);
+            }, 8 * 60 * 60 * 1000);
+
             if (data.primeiroAcesso) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('primeiroAcessoScreen').style.display = 'flex';
                 document.getElementById('nomeBoasVindas').innerText = data.nome.split(' ')[0];
             } else {
                 entrarNoSistema(data);
-                registrarLog('LOGIN', `Acesso ao sistema`);
+                registrarLog('LOGIN', 'Acesso ao sistema');
             }
+        } else if (data.bloqueado) {
+            mostrarErro('loginErro', `🔒 Muitas tentativas. Tente novamente em ${data.restante} minuto(s).`);
         } else {
-            mostrarErro('loginErro', '⚠️ Usuário ou senha incorretos.');
+            mostrarErro('loginErro', `⚠️ Usuário ou senha incorretos. ${data.tentativas ? `(${data.tentativas}/5 tentativas)` : ''}`);
         }
     } catch (err) {
         mostrarErro('loginErro', '⚠️ Erro ao conectar com o servidor.');
@@ -370,7 +400,8 @@ async function confirmarNovaSenha() {
     btn.innerText = "SALVANDO...";
 
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=trocarSenha&login=${encodeURIComponent(loginAtual)}&novaSenha=${encodeURIComponent(nova)}`);
+        const email    = document.getElementById('primeiroEmail').value.trim();
+        const res  = await fetch(`${URL_SCRIPT}?action=trocarSenha&login=${encodeURIComponent(loginAtual)}&novaSenha=${encodeURIComponent(nova)}&email=${encodeURIComponent(email)}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -384,6 +415,98 @@ async function confirmarNovaSenha() {
     } finally {
         btn.disabled = false;
         btn.innerText = "SALVAR E ENTRAR";
+    }
+}
+
+// =========================================================
+// ESQUECI MINHA SENHA
+// =========================================================
+let _resetLoginPendente = null;
+
+function abrirEsqueciSenha() {
+    document.getElementById('resetStep1').style.display = 'block';
+    document.getElementById('resetStep2').style.display = 'none';
+    document.getElementById('resetStep3').style.display = 'none';
+    document.getElementById('resetLogin').value  = '';
+    document.getElementById('resetCodigo').value = '';
+    document.getElementById('resetErro1').innerText = '';
+    _resetLoginPendente = null;
+    document.getElementById('modalEsqueciSenha').style.display = 'flex';
+}
+
+function voltarStep1() {
+    document.getElementById('resetStep1').style.display = 'block';
+    document.getElementById('resetStep2').style.display = 'none';
+    document.getElementById('resetErro1').innerText = '';
+}
+
+async function solicitarCodigoReset() {
+    const login = document.getElementById('resetLogin').value.trim().toLowerCase();
+    if (!login) { document.getElementById('resetErro1').innerText = '⚠️ Informe o login.'; return; }
+
+    const btn = document.querySelector('#resetStep1 .btn-salvar-usuario');
+    btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> ENVIANDO...';
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=solicitarReset&login=${encodeURIComponent(login)}`);
+        const data = await res.json();
+        if (!data.ok) { document.getElementById('resetErro1').innerText = data.erro || '⚠️ Usuário não encontrado ou sem email cadastrado.'; return; }
+
+        _resetLoginPendente = login;
+        document.getElementById('resetEmailMsg').innerHTML = `Código enviado para <b>${data.emailMask}</b>. Expira em 15 minutos.`;
+        document.getElementById('resetStep1').style.display = 'none';
+        document.getElementById('resetStep2').style.display = 'block';
+        setTimeout(() => document.getElementById('resetCodigo').focus(), 100);
+    } catch (e) {
+        document.getElementById('resetErro1').innerText = '⚠️ Erro ao enviar código. Tente novamente.';
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR CÓDIGO';
+    }
+}
+
+async function validarCodigoReset() {
+    const codigo = document.getElementById('resetCodigo').value.trim();
+    if (codigo.length !== 6) { document.getElementById('resetErro2').innerText = '⚠️ Digite o código de 6 dígitos.'; return; }
+
+    const btn = document.querySelector('#resetStep2 .btn-salvar-usuario');
+    btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> VALIDANDO...';
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=validarCodigo&login=${encodeURIComponent(_resetLoginPendente)}&codigo=${encodeURIComponent(codigo)}`);
+        const data = await res.json();
+        if (!data.ok) { document.getElementById('resetErro2').innerText = data.erro || '⚠️ Código inválido ou expirado.'; return; }
+        document.getElementById('resetStep2').style.display = 'none';
+        document.getElementById('resetStep3').style.display = 'block';
+        setTimeout(() => document.getElementById('resetNovaSenha').focus(), 100);
+    } catch (e) {
+        document.getElementById('resetErro2').innerText = '⚠️ Erro ao validar código.';
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> VALIDAR CÓDIGO';
+    }
+}
+
+async function confirmarResetSenha() {
+    const nova    = document.getElementById('resetNovaSenha').value.trim();
+    const confirma = document.getElementById('resetConfirmaSenha').value.trim();
+    if (nova.length < 6)   { document.getElementById('resetErro3').innerText = '⚠️ Senha deve ter pelo menos 6 caracteres.'; return; }
+    if (nova !== confirma) { document.getElementById('resetErro3').innerText = '⚠️ As senhas não coincidem.'; return; }
+
+    const novaHash = nova; // GS faz o hash server-side
+    const codigo   = document.getElementById('resetCodigo').value.trim();
+    const btn = document.querySelector('#resetStep3 .btn-salvar-usuario');
+    btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> SALVANDO...';
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=resetarComCodigo&login=${encodeURIComponent(_resetLoginPendente)}&codigo=${encodeURIComponent(codigo)}&novaSenha=${encodeURIComponent(novaHash)}`);
+        const data = await res.json();
+        if (!data.ok) { document.getElementById('resetErro3').innerText = data.erro || '⚠️ Erro ao salvar senha.'; return; }
+        fecharModal('modalEsqueciSenha');
+        mostrarToast('✅ Senha redefinida com sucesso! Faça login.', 'success', 5000);
+        _resetLoginPendente = null;
+    } catch (e) {
+        document.getElementById('resetErro3').innerText = '⚠️ Erro ao salvar. Tente novamente.';
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> SALVAR NOVA SENHA';
     }
 }
 
@@ -548,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalBlacklist'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -562,7 +685,7 @@ async function carregarEstatisticas() {
     document.getElementById('dash-content').style.display = 'none';
 
     try {
-        const res  = await fetch(URL_SCRIPT);
+        const res  = await fetch(addAuth(URL_SCRIPT));
         const data = await res.json();
 
         document.getElementById('setorMediaGeral').innerText = data.statsSetor.mediaGeral;
@@ -618,7 +741,7 @@ async function carregarEstatisticas() {
 // =========================================================
 async function criarTabsDiretor() {
     try {
-        const res   = await fetch(`${URL_SCRIPT}?action=getCompradores&solicitante=${encodeURIComponent(loginAtual)}`);
+        const res   = await fetch(addAuth(`${URL_SCRIPT}?action=getCompradores&solicitante=${encodeURIComponent(loginAtual)}`));
         const lista = await res.json();
 
         const container = document.getElementById('navProjecoesDir');
@@ -696,7 +819,7 @@ async function carregarAdiantamentos() {
     // Senão, busca da planilha
     document.getElementById('adi-loading').style.display = 'flex';
     try {
-        const res  = await fetch(URL_SCRIPT);
+        const res  = await fetch(addAuth(URL_SCRIPT));
         const data = await res.json();
 
         let lista = data.adiantamentosSetor || [];
@@ -716,7 +839,7 @@ async function carregarAdiantamentos() {
 async function carregarProjecaoBackground() {
     try {
         const nomeUsuario = usuarioAtual.nome.split(' ')[0].toUpperCase(); // pega primeiro nome em maiúscula
-        const res = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
+        const res = await fetch(addAuth(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`));
         const data = await res.json();
 
         if (!data.erro) {
@@ -1362,7 +1485,7 @@ async function buscarNoBanco() {
     btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
 
     try {
-        const res     = await fetch(`${URL_SCRIPT}?search=${encodeURIComponent(q)}&tab=${abaAtual}`);
+        const res     = await fetch(addAuth(`${URL_SCRIPT}?search=${encodeURIComponent(q)}&tab=${abaAtual}`));
         const results = await res.json();
         const tbody   = document.querySelector("#tabelaResultados tbody");
         tbody.innerHTML = "";
@@ -1731,7 +1854,7 @@ async function carregarUsuarios() {
     document.getElementById('admin-loading').style.display = 'flex';
     document.querySelector('#tabelaUsuarios tbody').innerHTML = '';
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=getUsuarios&solicitante=${encodeURIComponent(loginAtual)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getUsuarios&solicitante=${encodeURIComponent(loginAtual)}`));
         const data = await res.json();
         if (data.erro) throw new Error(data.erro);
         renderizarTabelaUsuarios(data);
@@ -1762,6 +1885,7 @@ function renderizarTabelaUsuarios(lista) {
         const isSelf = u.login === loginAtual;
         const permsEsc    = perms.join(',').replace(/'/g, "\\'");
         const prefixosEsc = (u.prefixos || '').replace(/'/g, "\\'");
+        const emailEsc    = (u.email || '').replace(/'/g, "\\'");
         tbody.innerHTML += `
             <tr>
                 <td><b>${u.nome}</b><br><span style="font-size:11px;color:var(--text-muted)">${u.login}</span></td>
@@ -1769,16 +1893,16 @@ function renderizarTabelaUsuarios(lista) {
                 <td>${status}</td>
                 <td style="text-align:center;">
                     <div class="admin-acoes">
-                        <button class="btn-admin-acao editar" onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${permsEsc}','${prefixosEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                        <button class="btn-admin-acao resetar" onclick="resetarSenhaUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Resetar senha"><i class="ph ph-key"></i></button>
-                        <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Remover" ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}><i class="ph ph-trash"></i></button>
+                        <button class="btn-admin-acao editar"  onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${permsEsc}','${prefixosEsc}','${emailEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                        <button class="btn-admin-acao resetar" onclick="abrirModalResetarSenha('${u.login}','${u.nome.replace(/'/g,"\\'")}');" title="Resetar senha"><i class="ph ph-key"></i></button>
+                        <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}');" title="Remover" ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}><i class="ph ph-trash"></i></button>
                     </div>
                 </td>
             </tr>`;
     });
 }
 
-function abrirModalUsuario(login, nome, permsStr, prefixos) {
+function abrirModalUsuario(login, nome, permsStr, prefixos, email) {
     const editando = !!login;
     _usuarioEditando = editando ? login : null;
     const perms = permsStr ? permsStr.split(',').map(p => p.trim()) : ['digitador'];
@@ -1789,10 +1913,11 @@ function abrirModalUsuario(login, nome, permsStr, prefixos) {
 
     document.getElementById('u_nome').value  = nome  || '';
     document.getElementById('u_login').value = login || '';
+    document.getElementById('u_email').value = email || '';
     document.getElementById('u_login').disabled = editando;
     document.getElementById('u_senha_group').style.display   = editando ? 'none'  : 'flex';
     document.getElementById('u_editando_info').style.display = editando ? 'block' : 'none';
-    document.getElementById('u_senha').value = '';
+    document.getElementById('u_senha').value = editando ? '' : 'Core@26';
 
     // Prefixos — visível só para comprador
     const isComprador = perms.includes('comprador');
@@ -1817,11 +1942,12 @@ async function salvarUsuario() {
     if (!nome || !login) return alert('⚠️ Preencha nome e login.');
     if (!editando && senha.length < 6) return alert('⚠️ A senha inicial deve ter pelo menos 6 caracteres.');
 
-    // Coleta permissões marcadas
     const perms = TODAS_PERMS.filter(p => document.getElementById(`p_${p}`)?.checked);
     if (perms.length === 0) return alert('⚠️ Selecione ao menos uma permissão.');
 
-    const prefixos = document.getElementById('u_prefixos').value.trim();
+    const prefixos  = document.getElementById('u_prefixos').value.trim();
+    const email     = document.getElementById('u_email').value.trim();
+    const senhaHash = !editando ? senha : null;
 
     const btn = document.getElementById('btnSalvarUsuario');
     btn.disabled = true;
@@ -1829,8 +1955,8 @@ async function salvarUsuario() {
 
     try {
         const action = editando ? 'editarUsuario' : 'criarUsuario';
-        let url = `${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&permissoes=${encodeURIComponent(perms.join(','))}&prefixos=${encodeURIComponent(prefixos)}`;
-        if (!editando) url += `&senha=${encodeURIComponent(senha)}`;
+        let url = addAuth(`${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&permissoes=${encodeURIComponent(perms.join(','))}&prefixos=${encodeURIComponent(prefixos)}&email=${encodeURIComponent(email)}`);
+        if (!editando) url += `&senha=${encodeURIComponent(senhaHash)}`;
         const res  = await fetch(url);
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro || 'Erro desconhecido');
@@ -1846,18 +1972,36 @@ async function salvarUsuario() {
     }
 }
 
-async function resetarSenhaUsuario(login, nome) {
-    const nova = prompt(`Nova senha para ${nome}:`);
-    if (!nova || nova.length < 6) return alert('Senha deve ter pelo menos 6 caracteres.');
+let _loginParaResetar = null;
+let _nomeParaResetar  = null;
+
+function abrirModalResetarSenha(login, nome) {
+    _loginParaResetar = login;
+    _nomeParaResetar  = nome;
+    document.getElementById('resetarUsuarioNome').innerText  = nome;
+    document.getElementById('resetarUsuarioLogin').innerText = login;
+    document.getElementById('modalResetarSenha').style.display = 'flex';
+}
+
+async function confirmarResetarSenha() {
+    const login = _loginParaResetar;
+    const nome  = _nomeParaResetar;
+    if (!login) return;
+    fecharModal('modalResetarSenha');
+    _loginParaResetar = null;
+    _nomeParaResetar  = null;
+
+    const novaHash = 'Core@26'; // GS faz o hash server-side
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=resetarSenha&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&novaSenha=${encodeURIComponent(nova)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=resetarSenha&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&novaSenha=${encodeURIComponent(novaHash)}`));
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         tocarSomMSN();
-        alert(`✅ Senha de ${nome} redefinida. O usuário deverá trocar no próximo acesso.`);
+        mostrarToast(`✅ Senha de ${nome} redefinida para Core@26.`, 'success');
+        registrarLog('RESETAR SENHA', `Login: ${login}`);
         await carregarUsuarios();
     } catch (e) {
-        alert('Erro ao resetar senha: ' + e.message);
+        mostrarToast('Erro ao resetar senha: ' + e.message, 'error');
     }
 }
 
@@ -1872,7 +2016,7 @@ async function confirmarDeletarUsuario() {
     if (!_loginParaDeletar) return;
     fecharModal('modalDeletarUsuario');
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=deletarUsuario&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(_loginParaDeletar)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=deletarUsuario&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(_loginParaDeletar)}`));
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         tocarSomMSN();
@@ -1886,8 +2030,28 @@ async function confirmarDeletarUsuario() {
 }
 
 // =========================================================
-// ADMIN — SUB-ABAS
+// MIGRAÇÃO DE SENHAS PARA SHA-256
 // =========================================================
+async function migrarSenhas() {
+    if (!confirm('Isso vai converter todas as senhas em texto puro para hash SHA-256.\n\nOs usuários continuarão usando a mesma senha — só o armazenamento muda.\n\nContinuar?')) return;
+
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> MIGRANDO...';
+
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=migrarSenhas&solicitante=${encodeURIComponent(loginAtual)}`));
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        mostrarToast(`✅ ${data.migradas} senha(s) convertidas para hash SHA-256.`, 'success', 5000);
+        registrarLog('MIGRAÇÃO SENHAS', `${data.migradas} senha(s) hasheadas`);
+    } catch (e) {
+        mostrarToast('Erro na migração: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-shield-check"></i> MIGRAR SENHAS PARA HASH';
+    }
+}
 function switchAdminTab(tab) {
     document.getElementById('adminTabUsuarios').style.display  = tab === 'usuarios'  ? 'block' : 'none';
     document.getElementById('adminTabBlacklist').style.display = tab === 'blacklist' ? 'block' : 'none';
@@ -1924,7 +2088,7 @@ async function carregarLog() {
     document.getElementById('log-loading').style.display = 'flex';
     document.querySelector('#tabelaLog tbody').innerHTML = '';
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=getLog&solicitante=${encodeURIComponent(loginAtual)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getLog&solicitante=${encodeURIComponent(loginAtual)}`));
         const data = await res.json();
         if (data.erro) throw new Error(data.erro);
         _logCompleto = [...data].reverse(); // mais recentes primeiro
@@ -2004,7 +2168,7 @@ function renderizarTabelaLog(lista) {
 // Carrega só os códigos (cache leve) — para filtro na projeção
 async function carregarBlacklistCache() {
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=getBlacklist`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getBlacklist`));
         const data = await res.json();
         blacklistCodigos = new Set((data || []).map(item => item.codigo.trim().toUpperCase()));
     } catch (e) {
@@ -2066,7 +2230,7 @@ async function salvarBlacklist() {
     if (!codigo) return alert('⚠️ Informe o código do item.');
 
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=addBlacklist&solicitante=${encodeURIComponent(loginAtual)}&codigo=${encodeURIComponent(codigo)}&motivo=${encodeURIComponent(motivo)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=addBlacklist&solicitante=${encodeURIComponent(loginAtual)}&codigo=${encodeURIComponent(codigo)}&motivo=${encodeURIComponent(motivo)}`));
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         fecharModal('modalBlacklist');
@@ -2086,7 +2250,7 @@ async function adicionarBlacklistMulti() {
     if (!codigos.length) return;
 
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=addBlacklistLote&solicitante=${encodeURIComponent(loginAtual)}&codigos=${encodeURIComponent(codigos.join(','))}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=addBlacklistLote&solicitante=${encodeURIComponent(loginAtual)}&codigos=${encodeURIComponent(codigos.join(','))}`));
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         codigos.forEach(c => blacklistCodigos.add(c));
@@ -2100,7 +2264,7 @@ async function adicionarBlacklistMulti() {
 
 async function removerBlacklist(codigo) {
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=removerBlacklist&solicitante=${encodeURIComponent(loginAtual)}&codigo=${encodeURIComponent(codigo)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=removerBlacklist&solicitante=${encodeURIComponent(loginAtual)}&codigo=${encodeURIComponent(codigo)}`));
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro);
         blacklistCodigos.delete(codigo.trim().toUpperCase());

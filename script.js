@@ -322,7 +322,7 @@ async function carregarEstatisticas() {
             adiantamentosCarregados = [];
         }
 
-        if (usuarioAtual.role === 'gestor') {
+        if (temPermissao('gestor') || temPermissao('administrador')) {
             const tbodyG = document.querySelector("#tabelaGestao tbody");
             tbodyG.innerHTML = data.statsGestor.map(c => `
                 <tr>

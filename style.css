@@ -1461,8 +1461,194 @@ table thead th[onclick]:hover {
 }
 
 /* ==========================================================================
-   22. MODAL DE CONFIRMAÇÃO DE SAÍDA DE ADIANTAMENTO
+   23. PAINEL DE ADMINISTRAÇÃO
    ========================================================================== */
+
+.nav-btn-admin {
+    color: #f59e0b !important;
+}
+.nav-btn-admin.active {
+    color: #f59e0b !important;
+    border-bottom-color: #f59e0b !important;
+}
+
+.btn-novo-usuario {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-weight: 900;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.btn-novo-usuario:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(2,132,199,0.3);
+}
+
+/* Badges de cargo */
+.badge-cargo {
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.badge-cargo.digitador     { background: rgba(100,116,139,0.15); color: var(--text-muted); }
+.badge-cargo.gestor        { background: rgba(2,132,199,0.15);   color: var(--accent); }
+.badge-cargo.administrador { background: rgba(245,158,11,0.15);  color: #f59e0b; }
+
+/* Badge comprador na tabela */
+.badge-comprador {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--success);
+    background: rgba(22,163,74,0.12);
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+/* Toggle switch de comprador no modal */
+.toggle-comprador {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-system);
+    transition: var(--transition);
+    user-select: none;
+}
+.toggle-comprador:hover { border-color: var(--success); }
+.toggle-comprador input[type="checkbox"] { display: none; }
+
+.toggle-track {
+    width: 42px;
+    height: 24px;
+    min-width: 42px;
+    background: var(--border);
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.25s;
+}
+.toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.25s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.toggle-comprador input:checked ~ .toggle-track { background: var(--success); }
+.toggle-comprador input:checked ~ .toggle-track::after { transform: translateX(18px); }
+
+.toggle-label-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.toggle-label-text i { color: var(--success); font-size: 16px; }
+
+/* Badges de status de acesso */
+.badge-ativo {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--success);
+}
+.badge-primeiro-acesso {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+/* Botões de ação na tabela de usuários */
+.admin-acoes {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+}
+.btn-admin-acao {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: var(--transition);
+    color: var(--text-muted);
+}
+.btn-admin-acao.editar:hover  { border-color: var(--accent);   color: var(--accent);   background: rgba(2,132,199,0.08); }
+.btn-admin-acao.resetar:hover { border-color: var(--warning);  color: var(--warning);  background: rgba(234,179,8,0.08); }
+.btn-admin-acao.deletar:hover { border-color: var(--danger);   color: var(--danger);   background: rgba(239,68,68,0.08); }
+
+/* Modal de usuário */
+.usuario-modal-content {
+    max-width: 540px;
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--accent);
+}
+
+/* Botão salvar usuário */
+.btn-salvar-usuario {
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 900;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+.btn-salvar-usuario:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(2,132,199,0.3);
+}
+.btn-salvar-usuario:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 @keyframes pulsarSaida {
     0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0   rgba(239,68,68,0.45); }

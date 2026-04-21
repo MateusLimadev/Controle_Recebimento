@@ -222,16 +222,24 @@ async function confirmarNovaSenha() {
 }
 
 function entrarNoSistema(data) {
-    alertaJaExibido = false; // reseta o flag ao entrar
+    alertaJaExibido = false;
     alertaAdiJaExibido = false;
     alertaProjJaExibido = false;
     alertaProjPendente = false;
-    usuarioAtual = { nome: data.nome, role: data.role };
+    usuarioAtual = { nome: data.nome, role: data.role, comprador: data.comprador === true || data.comprador === 'true' };
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
     document.getElementById('mainHeader').style.display = 'flex';
     document.getElementById('app').style.display = 'block';
     document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+
+    const isAdmin    = usuarioAtual.role === 'administrador';
+    const verProjecao = usuarioAtual.comprador || isAdmin;
+
+    document.getElementById('btn-projecao').style.display      = verProjecao ? 'inline-flex' : 'none';
+    document.getElementById('carrinhoHeaderBtn').style.display = verProjecao ? 'flex'        : 'none';
+    document.getElementById('btn-admin').style.display         = isAdmin     ? 'inline-flex' : 'none';
+
     switchTab('Dashboard');
 }
 
@@ -242,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -590,8 +598,11 @@ function renderizarPaginaProjecao() {
                 <td style="text-align:center;">
                     <button class="btn-add-carrinho ${carrinho.some(c => c.codigo === item.codigo) ? 'no-carrinho' : ''}"
                         data-codigo="${item.codigo}"
+                        data-descricao="${item.descricao.replace(/"/g, '&quot;')}"
+                        data-cobertura="${item.cobertura || 0}"
+                        data-status="${statusTexto}"
                         title="${carrinho.some(c => c.codigo === item.codigo) ? 'Remover do carrinho' : 'Adicionar ao carrinho'}"
-                        onclick="toggleCarrinhoItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', ${item.cobertura || 0}, '${statusTexto}')">
+                        onclick="toggleCarrinhoItem(this)">
                         <i class="${carrinho.some(c => c.codigo === item.codigo) ? 'ph ph-check-circle' : 'ph ph-shopping-cart'}"></i>
                     </button>
                 </td>
@@ -753,9 +764,9 @@ function mudarPaginaAlerta(pagina) {
 function switchTab(aba) {
     abaAtual = aba;
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-' + aba.toLowerCase()).classList.add('active');
+    const btnEl = document.getElementById('btn-' + aba.toLowerCase());
+    if (btnEl) btnEl.classList.add('active');
 
-    // Esconde a seção de adiantamentos ao sair da aba
     const monitorSec = document.getElementById('monitorAdiantamentosSection');
     if (monitorSec) monitorSec.style.display = 'none';
 
@@ -763,31 +774,36 @@ function switchTab(aba) {
         document.getElementById('view-dashboard').style.display = 'block';
         document.getElementById('view-forms').style.display = 'none';
         document.getElementById('view-projecao').style.display = 'none';
-        document.getElementById('dash-gestor').style.display = (usuarioAtual.role === 'gestor') ? 'block' : 'none';
+        document.getElementById('view-admin').style.display = 'none';
+        const isGestorOuAdmin = usuarioAtual.role === 'gestor' || usuarioAtual.role === 'administrador';
+        document.getElementById('dash-gestor').style.display = isGestorOuAdmin ? 'block' : 'none';
         carregarEstatisticas();
     } else if (aba === 'Projecao') {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'none';
         document.getElementById('view-projecao').style.display = 'block';
-        // Atualiza o título para mostrar de quem é a projeção
+        document.getElementById('view-admin').style.display = 'none';
         const nomeUsuario = usuarioAtual.nome.split(' ')[0];
         document.querySelector('#view-projecao .header-tab h2').innerText = `Projeção de Compras — ${nomeUsuario}`;
         carregarProjecao();
+    } else if (aba === 'Admin') {
+        document.getElementById('view-dashboard').style.display = 'none';
+        document.getElementById('view-forms').style.display = 'none';
+        document.getElementById('view-projecao').style.display = 'none';
+        document.getElementById('view-admin').style.display = 'block';
+        carregarUsuarios();
     } else {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'block';
         document.getElementById('view-projecao').style.display = 'none';
+        document.getElementById('view-admin').style.display = 'none';
         document.getElementById('tabTitle').innerText = "Lote de Notas: " + aba;
         document.getElementById('fieldNumAdi').style.display = (aba === 'Adiantamento') ? 'flex' : 'none';
         document.getElementById('fieldLote').style.display   = (aba === 'Adiantamento') ? 'none' : 'flex';
         configurarStatusCard(aba);
         configurarTableHeader();
         atualizarTabela();
-
-        // Ao entrar na aba Adiantamento, exibe a tabela de abertos
-        if (aba === 'Adiantamento') {
-            carregarAdiantamentos();
-        }
+        if (aba === 'Adiantamento') carregarAdiantamentos();
     }
 }
 
@@ -961,7 +977,12 @@ function fecharCarrinho() {
     document.getElementById('carrinhoDrawer').classList.remove('aberto');
 }
 
-function toggleCarrinhoItem(codigo, descricao, cobertura, statusTexto) {
+function toggleCarrinhoItem(btn) {
+    const codigo     = btn.dataset.codigo;
+    const descricao  = btn.dataset.descricao;
+    const cobertura  = parseFloat(btn.dataset.cobertura) || 0;
+    const statusTexto = btn.dataset.status;
+
     const idx = carrinho.findIndex(i => i.codigo === codigo);
     if (idx >= 0) {
         carrinho.splice(idx, 1);
@@ -970,13 +991,10 @@ function toggleCarrinhoItem(codigo, descricao, cobertura, statusTexto) {
     }
     atualizarContadorCarrinho();
     // Atualiza visual do botão na tabela sem re-renderizar tudo
-    const btn = document.querySelector(`.btn-add-carrinho[data-codigo="${codigo}"]`);
-    if (btn) {
-        const noCarrinho = carrinho.some(i => i.codigo === codigo);
-        btn.classList.toggle('no-carrinho', noCarrinho);
-        btn.title = noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho';
-        btn.querySelector('i').className = noCarrinho ? 'ph ph-check-circle' : 'ph ph-shopping-cart';
-    }
+    const noCarrinho = carrinho.some(i => i.codigo === codigo);
+    btn.classList.toggle('no-carrinho', noCarrinho);
+    btn.title = noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho';
+    btn.querySelector('i').className = noCarrinho ? 'ph ph-check-circle' : 'ph ph-shopping-cart';
 }
 
 function atualizarContadorCarrinho() {
@@ -1253,14 +1271,183 @@ function fecharModal(id) {
 
     // Ao fechar o alerta de adiantamento, dispara o de projeção se necessário
     if (id === 'modalAlertaAdi' && !alertaProjJaExibido) {
-        // Caso 1: projeção já carregou e tem itens críticos
-        // Caso 2: projeção ainda vai carregar (alertaProjPendente será true quando chegar)
         const zerados = dadosProjecao.filter(i => i.zeradoSemCobertura);
         if (zerados.length > 0) {
             setTimeout(() => exibirAlertaProjecao(dadosProjecao), 300);
         } else if (dadosProjecao.length === 0) {
-            // Projeção ainda não carregou — marca que deve abrir assim que chegar
             alertaProjPendente = true;
         }
+    }
+}
+
+// =========================================================
+// ADMINISTRAÇÃO DE USUÁRIOS
+// =========================================================
+
+let _usuarioEditando = null; // login do usuário sendo editado (null = criação)
+let _loginParaDeletar = null;
+
+const CARGO_LABEL = {
+    digitador:      { txt: 'Digitador',     cls: 'badge-cargo digitador' },
+    gestor:         { txt: 'Gestor',         cls: 'badge-cargo gestor' },
+    administrador:  { txt: 'Administrador',  cls: 'badge-cargo administrador' }
+};
+
+async function carregarUsuarios() {
+    document.getElementById('admin-loading').style.display = 'flex';
+    document.querySelector('#tabelaUsuarios tbody').innerHTML = '';
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=getUsuarios&solicitante=${encodeURIComponent(loginAtual)}`);
+        const data = await res.json();
+        if (data.erro) throw new Error(data.erro);
+        renderizarTabelaUsuarios(data);
+    } catch (e) {
+        document.querySelector('#tabelaUsuarios tbody').innerHTML =
+            `<tr><td colspan="5" style="text-align:center;color:var(--danger)">Erro ao carregar usuários.</td></tr>`;
+    } finally {
+        document.getElementById('admin-loading').style.display = 'none';
+    }
+}
+
+function renderizarTabelaUsuarios(lista) {
+    const tbody = document.querySelector('#tabelaUsuarios tbody');
+    tbody.innerHTML = '';
+
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Nenhum usuário encontrado.</td></tr>';
+        return;
+    }
+
+    lista.forEach(u => {
+        const cargo  = CARGO_LABEL[u.role] || { txt: u.role, cls: 'badge-cargo digitador' };
+        const isComprador = u.comprador === 'true' || u.comprador === true || u.role === 'administrador';
+        const badgeComprador = isComprador
+            ? '<span class="badge-comprador">🛒 Comprador</span>'
+            : '<span style="color:var(--text-muted); font-size:11px;">—</span>';
+        const status = u.primeiroAcesso === 'true' || u.primeiroAcesso === true
+            ? '<span class="badge-primeiro-acesso">⏳ Aguardando 1º acesso</span>'
+            : '<span class="badge-ativo">✓ Ativo</span>';
+
+        const isSelf = u.login === loginAtual;
+
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${u.nome}</b></td>
+                <td style="color:var(--text-muted); font-size:12px;">${u.login}</td>
+                <td><span class="${cargo.cls}">${cargo.txt}</span></td>
+                <td>${badgeComprador}</td>
+                <td>${status}</td>
+                <td style="text-align:center;">
+                    <div class="admin-acoes">
+                        <button class="btn-admin-acao editar" onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${u.role}',${isComprador})" title="Editar">
+                            <i class="ph ph-pencil-simple"></i>
+                        </button>
+                        <button class="btn-admin-acao resetar" onclick="resetarSenhaUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Resetar senha">
+                            <i class="ph ph-key"></i>
+                        </button>
+                        <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Remover"
+                            ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+}
+
+function abrirModalUsuario(login, nome, role, comprador) {
+    const editando = !!login;
+    _usuarioEditando = editando ? login : null;
+
+    document.getElementById('modalUsuarioTitulo').innerHTML = editando
+        ? '<i class="ph ph-pencil-simple"></i> EDITAR USUÁRIO'
+        : '<i class="ph ph-user-plus"></i> NOVO USUÁRIO';
+
+    document.getElementById('u_nome').value      = nome  || '';
+    document.getElementById('u_login').value     = login || '';
+    document.getElementById('u_role').value      = role  || 'digitador';
+    document.getElementById('u_comprador').checked = !!comprador;
+
+    document.getElementById('u_login').disabled            = editando;
+    document.getElementById('u_senha_group').style.display = editando ? 'none' : 'flex';
+    document.getElementById('u_editando_info').style.display = editando ? 'block' : 'none';
+    document.getElementById('u_senha').value = '';
+
+    document.getElementById('modalUsuario').style.display = 'flex';
+}
+
+async function salvarUsuario() {
+    const nome      = document.getElementById('u_nome').value.trim();
+    const login     = document.getElementById('u_login').value.trim().toLowerCase();
+    const role      = document.getElementById('u_role').value;
+    const senha     = document.getElementById('u_senha').value.trim();
+    const comprador = document.getElementById('u_comprador').checked;
+    const editando  = !!_usuarioEditando;
+
+    if (!nome || !login) return alert('⚠️ Preencha nome e login.');
+    if (!editando && senha.length < 6) return alert('⚠️ A senha inicial deve ter pelo menos 6 caracteres.');
+
+    const btn = document.getElementById('btnSalvarUsuario');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> SALVANDO...';
+
+    try {
+        const action = editando ? 'editarUsuario' : 'criarUsuario';
+        let url = `${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&role=${encodeURIComponent(role)}&comprador=${comprador}`;
+        if (!editando) url += `&senha=${encodeURIComponent(senha)}`;
+
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro || 'Erro desconhecido');
+
+        fecharModal('modalUsuario');
+        tocarSomMSN();
+        await carregarUsuarios();
+    } catch (e) {
+        alert('Erro ao salvar: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-check-circle"></i> SALVAR';
+    }
+}
+
+async function resetarSenhaUsuario(login, nome) {
+    const nova = prompt(`Nova senha para ${nome}:`);
+    if (!nova || nova.length < 6) return alert('Senha deve ter pelo menos 6 caracteres.');
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=resetarSenha&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&novaSenha=${encodeURIComponent(nova)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        tocarSomMSN();
+        alert(`✅ Senha de ${nome} redefinida. O usuário deverá trocar no próximo acesso.`);
+        await carregarUsuarios();
+    } catch (e) {
+        alert('Erro ao resetar senha: ' + e.message);
+    }
+}
+
+function abrirModalDeletar(login, nome) {
+    _loginParaDeletar = login;
+    document.getElementById('deletarUsuarioNome').innerText  = nome;
+    document.getElementById('deletarUsuarioLogin').innerText = login;
+    document.getElementById('modalDeletarUsuario').style.display = 'flex';
+}
+
+async function confirmarDeletarUsuario() {
+    if (!_loginParaDeletar) return;
+    fecharModal('modalDeletarUsuario');
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=deletarUsuario&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(_loginParaDeletar)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        tocarSomMSN();
+        await carregarUsuarios();
+    } catch (e) {
+        alert('Erro ao remover usuário: ' + e.message);
+    } finally {
+        _loginParaDeletar = null;
     }
 }

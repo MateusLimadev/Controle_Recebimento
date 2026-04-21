@@ -388,33 +388,67 @@ async function realizarLogin() {
 
 // --- TROCA DE SENHA (PRIMEIRO ACESSO) ---
 
+// =========================================================
+// PRIMEIRO ACESSO — FLUXO COM CÓDIGO
+// =========================================================
+function voltarPaStep1() {
+    document.getElementById('paStep1').style.display = 'block';
+    document.getElementById('paStep2').style.display = 'none';
+    document.getElementById('paErro1').innerText = '';
+}
+
+async function enviarCodigoPrimeiroAcesso() {
+    const email = document.getElementById('primeiroEmail').value.trim();
+    if (!email || !email.includes('@')) {
+        document.getElementById('paErro1').innerText = '⚠️ Informe um email válido.'; return;
+    }
+    const btn = document.querySelector('#paStep1 .btn-login-final');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> ENVIANDO...';
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=enviarCodigoPrimeiroAcesso&login=${encodeURIComponent(loginAtual)}&email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        if (!data.ok) { document.getElementById('paErro1').innerText = data.erro || '⚠️ Erro ao enviar código.'; return; }
+        document.getElementById('paMsgCodigo').innerHTML = `Código enviado para <b>${data.emailMask}</b>. Expira em 15 minutos.`;
+        document.getElementById('paStep1').style.display = 'none';
+        document.getElementById('paStep2').style.display = 'block';
+        setTimeout(() => document.getElementById('paCodigo').focus(), 100);
+    } catch (e) {
+        document.getElementById('paErro1').innerText = '⚠️ Erro ao conectar. Tente novamente.';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR CÓDIGO DE CONFIRMAÇÃO';
+    }
+}
+
 async function confirmarNovaSenha() {
+    const codigo   = document.getElementById('paCodigo').value.trim();
     const nova     = document.getElementById('novaSenha').value.trim();
     const confirma = document.getElementById('confirmaSenha').value.trim();
+    const email    = document.getElementById('primeiroEmail').value.trim();
 
-    if (!nova || nova.length < 6) return mostrarErro('trocaErro', '⚠️ A senha deve ter pelo menos 6 caracteres.');
-    if (nova !== confirma)        return mostrarErro('trocaErro', '⚠️ As senhas não coincidem.');
+    if (codigo.length !== 6) { mostrarErro('trocaErro', '⚠️ Digite o código de 6 dígitos.'); return; }
+    if (nova.length < 6)     { mostrarErro('trocaErro', '⚠️ A senha deve ter pelo menos 6 caracteres.'); return; }
+    if (nova !== confirma)   { mostrarErro('trocaErro', '⚠️ As senhas não coincidem.'); return; }
 
     const btn = document.getElementById('btnConfirmarSenha');
     btn.disabled = true;
-    btn.innerText = "SALVANDO...";
-
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> SALVANDO...';
     try {
-        const email    = document.getElementById('primeiroEmail').value.trim();
-        const res  = await fetch(`${URL_SCRIPT}?action=trocarSenha&login=${encodeURIComponent(loginAtual)}&novaSenha=${encodeURIComponent(nova)}&email=${encodeURIComponent(email)}`);
+        const res  = await fetch(`${URL_SCRIPT}?action=trocarSenha&login=${encodeURIComponent(loginAtual)}&novaSenha=${encodeURIComponent(nova)}&email=${encodeURIComponent(email)}&codigo=${encodeURIComponent(codigo)}`);
         const data = await res.json();
-
         if (data.ok) {
-            document.getElementById('primeiroAcessoScreen').style.display = 'none';
+            sessaoAtual = { token: data.token, expira: Date.now() + (8 * 60 * 60 * 1000) };
             entrarNoSistema(data);
+            registrarLog('PRIMEIRO ACESSO', 'Senha criada e email cadastrado');
         } else {
-            mostrarErro('trocaErro', '⚠️ Erro ao salvar senha. Tente novamente.');
+            mostrarErro('trocaErro', data.erro || '⚠️ Código inválido ou expirado.');
         }
     } catch (err) {
         mostrarErro('trocaErro', '⚠️ Erro ao conectar com o servidor.');
     } finally {
         btn.disabled = false;
-        btn.innerText = "SALVAR E ENTRAR";
+        btn.innerHTML = '<i class="ph ph-check-circle"></i> SALVAR E ENTRAR';
     }
 }
 

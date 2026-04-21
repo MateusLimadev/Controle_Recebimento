@@ -44,24 +44,50 @@
             <div class="login-header">
                 <img src="logo core csm.png" alt="CORE SCM Logo" class="login-logo">
                 <h2>Bem-vindo(a), <span id="nomeBoasVindas" style="color:var(--accent)"></span>!</h2>
-                <p class="troca-subtitulo">Este é seu primeiro acesso. Por segurança, crie uma senha pessoal para continuar.</p>
+                <p class="troca-subtitulo">Este é seu primeiro acesso. Cadastre seu email e crie uma senha pessoal.</p>
             </div>
-            <div class="login-inputs">
-                <div class="field-group">
-                    <label>Seu E-mail <span style="color:var(--text-muted);font-weight:500;">(para recuperação de senha)</span></label>
-                    <input type="email" id="primeiroEmail" placeholder="seu@email.com.br">
+
+            <!-- ETAPA 1: Email + envio de código -->
+            <div id="paStep1">
+                <div class="login-inputs">
+                    <div class="field-group">
+                        <label>Seu E-mail corporativo</label>
+                        <input type="email" id="primeiroEmail" placeholder="seu@hc.fm.usp.br">
+                    </div>
                 </div>
-                <div class="field-group">
-                    <label>Nova Senha</label>
-                    <input type="password" id="novaSenha" placeholder="Mínimo 6 caracteres">
-                </div>
-                <div class="field-group">
-                    <label>Confirmar Nova Senha</label>
-                    <input type="password" id="confirmaSenha" placeholder="Repita a senha">
-                </div>
+                <div class="login-erro" id="paErro1"></div>
+                <button class="btn-login-final" onclick="enviarCodigoPrimeiroAcesso()">
+                    <i class="ph ph-paper-plane-tilt"></i> ENVIAR CÓDIGO DE CONFIRMAÇÃO
+                </button>
             </div>
-            <div class="login-erro" id="trocaErro"></div>
-            <button class="btn-login-final" id="btnConfirmarSenha" onclick="confirmarNovaSenha()">SALVAR E ENTRAR</button>
+
+            <!-- ETAPA 2: Código + nova senha -->
+            <div id="paStep2" style="display:none">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;" id="paMsgCodigo"></p>
+                <div class="login-inputs">
+                    <div class="field-group">
+                        <label>Código de confirmação</label>
+                        <input type="text" id="paCodigo" placeholder="000000" maxlength="6"
+                            style="font-size:24px;text-align:center;letter-spacing:10px;font-family:monospace;"
+                            oninput="this.value=this.value.replace(/\D/g,'')">
+                    </div>
+                    <div class="field-group">
+                        <label>Nova Senha</label>
+                        <input type="password" id="novaSenha" placeholder="Mínimo 6 caracteres">
+                    </div>
+                    <div class="field-group">
+                        <label>Confirmar Nova Senha</label>
+                        <input type="password" id="confirmaSenha" placeholder="Repita a senha">
+                    </div>
+                </div>
+                <div class="login-erro" id="trocaErro"></div>
+                <button class="btn-login-final" id="btnConfirmarSenha" onclick="confirmarNovaSenha()">
+                    <i class="ph ph-check-circle"></i> SALVAR E ENTRAR
+                </button>
+                <button class="btn-esqueci-senha" onclick="voltarPaStep1()">
+                    <i class="ph ph-arrow-left"></i> Usar outro email
+                </button>
+            </div>
         </div>
     </section>
 

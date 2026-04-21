@@ -413,7 +413,7 @@ let itensFiltradosProjecao = [];
 let adiantamentosCarregados = [];
 
 // --- CARRINHO DE COMPRAS ---
-let carrinho = []; // { codigo, descricao, quantidade }
+let carrinho = []; // { codigo, descricao, cobertura, statusTexto }
 
 // --- CARREGAMENTO E FILTRO DE PROJEÇÃO ---
 
@@ -571,6 +571,13 @@ function renderizarPaginaProjecao() {
             statusBadges = '<span class="badge-status" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;"><i class="ph ph-shopping-cart"></i> COMPRAR</span>';
         }
 
+        // Texto limpo do status para o carrinho/CSV
+        let statusTexto = 'COMPRAR';
+        if (item.zeradoSemCobertura)    statusTexto = 'CRÍTICO';
+        else if (item.temRP)            statusTexto = 'RP';
+        else if (item.saldoCD > 0)      statusTexto = 'CD';
+        else if (item.temEmpenho)       statusTexto = 'EMPENHO';
+
         tbody.innerHTML += `
             <tr>
                 <td><b>${item.codigo}</b></td>
@@ -584,7 +591,7 @@ function renderizarPaginaProjecao() {
                     <button class="btn-add-carrinho ${carrinho.some(c => c.codigo === item.codigo) ? 'no-carrinho' : ''}"
                         data-codigo="${item.codigo}"
                         title="${carrinho.some(c => c.codigo === item.codigo) ? 'Remover do carrinho' : 'Adicionar ao carrinho'}"
-                        onclick="toggleCarrinhoItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}')">
+                        onclick="toggleCarrinhoItem('${item.codigo}', '${item.descricao.replace(/'/g, "\\'")}', ${item.cobertura || 0}, '${statusTexto}')">
                         <i class="${carrinho.some(c => c.codigo === item.codigo) ? 'ph ph-check-circle' : 'ph ph-shopping-cart'}"></i>
                     </button>
                 </td>
@@ -954,12 +961,12 @@ function fecharCarrinho() {
     document.getElementById('carrinhoDrawer').classList.remove('aberto');
 }
 
-function toggleCarrinhoItem(codigo, descricao) {
+function toggleCarrinhoItem(codigo, descricao, cobertura, statusTexto) {
     const idx = carrinho.findIndex(i => i.codigo === codigo);
     if (idx >= 0) {
         carrinho.splice(idx, 1);
     } else {
-        carrinho.push({ codigo, descricao, quantidade: 1 });
+        carrinho.push({ codigo, descricao, cobertura, statusTexto });
     }
     atualizarContadorCarrinho();
     // Atualiza visual do botão na tabela sem re-renderizar tudo
@@ -1007,12 +1014,9 @@ function renderizarCarrinho() {
         tbody.innerHTML += `
             <tr>
                 <td><b>${item.codigo}</b></td>
-                <td style="max-width:180px; font-size:11px;">${item.descricao}</td>
-                <td>
-                    <input type="number" min="1" value="${item.quantidade}"
-                        class="carrinho-qtd-input"
-                        onchange="atualizarQtd(${idx}, this.value)">
-                </td>
+                <td style="max-width:160px; font-size:11px;">${item.descricao}</td>
+                <td style="text-align:center; font-weight:700;">${item.cobertura ?? '—'}</td>
+                <td>${item.statusTexto ?? '—'}</td>
                 <td>
                     <button class="carrinho-remover-btn" onclick="removerDoCarrinho(${idx})" title="Remover">
                         <i class="ph ph-trash"></i>
@@ -1020,11 +1024,6 @@ function renderizarCarrinho() {
                 </td>
             </tr>`;
     });
-}
-
-function atualizarQtd(idx, valor) {
-    const v = parseInt(valor);
-    carrinho[idx].quantidade = (isNaN(v) || v < 1) ? 1 : v;
 }
 
 function removerDoCarrinho(idx) {
@@ -1069,7 +1068,8 @@ async function enviarCarrinho() {
     const payload = carrinho.map(item => ({
         codigo:      item.codigo,
         descricao:   item.descricao,
-        quantidade:  item.quantidade,
+        cobertura:   item.cobertura,
+        status:      item.statusTexto,
         responsavel: usuarioAtual.nome,
         observacao:  obs,
         data:        new Date().toLocaleDateString('pt-BR'),
@@ -1103,8 +1103,48 @@ async function enviarCarrinho() {
 }
 
 // =========================================================
-// SAÍDA DE ADIANTAMENTO — remove do site e da planilha
+// EXPORTAR CARRINHO COMO CSV
 // =========================================================
+function exportarCarrinhoCSV() {
+    if (carrinho.length === 0) return;
+
+    const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const nomeArquivo = `lista_compras_${usuarioAtual.nome.split(' ')[0].toLowerCase()}_${hoje}.csv`;
+    const obs = document.getElementById('carrinhoObs').value.trim();
+
+    const cabecalho = ['CÓDIGO', 'DESCRIÇÃO', 'COBERTURA', 'STATUS', 'OBSERVAÇÃO'];
+    const linhas = carrinho.map(item => [
+        `"${item.codigo}"`,
+        `"${item.descricao.replace(/"/g, '""')}"`,
+        `"${item.cobertura ?? ''}"`,
+        `"${item.statusTexto ?? ''}"`,
+        `"${obs.replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [cabecalho.join(';'), ...linhas.map(l => l.join(';'))].join('\n');
+
+    // BOM para Excel abrir com acentos corretos
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = nomeArquivo;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    // Limpa o carrinho após exportar
+    carrinho = [];
+    atualizarContadorCarrinho();
+    renderizarCarrinho();
+    document.getElementById('carrinhoObs').value = '';
+    document.querySelectorAll('.btn-add-carrinho.no-carrinho').forEach(btn => {
+        btn.classList.remove('no-carrinho');
+        btn.title = 'Adicionar ao carrinho';
+        btn.querySelector('i').className = 'ph ph-shopping-cart';
+    });
+    fecharCarrinho();
+    tocarSomMSN();
+}
 
 let _saidaNFPendente = null;
 let _saidaResponsavelPendente = null;

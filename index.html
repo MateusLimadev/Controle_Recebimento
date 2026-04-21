@@ -116,7 +116,8 @@
                     <tr>
                         <th>CÓDIGO</th>
                         <th>DESCRIÇÃO</th>
-                        <th>QTD</th>
+                        <th>COBERTURA</th>
+                        <th>STATUS</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -129,8 +130,8 @@
                 <label>OBSERVAÇÃO (opcional)</label>
                 <textarea id="carrinhoObs" placeholder="Ex: urgente, para setor X..."></textarea>
             </div>
-            <button class="carrinho-enviar-btn" onclick="enviarCarrinho()">
-                <i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA PLANILHA
+            <button class="carrinho-csv-btn" onclick="exportarCarrinhoCSV()">
+                <i class="ph ph-file-csv"></i> EXPORTAR LISTA CSV
             </button>
             <button class="carrinho-limpar-btn" onclick="limparCarrinho()">
                 <i class="ph ph-trash"></i> LIMPAR LISTA

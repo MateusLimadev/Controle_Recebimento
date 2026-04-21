@@ -501,7 +501,17 @@
                         </div>
                     </div>
 
-                    <!-- FILTROS -->
+                    <!-- FILTRO DE PREFIXOS DE CÓDIGO -->
+                    <div id="prefixosWrap" class="prefixos-wrap" style="display:none">
+                        <div class="prefixos-header">
+                            <span><i class="ph ph-tag"></i> PREFIXOS DE CÓDIGO</span>
+                            <button class="btn-prefixo-todos" onclick="toggleTodosPrefixos(true)">TODOS</button>
+                            <button class="btn-prefixo-nenhum" onclick="toggleTodosPrefixos(false)">NENHUM</button>
+                        </div>
+                        <div id="prefixosChips" class="prefixos-chips"></div>
+                    </div>
+
+                    <!-- FILTROS DE STATUS -->
                     <div class="filtros-projecao">
                         <button class="filtro-btn filtro-ativo" onclick="filtrarProjecao('todos')">
                             <i class="ph ph-list"></i> TODOS
@@ -636,7 +646,7 @@
                         </span>
                     </label>
                     <label class="perm-toggle">
-                        <input type="checkbox" id="p_comprador">
+                        <input type="checkbox" id="p_comprador" onchange="document.getElementById('u_prefixos_group').style.display=this.checked?'block':'none'">
                         <span class="toggle-track"></span>
                         <span class="perm-info">
                             <span class="perm-nome"><i class="ph ph-shopping-bag"></i> Comprador</span>
@@ -665,6 +675,17 @@
             <p id="u_editando_info" style="display:none; font-size:12px; color:var(--text-muted); margin-top:16px;">
                 <i class="ph ph-info"></i> Para redefinir a senha, use o botão <b>RESETAR SENHA</b> na tabela.
             </p>
+
+            <div id="u_prefixos_group" style="display:none; margin-top:20px;">
+                <label style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:8px;">
+                    <i class="ph ph-tag"></i> Prefixos de Código (separados por |)
+                </label>
+                <input type="text" id="u_prefixos" placeholder="Ex: 42|43  ou  61|62|10|14|21"
+                    style="width:100%; padding:12px 16px; border:1.5px solid var(--border); border-radius:12px; background:var(--card-bg); color:var(--text-main); font-size:14px; font-family:monospace;">
+                <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+                    Apenas itens cujo código comece com esses prefixos aparecerão na projeção do usuário.
+                </p>
+            </div>
             <div class="saida-confirm-btns" style="margin-top:28px;">
                 <button class="btn-saida-cancelar" onclick="fecharModal('modalUsuario')">
                     <i class="ph ph-x-circle"></i> CANCELAR

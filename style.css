@@ -1843,3 +1843,71 @@ table thead th[onclick]:hover {
     color: #8b5cf6 !important;
     border-bottom-color: #8b5cf6 !important;
 }
+
+/* ==========================================================================
+   25. FILTRO DE PREFIXOS DE CÓDIGO NA PROJEÇÃO
+   ========================================================================== */
+
+.prefixos-wrap {
+    background: var(--bg-system);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.prefixos-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.prefixos-header i { font-size: 14px; }
+
+.btn-prefixo-todos,
+.btn-prefixo-nenhum {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition);
+    text-transform: uppercase;
+}
+.btn-prefixo-todos:hover  { border-color: var(--accent);  color: var(--accent); }
+.btn-prefixo-nenhum:hover { border-color: var(--danger);  color: var(--danger); }
+
+.prefixos-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip-prefixo {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: monospace;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    transition: var(--transition);
+    letter-spacing: 0.5px;
+}
+.chip-prefixo:hover { border-color: var(--accent); color: var(--accent); }
+.chip-prefixo.ativo {
+    background: rgba(2, 132, 199, 0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+}

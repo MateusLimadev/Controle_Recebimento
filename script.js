@@ -236,9 +236,14 @@ function entrarNoSistema(data) {
     const permsRaw = data.permissoes || data.role || 'digitador';
     usuarioAtual = {
         nome: data.nome,
-        role: data.role, // mantido para compatibilidade de exibição
-        permissoes: permsRaw.toString().split(',').map(p => p.trim().toLowerCase())
+        role: data.role,
+        permissoes: permsRaw.toString().split(',').map(p => p.trim().toLowerCase()),
+        prefixos: data.prefixos ? data.prefixos.toString().split('|').map(p => p.trim()).filter(Boolean) : []
     };
+
+    // Registra os prefixos próprios no dicionário global
+    const nomeKey = usuarioAtual.nome.split(' ')[0].toUpperCase();
+    prefixosConfig[nomeKey] = usuarioAtual.prefixos;
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
@@ -350,22 +355,27 @@ async function carregarEstatisticas() {
 // =========================================================
 async function criarTabsDiretor() {
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=getCompradores&solicitante=${encodeURIComponent(loginAtual)}`);
+        const res   = await fetch(`${URL_SCRIPT}?action=getCompradores&solicitante=${encodeURIComponent(loginAtual)}`);
         const lista = await res.json();
 
         const container = document.getElementById('navProjecoesDir');
         container.innerHTML = '';
 
         lista.forEach(u => {
+            // Guarda os prefixos de cada comprador para usar ao trocar de aba
+            if (u.prefixos) {
+                prefixosConfig[u.nomeUsuario] = u.prefixos.split('|').map(p => p.trim()).filter(Boolean);
+            }
+
             // Não duplica se o próprio diretor também for comprador
             if (u.nomeUsuario === usuarioAtual.nome.split(' ')[0].toUpperCase()) return;
 
             const abaId = `Projecao_${u.nomeUsuario}`;
             const btn   = document.createElement('button');
-            btn.className   = 'nav-btn nav-btn-proj-dir';
-            btn.id          = `btn-proj-${u.nomeUsuario.toLowerCase()}`;
-            btn.innerHTML   = `<i class="ph ph-package"></i> PROJ. ${u.nomeUsuario}`;
-            btn.onclick     = () => switchTab(abaId);
+            btn.className = 'nav-btn nav-btn-proj-dir';
+            btn.id        = `btn-proj-${u.nomeUsuario.toLowerCase()}`;
+            btn.innerHTML = `<i class="ph ph-package"></i> PROJ. ${u.nomeUsuario}`;
+            btn.onclick   = () => switchTab(abaId);
             container.appendChild(btn);
         });
     } catch (e) {
@@ -477,6 +487,11 @@ let itensFiltradosProjecao = [];
 // Cache de adiantamentos (compartilhado entre dashboard e aba Adiantamento)
 let adiantamentosCarregados = [];
 
+// Prefixos de código por usuário { 'CRIS': ['42','43'], 'ERNESTO': ['61','62',...] }
+let prefixosConfig = {};
+// Prefixos atualmente ativos na UI (Set)
+let prefixosAtivos = new Set();
+
 // --- CARRINHO DE COMPRAS ---
 let carrinho = []; // { codigo, descricao, cobertura, statusTexto }
 
@@ -488,7 +503,8 @@ async function carregarProjecao(nomeUsuarioForcar) {
     // Se dados já foram carregados em background para este usuário, mostra logo
     if (!nomeUsuarioForcar && dadosProjecao.length > 0) {
         filtroProjecaoAtual = 'todos';
-        atualizarTabelaProjecao(dadosProjecao);
+        renderizarChipsPrefixos(prefixosAtivos);
+        atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';
         return;
@@ -498,7 +514,7 @@ async function carregarProjecao(nomeUsuarioForcar) {
     document.getElementById('proj-content').style.display = 'none';
 
     try {
-        const res = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
+        const res  = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
         const data = await res.json();
 
         if (data.erro) {
@@ -507,9 +523,10 @@ async function carregarProjecao(nomeUsuarioForcar) {
             return;
         }
 
-        dadosProjecao = data.itens || [];
+        dadosProjecao  = data.itens || [];
         filtroProjecaoAtual = 'todos';
-        atualizarTabelaProjecao(dadosProjecao);
+        renderizarChipsPrefixos(prefixosAtivos);
+        atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
 
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';
@@ -517,6 +534,70 @@ async function carregarProjecao(nomeUsuarioForcar) {
         document.getElementById('proj-loading').innerHTML =
             "<p style='color:var(--danger)'>Erro ao carregar dados de projeção.</p>";
     }
+}
+
+// --- FILTRO DE PREFIXOS ---
+
+function aplicarFiltroPrefixo(itens) {
+    if (prefixosAtivos.size === 0) return itens; // sem config = mostra tudo
+    return itens.filter(item =>
+        [...prefixosAtivos].some(p => item.codigo.startsWith(p))
+    );
+}
+
+function renderizarChipsPrefixos(ativos) {
+    const wrap  = document.getElementById('prefixosWrap');
+    const chips = document.getElementById('prefixosChips');
+
+    // Descobre todos os prefixos disponíveis para o usuário atual
+    const todosOsPrefixos = ativos.size > 0 ? [...ativos] : [];
+    // Também inclui prefixos que estavam originalmente configurados
+    const configKey = abaAtual.startsWith('Projecao_')
+        ? abaAtual.replace('Projecao_', '')
+        : usuarioAtual.nome.split(' ')[0].toUpperCase();
+    const prefixosOriginais = prefixosConfig[configKey] || usuarioAtual.prefixos || [];
+
+    if (prefixosOriginais.length === 0) {
+        wrap.style.display = 'none';
+        return;
+    }
+
+    wrap.style.display = 'block';
+    chips.innerHTML = '';
+    prefixosOriginais.forEach(p => {
+        const ativo = prefixosAtivos.has(p);
+        const chip  = document.createElement('button');
+        chip.className = `chip-prefixo ${ativo ? 'ativo' : ''}`;
+        chip.textContent = p;
+        chip.title = ativo ? `Ocultar itens ${p}xx` : `Mostrar itens ${p}xx`;
+        chip.onclick = () => togglePrefixo(p);
+        chips.appendChild(chip);
+    });
+}
+
+function togglePrefixo(p) {
+    if (prefixosAtivos.has(p)) {
+        prefixosAtivos.delete(p);
+    } else {
+        prefixosAtivos.add(p);
+    }
+    renderizarChipsPrefixos(prefixosAtivos);
+    aplicarFiltroAtual();
+}
+
+function toggleTodosPrefixos(ligar) {
+    const configKey = abaAtual.startsWith('Projecao_')
+        ? abaAtual.replace('Projecao_', '')
+        : usuarioAtual.nome.split(' ')[0].toUpperCase();
+    const prefixosOriginais = prefixosConfig[configKey] || usuarioAtual.prefixos || [];
+
+    if (ligar) {
+        prefixosAtivos = new Set(prefixosOriginais);
+    } else {
+        prefixosAtivos = new Set();
+    }
+    renderizarChipsPrefixos(prefixosAtivos);
+    aplicarFiltroAtual();
 }
 
 function ordenarPorCobertura() {
@@ -851,15 +932,15 @@ function switchTab(aba) {
         document.getElementById('view-admin').style.display = 'none';
 
         if (aba.startsWith('Projecao_')) {
-            // Aba de diretor para um comprador específico
             const nomeUsuario = aba.replace('Projecao_', '');
             document.getElementById('projTitulo').innerText = `Projeção de Compras — ${nomeUsuario.charAt(0) + nomeUsuario.slice(1).toLowerCase()}`;
+            prefixosAtivos = new Set(prefixosConfig[nomeUsuario] || []);
             dadosProjecao = [];
             carregarProjecao(nomeUsuario);
         } else {
-            // Aba própria do comprador
             const nomeUsuario = usuarioAtual.nome.split(' ')[0];
             document.getElementById('projTitulo').innerText = `Projeção de Compras — ${nomeUsuario}`;
+            prefixosAtivos = new Set(usuarioAtual.prefixos || []);
             carregarProjecao();
         }
     } else if (aba === 'Admin') {
@@ -1332,11 +1413,11 @@ function limparBuscaProjecao() {
 }
 
 function aplicarFiltroAtual() {
-    let itens = dadosProjecao;
-    if (filtroProjecaoAtual === 'rp')      itens = dadosProjecao.filter(i => i.temRP);
-    else if (filtroProjecaoAtual === 'cd') itens = dadosProjecao.filter(i => i.saldoCD > 0);
-    else if (filtroProjecaoAtual === 'empenho') itens = dadosProjecao.filter(i => i.temEmpenho);
-    else if (filtroProjecaoAtual === 'zerado')  itens = dadosProjecao.filter(i => i.zeradoSemCobertura);
+    let itens = aplicarFiltroPrefixo(dadosProjecao);
+    if (filtroProjecaoAtual === 'rp')          itens = itens.filter(i => i.temRP);
+    else if (filtroProjecaoAtual === 'cd')      itens = itens.filter(i => i.saldoCD > 0);
+    else if (filtroProjecaoAtual === 'empenho') itens = itens.filter(i => i.temEmpenho);
+    else if (filtroProjecaoAtual === 'zerado')  itens = itens.filter(i => i.zeradoSemCobertura);
 
     itens.sort((a, b) => ordenacaoCobertura === 'asc' ? a.cobertura - b.cobertura : b.cobertura - a.cobertura);
     atualizarTabelaProjecao(itens);
@@ -1406,7 +1487,8 @@ function renderizarTabelaUsuarios(lista) {
             ? '<span class="badge-primeiro-acesso">⏳ Aguardando 1º acesso</span>'
             : '<span class="badge-ativo">✓ Ativo</span>';
         const isSelf = u.login === loginAtual;
-        const permsEsc = perms.join(',').replace(/'/g, "\\'");
+        const permsEsc    = perms.join(',').replace(/'/g, "\\'");
+        const prefixosEsc = (u.prefixos || '').replace(/'/g, "\\'");
         tbody.innerHTML += `
             <tr>
                 <td><b>${u.nome}</b><br><span style="font-size:11px;color:var(--text-muted)">${u.login}</span></td>
@@ -1414,7 +1496,7 @@ function renderizarTabelaUsuarios(lista) {
                 <td>${status}</td>
                 <td style="text-align:center;">
                     <div class="admin-acoes">
-                        <button class="btn-admin-acao editar" onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${permsEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                        <button class="btn-admin-acao editar" onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${permsEsc}','${prefixosEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
                         <button class="btn-admin-acao resetar" onclick="resetarSenhaUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Resetar senha"><i class="ph ph-key"></i></button>
                         <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Remover" ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}><i class="ph ph-trash"></i></button>
                     </div>
@@ -1423,7 +1505,7 @@ function renderizarTabelaUsuarios(lista) {
     });
 }
 
-function abrirModalUsuario(login, nome, permsStr) {
+function abrirModalUsuario(login, nome, permsStr, prefixos) {
     const editando = !!login;
     _usuarioEditando = editando ? login : null;
     const perms = permsStr ? permsStr.split(',').map(p => p.trim()) : ['digitador'];
@@ -1438,6 +1520,11 @@ function abrirModalUsuario(login, nome, permsStr) {
     document.getElementById('u_senha_group').style.display   = editando ? 'none'  : 'flex';
     document.getElementById('u_editando_info').style.display = editando ? 'block' : 'none';
     document.getElementById('u_senha').value = '';
+
+    // Prefixos — visível só para comprador
+    const isComprador = perms.includes('comprador');
+    document.getElementById('u_prefixos_group').style.display = isComprador ? 'block' : 'none';
+    document.getElementById('u_prefixos').value = prefixos || '';
 
     // Marca os checkboxes das permissões
     TODAS_PERMS.forEach(p => {
@@ -1461,13 +1548,15 @@ async function salvarUsuario() {
     const perms = TODAS_PERMS.filter(p => document.getElementById(`p_${p}`)?.checked);
     if (perms.length === 0) return alert('⚠️ Selecione ao menos uma permissão.');
 
+    const prefixos = document.getElementById('u_prefixos').value.trim();
+
     const btn = document.getElementById('btnSalvarUsuario');
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> SALVANDO...';
 
     try {
         const action = editando ? 'editarUsuario' : 'criarUsuario';
-        let url = `${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&permissoes=${encodeURIComponent(perms.join(','))}`;
+        let url = `${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&permissoes=${encodeURIComponent(perms.join(','))}&prefixos=${encodeURIComponent(prefixos)}`;
         if (!editando) url += `&senha=${encodeURIComponent(senha)}`;
         const res  = await fetch(url);
         const data = await res.json();

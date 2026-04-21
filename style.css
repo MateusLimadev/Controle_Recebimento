@@ -1787,3 +1787,59 @@ table thead th[onclick]:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
 }
+/* ==========================================================================
+   24. SELETOR DIRETOR + GRID DE PERMISSÕES
+   ========================================================================== */
+
+/* Seletor de comprador para diretores na aba projeção */
+.seletor-comprador {
+    padding: 10px 16px;
+    border: 1.5px solid #8b5cf6;
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 240px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.seletor-comprador:focus { border-color: #8b5cf6; outline: none; box-shadow: 0 0 0 4px rgba(139,92,246,0.12); }
+
+/* Grid de permissões no modal de usuário */
+.permissoes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.perm-toggle {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    padding: 11px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-system);
+    transition: var(--transition);
+    user-select: none;
+}
+.perm-toggle:hover { border-color: var(--accent); background: rgba(2,132,199,0.03); }
+.perm-toggle input[type="checkbox"] { display: none; }
+.perm-toggle input:checked ~ .toggle-track { background: var(--accent); }
+.perm-toggle input:checked ~ .toggle-track::after { transform: translateX(18px); }
+
+.perm-info { display: flex; flex-direction: column; gap: 2px; }
+.perm-nome { font-size: 13px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 7px; }
+.perm-nome i { font-size: 15px; color: var(--accent); }
+.perm-desc { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+/* Abas de projeção para diretores */
+.nav-btn-proj-dir {
+    color: #8b5cf6 !important;
+}
+.nav-btn-proj-dir.active {
+    color: #8b5cf6 !important;
+    border-bottom-color: #8b5cf6 !important;
+}

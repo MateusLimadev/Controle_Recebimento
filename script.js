@@ -221,24 +221,55 @@ async function confirmarNovaSenha() {
     }
 }
 
+// Helper global de permissões
+function temPermissao(p) {
+    return usuarioAtual.permissoes && usuarioAtual.permissoes.includes(p);
+}
+
 function entrarNoSistema(data) {
     alertaJaExibido = false;
     alertaAdiJaExibido = false;
     alertaProjJaExibido = false;
     alertaProjPendente = false;
-    usuarioAtual = { nome: data.nome, role: data.role, comprador: data.comprador === true || data.comprador === 'true' };
+
+    // Permissões: vem como string "digitador,gestor,comprador" → array
+    const permsRaw = data.permissoes || data.role || 'digitador';
+    usuarioAtual = {
+        nome: data.nome,
+        role: data.role, // mantido para compatibilidade de exibição
+        permissoes: permsRaw.toString().split(',').map(p => p.trim().toLowerCase())
+    };
+
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
     document.getElementById('mainHeader').style.display = 'flex';
     document.getElementById('app').style.display = 'block';
     document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
 
-    const isAdmin    = usuarioAtual.role === 'administrador';
-    const verProjecao = usuarioAtual.comprador || isAdmin;
+    const podeVerProjecao = temPermissao('comprador') || temPermissao('diretor') || temPermissao('administrador');
+    const isDiretor = temPermissao('diretor') && !temPermissao('comprador');
 
-    document.getElementById('btn-projecao').style.display      = verProjecao ? 'inline-flex' : 'none';
-    document.getElementById('carrinhoHeaderBtn').style.display = verProjecao ? 'flex'        : 'none';
-    document.getElementById('btn-admin').style.display         = isAdmin     ? 'inline-flex' : 'none';
+    // Comprador normal: mostra aba única com o nome dele
+    if (podeVerProjecao && !temPermissao('diretor')) {
+        const primeiroNome = usuarioAtual.nome.split(' ')[0];
+        document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
+        document.getElementById('btn-projecao').style.display = 'inline-flex';
+    } else if (temPermissao('comprador') && temPermissao('diretor')) {
+        // Tem comprador + diretor: mostra a própria aba + abas dos outros
+        const primeiroNome = usuarioAtual.nome.split(' ')[0];
+        document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
+        document.getElementById('btn-projecao').style.display = 'inline-flex';
+        criarTabsDiretor();
+    } else if (temPermissao('diretor')) {
+        // Diretor puro: só vê abas dos compradores
+        document.getElementById('btn-projecao').style.display = 'none';
+        criarTabsDiretor();
+    } else {
+        document.getElementById('btn-projecao').style.display = 'none';
+    }
+
+    document.getElementById('carrinhoHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
+    document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
 
     switchTab('Dashboard');
 }
@@ -275,7 +306,7 @@ async function carregarEstatisticas() {
             hoje.setHours(0, 0, 0, 0);
 
             let adiantamentosParaExibir = data.adiantamentosSetor;
-            if (usuarioAtual.role === "digitador") {
+            if (!temPermissao('gestor') && !temPermissao('administrador') && !temPermissao('diretor')) {
                 adiantamentosParaExibir = data.adiantamentosSetor.filter(adi => adi.responsavel === usuarioAtual.nome);
             }
             adiantamentosParaExibir.sort((a, b) => new Date(a.venc) - new Date(b.venc));
@@ -314,7 +345,33 @@ async function carregarEstatisticas() {
     }
 }
 
-// --- RENDERIZAÇÃO DA TABELA DE ADIANTAMENTOS (aba Adiantamento) ---
+// =========================================================
+// ABAS DE PROJEÇÃO PARA DIRETORES
+// =========================================================
+async function criarTabsDiretor() {
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=getCompradores&solicitante=${encodeURIComponent(loginAtual)}`);
+        const lista = await res.json();
+
+        const container = document.getElementById('navProjecoesDir');
+        container.innerHTML = '';
+
+        lista.forEach(u => {
+            // Não duplica se o próprio diretor também for comprador
+            if (u.nomeUsuario === usuarioAtual.nome.split(' ')[0].toUpperCase()) return;
+
+            const abaId = `Projecao_${u.nomeUsuario}`;
+            const btn   = document.createElement('button');
+            btn.className   = 'nav-btn nav-btn-proj-dir';
+            btn.id          = `btn-proj-${u.nomeUsuario.toLowerCase()}`;
+            btn.innerHTML   = `<i class="ph ph-package"></i> PROJ. ${u.nomeUsuario}`;
+            btn.onclick     = () => switchTab(abaId);
+            container.appendChild(btn);
+        });
+    } catch (e) {
+        console.warn('Erro ao criar abas de diretor:', e);
+    }
+}
 
 function renderizarTabelaAdiantamentos(lista) {
     const tbody = document.querySelector("#tabelaMonitorAdi tbody");
@@ -370,7 +427,7 @@ async function carregarAdiantamentos() {
         const data = await res.json();
 
         let lista = data.adiantamentosSetor || [];
-        if (usuarioAtual.role === "digitador") {
+        if (!temPermissao('gestor') && !temPermissao('administrador') && !temPermissao('diretor')) {
             lista = lista.filter(a => a.responsavel === usuarioAtual.nome);
         }
         lista.sort((a, b) => new Date(a.venc) - new Date(b.venc));
@@ -425,9 +482,11 @@ let carrinho = []; // { codigo, descricao, cobertura, statusTexto }
 
 // --- CARREGAMENTO E FILTRO DE PROJEÇÃO ---
 
-async function carregarProjecao() {
-    // Se dados já foram carregados em background, mostra logo
-    if (dadosProjecao.length > 0) {
+async function carregarProjecao(nomeUsuarioForcar) {
+    const nomeUsuario = nomeUsuarioForcar || usuarioAtual.nome.split(' ')[0].toUpperCase();
+
+    // Se dados já foram carregados em background para este usuário, mostra logo
+    if (!nomeUsuarioForcar && dadosProjecao.length > 0) {
         filtroProjecaoAtual = 'todos';
         atualizarTabelaProjecao(dadosProjecao);
         document.getElementById('proj-loading').style.display = 'none';
@@ -439,25 +498,23 @@ async function carregarProjecao() {
     document.getElementById('proj-content').style.display = 'none';
 
     try {
-        const nomeUsuario = usuarioAtual.nome.split(' ')[0].toUpperCase();
         const res = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
         const data = await res.json();
 
         if (data.erro) {
-            document.getElementById('proj-loading').innerHTML = 
+            document.getElementById('proj-loading').innerHTML =
                 `<p style='color:var(--danger)'>Erro: ${data.erro}</p>`;
             return;
         }
 
         dadosProjecao = data.itens || [];
-        
         filtroProjecaoAtual = 'todos';
         atualizarTabelaProjecao(dadosProjecao);
 
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';
     } catch (e) {
-        document.getElementById('proj-loading').innerHTML = 
+        document.getElementById('proj-loading').innerHTML =
             "<p style='color:var(--danger)'>Erro ao carregar dados de projeção.</p>";
     }
 }
@@ -763,9 +820,18 @@ function mudarPaginaAlerta(pagina) {
 
 function switchTab(aba) {
     abaAtual = aba;
+    // Remove active de todos os botões (fixos e dinâmicos)
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    const btnEl = document.getElementById('btn-' + aba.toLowerCase());
-    if (btnEl) btnEl.classList.add('active');
+
+    // Ativa o botão correto
+    if (aba.startsWith('Projecao_')) {
+        const nomeUsuario = aba.replace('Projecao_', '').toLowerCase();
+        const btnDir = document.getElementById(`btn-proj-${nomeUsuario}`);
+        if (btnDir) btnDir.classList.add('active');
+    } else {
+        const btnEl = document.getElementById('btn-' + aba.toLowerCase());
+        if (btnEl) btnEl.classList.add('active');
+    }
 
     const monitorSec = document.getElementById('monitorAdiantamentosSection');
     if (monitorSec) monitorSec.style.display = 'none';
@@ -775,17 +841,27 @@ function switchTab(aba) {
         document.getElementById('view-forms').style.display = 'none';
         document.getElementById('view-projecao').style.display = 'none';
         document.getElementById('view-admin').style.display = 'none';
-        const isGestorOuAdmin = usuarioAtual.role === 'gestor' || usuarioAtual.role === 'administrador';
+        const isGestorOuAdmin = temPermissao('gestor') || temPermissao('administrador');
         document.getElementById('dash-gestor').style.display = isGestorOuAdmin ? 'block' : 'none';
         carregarEstatisticas();
-    } else if (aba === 'Projecao') {
+    } else if (aba === 'Projecao' || aba.startsWith('Projecao_')) {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'none';
         document.getElementById('view-projecao').style.display = 'block';
         document.getElementById('view-admin').style.display = 'none';
-        const nomeUsuario = usuarioAtual.nome.split(' ')[0];
-        document.querySelector('#view-projecao .header-tab h2').innerText = `Projeção de Compras — ${nomeUsuario}`;
-        carregarProjecao();
+
+        if (aba.startsWith('Projecao_')) {
+            // Aba de diretor para um comprador específico
+            const nomeUsuario = aba.replace('Projecao_', '');
+            document.getElementById('projTitulo').innerText = `Projeção de Compras — ${nomeUsuario.charAt(0) + nomeUsuario.slice(1).toLowerCase()}`;
+            dadosProjecao = [];
+            carregarProjecao(nomeUsuario);
+        } else {
+            // Aba própria do comprador
+            const nomeUsuario = usuarioAtual.nome.split(' ')[0];
+            document.getElementById('projTitulo').innerText = `Projeção de Compras — ${nomeUsuario}`;
+            carregarProjecao();
+        }
     } else if (aba === 'Admin') {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'none';
@@ -1284,19 +1360,22 @@ function fecharModal(id) {
 // ADMINISTRAÇÃO DE USUÁRIOS
 // =========================================================
 
-let _usuarioEditando = null; // login do usuário sendo editado (null = criação)
+let _usuarioEditando = null;
 let _loginParaDeletar = null;
 
-const CARGO_LABEL = {
-    digitador:      { txt: 'Digitador',     cls: 'badge-cargo digitador' },
-    gestor:         { txt: 'Gestor',         cls: 'badge-cargo gestor' },
-    administrador:  { txt: 'Administrador',  cls: 'badge-cargo administrador' }
+const TODAS_PERMS = ['digitador', 'gestor', 'comprador', 'diretor', 'administrador'];
+
+const PERM_BADGE = {
+    digitador:     { txt: 'Digitador',    cor: 'rgba(100,116,139,0.15)', color: 'var(--text-muted)' },
+    gestor:        { txt: 'Gestor',       cor: 'rgba(2,132,199,0.15)',   color: 'var(--accent)'     },
+    comprador:     { txt: 'Comprador',    cor: 'rgba(22,163,74,0.15)',   color: 'var(--success)'    },
+    diretor:       { txt: 'Diretor',      cor: 'rgba(139,92,246,0.15)',  color: '#8b5cf6'           },
+    administrador: { txt: 'Admin',        cor: 'rgba(245,158,11,0.15)',  color: '#f59e0b'           }
 };
 
 async function carregarUsuarios() {
     document.getElementById('admin-loading').style.display = 'flex';
     document.querySelector('#tabelaUsuarios tbody').innerHTML = '';
-
     try {
         const res  = await fetch(`${URL_SCRIPT}?action=getUsuarios&solicitante=${encodeURIComponent(loginAtual)}`);
         const data = await res.json();
@@ -1304,7 +1383,7 @@ async function carregarUsuarios() {
         renderizarTabelaUsuarios(data);
     } catch (e) {
         document.querySelector('#tabelaUsuarios tbody').innerHTML =
-            `<tr><td colspan="5" style="text-align:center;color:var(--danger)">Erro ao carregar usuários.</td></tr>`;
+            `<tr><td colspan="4" style="text-align:center;color:var(--danger)">Erro ao carregar usuários.</td></tr>`;
     } finally {
         document.getElementById('admin-loading').style.display = 'none';
     }
@@ -1313,80 +1392,74 @@ async function carregarUsuarios() {
 function renderizarTabelaUsuarios(lista) {
     const tbody = document.querySelector('#tabelaUsuarios tbody');
     tbody.innerHTML = '';
-
     if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Nenhum usuário encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Nenhum usuário encontrado.</td></tr>';
         return;
     }
-
     lista.forEach(u => {
-        const cargo  = CARGO_LABEL[u.role] || { txt: u.role, cls: 'badge-cargo digitador' };
-        const isComprador = u.comprador === 'true' || u.comprador === true || u.role === 'administrador';
-        const badgeComprador = isComprador
-            ? '<span class="badge-comprador">🛒 Comprador</span>'
-            : '<span style="color:var(--text-muted); font-size:11px;">—</span>';
+        const perms = (u.permissoes || u.role || 'digitador').toString().split(',').map(p => p.trim());
+        const badges = perms.map(p => {
+            const b = PERM_BADGE[p]; if (!b) return '';
+            return `<span style="background:${b.cor};color:${b.color};padding:3px 9px;border-radius:6px;font-size:10px;font-weight:800;text-transform:uppercase;margin-right:4px;display:inline-block;margin-bottom:3px;">${b.txt}</span>`;
+        }).join('');
         const status = u.primeiroAcesso === 'true' || u.primeiroAcesso === true
             ? '<span class="badge-primeiro-acesso">⏳ Aguardando 1º acesso</span>'
             : '<span class="badge-ativo">✓ Ativo</span>';
-
         const isSelf = u.login === loginAtual;
-
+        const permsEsc = perms.join(',').replace(/'/g, "\\'");
         tbody.innerHTML += `
             <tr>
-                <td><b>${u.nome}</b></td>
-                <td style="color:var(--text-muted); font-size:12px;">${u.login}</td>
-                <td><span class="${cargo.cls}">${cargo.txt}</span></td>
-                <td>${badgeComprador}</td>
+                <td><b>${u.nome}</b><br><span style="font-size:11px;color:var(--text-muted)">${u.login}</span></td>
+                <td>${badges}</td>
                 <td>${status}</td>
                 <td style="text-align:center;">
                     <div class="admin-acoes">
-                        <button class="btn-admin-acao editar" onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${u.role}',${isComprador})" title="Editar">
-                            <i class="ph ph-pencil-simple"></i>
-                        </button>
-                        <button class="btn-admin-acao resetar" onclick="resetarSenhaUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Resetar senha">
-                            <i class="ph ph-key"></i>
-                        </button>
-                        <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Remover"
-                            ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>
-                            <i class="ph ph-trash"></i>
-                        </button>
+                        <button class="btn-admin-acao editar" onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${permsEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                        <button class="btn-admin-acao resetar" onclick="resetarSenhaUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Resetar senha"><i class="ph ph-key"></i></button>
+                        <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}')'" title="Remover" ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}><i class="ph ph-trash"></i></button>
                     </div>
                 </td>
             </tr>`;
     });
 }
 
-function abrirModalUsuario(login, nome, role, comprador) {
+function abrirModalUsuario(login, nome, permsStr) {
     const editando = !!login;
     _usuarioEditando = editando ? login : null;
+    const perms = permsStr ? permsStr.split(',').map(p => p.trim()) : ['digitador'];
 
     document.getElementById('modalUsuarioTitulo').innerHTML = editando
         ? '<i class="ph ph-pencil-simple"></i> EDITAR USUÁRIO'
         : '<i class="ph ph-user-plus"></i> NOVO USUÁRIO';
 
-    document.getElementById('u_nome').value      = nome  || '';
-    document.getElementById('u_login').value     = login || '';
-    document.getElementById('u_role').value      = role  || 'digitador';
-    document.getElementById('u_comprador').checked = !!comprador;
-
-    document.getElementById('u_login').disabled            = editando;
-    document.getElementById('u_senha_group').style.display = editando ? 'none' : 'flex';
+    document.getElementById('u_nome').value  = nome  || '';
+    document.getElementById('u_login').value = login || '';
+    document.getElementById('u_login').disabled = editando;
+    document.getElementById('u_senha_group').style.display   = editando ? 'none'  : 'flex';
     document.getElementById('u_editando_info').style.display = editando ? 'block' : 'none';
     document.getElementById('u_senha').value = '';
+
+    // Marca os checkboxes das permissões
+    TODAS_PERMS.forEach(p => {
+        const el = document.getElementById(`p_${p}`);
+        if (el) el.checked = perms.includes(p);
+    });
 
     document.getElementById('modalUsuario').style.display = 'flex';
 }
 
 async function salvarUsuario() {
-    const nome      = document.getElementById('u_nome').value.trim();
-    const login     = document.getElementById('u_login').value.trim().toLowerCase();
-    const role      = document.getElementById('u_role').value;
-    const senha     = document.getElementById('u_senha').value.trim();
-    const comprador = document.getElementById('u_comprador').checked;
-    const editando  = !!_usuarioEditando;
+    const nome     = document.getElementById('u_nome').value.trim();
+    const login    = document.getElementById('u_login').value.trim().toLowerCase();
+    const senha    = document.getElementById('u_senha').value.trim();
+    const editando = !!_usuarioEditando;
 
     if (!nome || !login) return alert('⚠️ Preencha nome e login.');
     if (!editando && senha.length < 6) return alert('⚠️ A senha inicial deve ter pelo menos 6 caracteres.');
+
+    // Coleta permissões marcadas
+    const perms = TODAS_PERMS.filter(p => document.getElementById(`p_${p}`)?.checked);
+    if (perms.length === 0) return alert('⚠️ Selecione ao menos uma permissão.');
 
     const btn = document.getElementById('btnSalvarUsuario');
     btn.disabled = true;
@@ -1394,13 +1467,11 @@ async function salvarUsuario() {
 
     try {
         const action = editando ? 'editarUsuario' : 'criarUsuario';
-        let url = `${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&role=${encodeURIComponent(role)}&comprador=${comprador}`;
+        let url = `${URL_SCRIPT}?action=${action}&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&permissoes=${encodeURIComponent(perms.join(','))}`;
         if (!editando) url += `&senha=${encodeURIComponent(senha)}`;
-
         const res  = await fetch(url);
         const data = await res.json();
         if (!data.ok) throw new Error(data.erro || 'Erro desconhecido');
-
         fecharModal('modalUsuario');
         tocarSomMSN();
         await carregarUsuarios();
@@ -1415,7 +1486,6 @@ async function salvarUsuario() {
 async function resetarSenhaUsuario(login, nome) {
     const nova = prompt(`Nova senha para ${nome}:`);
     if (!nova || nova.length < 6) return alert('Senha deve ter pelo menos 6 caracteres.');
-
     try {
         const res  = await fetch(`${URL_SCRIPT}?action=resetarSenha&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&novaSenha=${encodeURIComponent(nova)}`);
         const data = await res.json();
@@ -1438,7 +1508,6 @@ function abrirModalDeletar(login, nome) {
 async function confirmarDeletarUsuario() {
     if (!_loginParaDeletar) return;
     fecharModal('modalDeletarUsuario');
-
     try {
         const res  = await fetch(`${URL_SCRIPT}?action=deletarUsuario&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(_loginParaDeletar)}`);
         const data = await res.json();

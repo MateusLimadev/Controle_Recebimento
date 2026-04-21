@@ -1911,3 +1911,72 @@ table thead th[onclick]:hover {
     border-color: var(--accent);
     color: var(--accent);
 }
+
+/* ==========================================================================
+   26. ADMIN SUB-ABAS + BLACKLIST
+   ========================================================================== */
+
+.btn-admin-tab {
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+.btn-admin-tab:hover { border-color: var(--accent); color: var(--accent); }
+.btn-admin-tab.ativo {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.blacklist-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.blacklist-add-multi {
+    display: flex;
+    gap: 10px;
+}
+.blacklist-add-multi input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 13px;
+    font-family: monospace;
+    transition: var(--transition);
+}
+.blacklist-add-multi input:focus { border-color: var(--danger); outline: none; }
+.blacklist-add-multi button {
+    padding: 12px 20px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 900;
+    font-size: 12px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.blacklist-add-multi button:hover { background: #dc2626; transform: translateY(-1px); }

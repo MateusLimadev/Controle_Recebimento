@@ -568,33 +568,87 @@
                 <div class="header-tab" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
                     <div>
                         <h2 style="font-size:22px; font-weight:900; color:var(--accent);">
-                            <i class="ph ph-shield-check"></i> Gestão de Usuários
+                            <i class="ph ph-shield-check"></i> Administração
                         </h2>
-                        <p style="color:var(--text-muted); font-size:12px; margin-top:4px;">Crie, edite e gerencie os acessos ao CORE SCM</p>
+                        <p style="color:var(--text-muted); font-size:12px; margin-top:4px;">Gerencie usuários, acessos e itens bloqueados</p>
                     </div>
-                    <button class="btn-novo-usuario" onclick="abrirModalUsuario()">
-                        <i class="ph ph-user-plus"></i> NOVO USUÁRIO
-                    </button>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn-admin-tab ativo" id="tabBtnUsuarios" onclick="switchAdminTab('usuarios')">
+                            <i class="ph ph-users"></i> USUÁRIOS
+                        </button>
+                        <button class="btn-admin-tab" id="tabBtnBlacklist" onclick="switchAdminTab('blacklist')">
+                            <i class="ph ph-prohibit"></i> BLACKLIST
+                        </button>
+                    </div>
                 </div>
 
-                <div id="admin-loading" class="loading-overlay" style="display:none">
-                    <div class="spinner"></div>
-                    <p>Carregando usuários...</p>
+                <!-- SUB-ABA USUÁRIOS -->
+                <div id="adminTabUsuarios">
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px; margin-top:24px;">
+                        <button class="btn-novo-usuario" onclick="abrirModalUsuario()">
+                            <i class="ph ph-user-plus"></i> NOVO USUÁRIO
+                        </button>
+                    </div>
+                    <div id="admin-loading" class="loading-overlay" style="display:none">
+                        <div class="spinner"></div>
+                        <p>Carregando usuários...</p>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabelaUsuarios">
+                            <thead>
+                                <tr>
+                                    <th>NOME</th>
+                                    <th>LOGIN</th>
+                                    <th>PERMISSÕES</th>
+                                    <th>STATUS</th>
+                                    <th style="text-align:center; width:160px;">AÇÕES</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div class="table-container" style="margin-top:24px;">
-                    <table id="tabelaUsuarios">
-                        <thead>
-                            <tr>
-                                <th>NOME</th>
-                                <th>LOGIN</th>
-                                <th>PERMISSÕES</th>
-                                <th>STATUS</th>
-                                <th style="text-align:center; width:160px;">AÇÕES</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <!-- SUB-ABA BLACKLIST -->
+                <div id="adminTabBlacklist" style="display:none; margin-top:24px;">
+                    <div class="blacklist-header">
+                        <div>
+                            <h3 style="font-weight:900; font-size:16px; color:var(--danger);">
+                                <i class="ph ph-prohibit"></i> Itens Bloqueados da Projeção
+                            </h3>
+                            <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                                Códigos nesta lista não aparecerão em nenhuma projeção de compras.
+                            </p>
+                        </div>
+                        <button class="btn-novo-usuario" style="background:var(--danger);" onclick="abrirModalBlacklist()">
+                            <i class="ph ph-plus-circle"></i> ADICIONAR CÓDIGO
+                        </button>
+                    </div>
+
+                    <div class="blacklist-add-multi" style="margin-top:20px;">
+                        <input type="text" id="inputBlacklistMulti" placeholder="Adicionar múltiplos códigos separados por vírgula ou espaço (ex: 42870019, 43120001)">
+                        <button onclick="adicionarBlacklistMulti()"><i class="ph ph-plus"></i> ADICIONAR LOTE</button>
+                    </div>
+
+                    <div id="blacklist-loading" class="loading-overlay" style="display:none">
+                        <div class="spinner"></div>
+                        <p>Carregando blacklist...</p>
+                    </div>
+
+                    <div class="table-container" style="margin-top:16px;">
+                        <table id="tabelaBlacklist">
+                            <thead>
+                                <tr>
+                                    <th>CÓDIGO</th>
+                                    <th>MOTIVO</th>
+                                    <th>ADICIONADO POR</th>
+                                    <th>DATA</th>
+                                    <th style="text-align:center; width:80px;">AÇÃO</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </main>
@@ -698,8 +752,39 @@
     </div>
 
     <!-- =====================================================
-         MODAL CONFIRMAR DELEÇÃO DE USUÁRIO
+         MODAL ADICIONAR À BLACKLIST
     ====================================================== -->
+    <div id="modalBlacklist" class="modal" style="display:none;">
+        <div class="modal-content saida-confirm-content">
+            <div class="saida-confirm-header">
+                <div class="saida-confirm-icon-wrap" style="background:rgba(239,68,68,0.12)">
+                    <i class="ph ph-prohibit saida-confirm-icon"></i>
+                </div>
+                <div>
+                    <h3 class="saida-confirm-titulo">BLOQUEAR CÓDIGO</h3>
+                    <p class="saida-confirm-subtitulo">O código não aparecerá em nenhuma projeção de compras.</p>
+                </div>
+            </div>
+            <div class="form-grid" style="margin-top:20px;">
+                <div class="field-group">
+                    <label>Código do Item</label>
+                    <input type="text" id="bl_codigo" placeholder="Ex: 42870019" style="font-family:monospace;">
+                </div>
+                <div class="field-group">
+                    <label>Motivo (opcional)</label>
+                    <input type="text" id="bl_motivo" placeholder="Ex: Descontinuado, Substituído...">
+                </div>
+            </div>
+            <div class="saida-confirm-btns" style="margin-top:24px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalBlacklist')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-saida-confirmar" onclick="salvarBlacklist()">
+                    <i class="ph ph-prohibit"></i> BLOQUEAR
+                </button>
+            </div>
+        </div>
+    </div>
     <div id="modalDeletarUsuario" class="modal" style="display:none;">
         <div class="modal-content saida-confirm-content">
             <div class="saida-confirm-header">

@@ -277,6 +277,8 @@ function entrarNoSistema(data) {
     document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
 
     switchTab('Dashboard');
+    // Carrega blacklist em background para todos os usuários
+    carregarBlacklistCache();
 }
 
 // --- EVENTOS DE TECLADO E MODAL ---
@@ -286,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalBlacklist'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -492,6 +494,9 @@ let prefixosConfig = {};
 // Prefixos atualmente ativos na UI (Set)
 let prefixosAtivos = new Set();
 
+// Blacklist de códigos (Set) — carregada uma vez no login
+let blacklistCodigos = new Set();
+
 // --- CARRINHO DE COMPRAS ---
 let carrinho = []; // { codigo, descricao, cobertura, statusTexto }
 
@@ -539,8 +544,13 @@ async function carregarProjecao(nomeUsuarioForcar) {
 // --- FILTRO DE PREFIXOS ---
 
 function aplicarFiltroPrefixo(itens) {
-    if (prefixosAtivos.size === 0) return itens; // sem config = mostra tudo
-    return itens.filter(item =>
+    // Primeiro aplica blacklist global
+    let resultado = blacklistCodigos.size > 0
+        ? itens.filter(item => !blacklistCodigos.has(item.codigo.trim().toUpperCase()))
+        : itens;
+    // Depois aplica filtro de prefixos do usuário
+    if (prefixosAtivos.size === 0) return resultado;
+    return resultado.filter(item =>
         [...prefixosAtivos].some(p => item.codigo.startsWith(p))
     );
 }
@@ -1386,24 +1396,23 @@ function buscarNaProjecao() {
     btnLimpar.style.display = termo.length > 0 ? 'flex' : 'none';
 
     if (termo.length === 0) {
-        // Volta ao filtro atual sem busca
         aplicarFiltroAtual();
         return;
     }
 
-    const filtrado = dadosProjecao.filter(i =>
+    // Parte sempre da base já filtrada por blacklist + prefixos
+    let base = aplicarFiltroPrefixo(dadosProjecao).filter(i =>
         i.codigo.toLowerCase().includes(termo) ||
         i.descricao.toLowerCase().includes(termo)
     );
 
-    // Aplica o filtro de aba por cima da busca
-    let resultado = filtrado;
-    if (filtroProjecaoAtual === 'rp')      resultado = filtrado.filter(i => i.temRP);
-    else if (filtroProjecaoAtual === 'cd') resultado = filtrado.filter(i => i.saldoCD > 0);
-    else if (filtroProjecaoAtual === 'empenho') resultado = filtrado.filter(i => i.temEmpenho);
-    else if (filtroProjecaoAtual === 'zerado')  resultado = filtrado.filter(i => i.zeradoSemCobertura);
+    // Aplica o filtro de status por cima da busca
+    if (filtroProjecaoAtual === 'rp')           base = base.filter(i => i.temRP);
+    else if (filtroProjecaoAtual === 'cd')       base = base.filter(i => i.saldoCD > 0);
+    else if (filtroProjecaoAtual === 'empenho')  base = base.filter(i => i.temEmpenho);
+    else if (filtroProjecaoAtual === 'zerado')   base = base.filter(i => i.zeradoSemCobertura);
 
-    atualizarTabelaProjecao(resultado);
+    atualizarTabelaProjecao(base);
 }
 
 function limparBuscaProjecao() {
@@ -1607,5 +1616,129 @@ async function confirmarDeletarUsuario() {
         alert('Erro ao remover usuário: ' + e.message);
     } finally {
         _loginParaDeletar = null;
+    }
+}
+
+// =========================================================
+// ADMIN — SUB-ABAS
+// =========================================================
+function switchAdminTab(tab) {
+    document.getElementById('adminTabUsuarios').style.display  = tab === 'usuarios'  ? 'block' : 'none';
+    document.getElementById('adminTabBlacklist').style.display = tab === 'blacklist' ? 'block' : 'none';
+    document.getElementById('tabBtnUsuarios').classList.toggle('ativo',  tab === 'usuarios');
+    document.getElementById('tabBtnBlacklist').classList.toggle('ativo', tab === 'blacklist');
+    if (tab === 'blacklist') carregarBlacklist();
+}
+
+// =========================================================
+// BLACKLIST
+// =========================================================
+
+// Carrega só os códigos (cache leve) — para filtro na projeção
+async function carregarBlacklistCache() {
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=getBlacklist`);
+        const data = await res.json();
+        blacklistCodigos = new Set((data || []).map(item => item.codigo.trim().toUpperCase()));
+    } catch (e) {
+        console.warn('Erro ao carregar blacklist cache:', e);
+    }
+}
+
+// Carrega a lista completa para exibição no painel admin
+async function carregarBlacklist() {
+    document.getElementById('blacklist-loading').style.display = 'flex';
+    document.querySelector('#tabelaBlacklist tbody').innerHTML = '';
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=getBlacklist`);
+        const data = await res.json();
+        renderizarTabelaBlacklist(data || []);
+    } catch (e) {
+        document.querySelector('#tabelaBlacklist tbody').innerHTML =
+            `<tr><td colspan="5" style="text-align:center;color:var(--danger)">Erro ao carregar blacklist.</td></tr>`;
+    } finally {
+        document.getElementById('blacklist-loading').style.display = 'none';
+    }
+}
+
+function renderizarTabelaBlacklist(lista) {
+    const tbody = document.querySelector('#tabelaBlacklist tbody');
+    tbody.innerHTML = '';
+    if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">
+            <i class="ph ph-check-circle" style="font-size:24px;display:block;margin-bottom:8px;"></i>
+            Nenhum código bloqueado.</td></tr>`;
+        return;
+    }
+    lista.forEach((item, idx) => {
+        tbody.innerHTML += `
+            <tr>
+                <td><b style="font-family:monospace;">${item.codigo}</b></td>
+                <td style="color:var(--text-muted);font-size:12px;">${item.motivo || '—'}</td>
+                <td style="font-size:12px;">${item.adicionadoPor || '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.data || '—'}</td>
+                <td style="text-align:center;">
+                    <button class="btn-admin-acao deletar" onclick="removerBlacklist('${item.codigo}')" title="Desbloquear">
+                        <i class="ph ph-x-circle"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+}
+
+function abrirModalBlacklist() {
+    document.getElementById('bl_codigo').value = '';
+    document.getElementById('bl_motivo').value = '';
+    document.getElementById('modalBlacklist').style.display = 'flex';
+    setTimeout(() => document.getElementById('bl_codigo').focus(), 100);
+}
+
+async function salvarBlacklist() {
+    const codigo = document.getElementById('bl_codigo').value.trim().toUpperCase();
+    const motivo = document.getElementById('bl_motivo').value.trim();
+    if (!codigo) return alert('⚠️ Informe o código do item.');
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=addBlacklist&solicitante=${encodeURIComponent(loginAtual)}&codigo=${encodeURIComponent(codigo)}&motivo=${encodeURIComponent(motivo)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        fecharModal('modalBlacklist');
+        blacklistCodigos.add(codigo); // atualiza cache local imediatamente
+        tocarSomMSN();
+        await carregarBlacklist();
+    } catch (e) {
+        alert('Erro ao bloquear código: ' + e.message);
+    }
+}
+
+async function adicionarBlacklistMulti() {
+    const raw = document.getElementById('inputBlacklistMulti').value.trim();
+    if (!raw) return;
+    const codigos = raw.split(/[\s,;]+/).map(c => c.trim().toUpperCase()).filter(Boolean);
+    if (!codigos.length) return;
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=addBlacklistLote&solicitante=${encodeURIComponent(loginAtual)}&codigos=${encodeURIComponent(codigos.join(','))}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        codigos.forEach(c => blacklistCodigos.add(c));
+        document.getElementById('inputBlacklistMulti').value = '';
+        tocarSomMSN();
+        await carregarBlacklist();
+    } catch (e) {
+        alert('Erro ao adicionar lote: ' + e.message);
+    }
+}
+
+async function removerBlacklist(codigo) {
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=removerBlacklist&solicitante=${encodeURIComponent(loginAtual)}&codigo=${encodeURIComponent(codigo)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        blacklistCodigos.delete(codigo.trim().toUpperCase());
+        tocarSomMSN();
+        await carregarBlacklist();
+    } catch (e) {
+        alert('Erro ao remover da blacklist: ' + e.message);
     }
 }

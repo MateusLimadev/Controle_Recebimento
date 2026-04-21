@@ -44,11 +44,172 @@ function logout() { location.reload(); }
 async function refreshData() {
     const icon = document.getElementById('refreshIcon');
     icon.classList.add('rotating');
-    await carregarEstatisticas();
-    setTimeout(() => icon.classList.remove('rotating'), 1000);
+
+    try {
+        // Sempre recarrega blacklist e estatísticas do dashboard em background
+        await carregarBlacklistCache();
+        await carregarEstatisticas();
+
+        // Recarrega dados específicos da aba atual
+        if (abaAtual === 'Dashboard') {
+            // já feito acima
+
+        } else if (abaAtual === 'Projecao' || abaAtual.startsWith('Projecao_')) {
+            dadosProjecao = []; // força novo fetch
+            await carregarProjecao(abaAtual.startsWith('Projecao_') ? abaAtual.replace('Projecao_', '') : null);
+
+        } else if (abaAtual === 'Adiantamento') {
+            adiantamentosCarregados = []; // força novo fetch
+            await carregarAdiantamentos();
+
+        } else if (abaAtual === 'Admin') {
+            await carregarUsuarios();
+
+        }
+        // Abas de notas: a tabela local já é a fonte da verdade, não precisa recarregar
+
+    } finally {
+        setTimeout(() => icon.classList.remove('rotating'), 600);
+    }
 }
 
-// --- MENSAGENS DE ERRO INLINE ---
+// =========================================================
+// TOAST
+// =========================================================
+function mostrarToast(mensagem, tipo = 'info', duracao = 4000) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    const icons = { success: 'ph-check-circle', error: 'ph-x-circle', warning: 'ph-warning', info: 'ph-info' };
+    toast.className = `toast toast-${tipo}`;
+    toast.innerHTML = `<i class="ph ${icons[tipo] || 'ph-info'}"></i><span>${mensagem}</span>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('visivel'));
+    setTimeout(() => {
+        toast.classList.remove('visivel');
+        setTimeout(() => toast.remove(), 400);
+    }, duracao);
+}
+
+// =========================================================
+// PESQUISA POR PERÍODO
+// =========================================================
+async function buscarPorPeriodo() {
+    const inicio = document.getElementById('periodoInicio').value;
+    const fim    = document.getElementById('periodoFim').value;
+
+    if (!inicio || !fim) {
+        mostrarToast('⚠️ Selecione a data de início e fim.', 'warning');
+        return;
+    }
+    if (inicio > fim) {
+        mostrarToast('⚠️ A data de início deve ser anterior à data fim.', 'warning');
+        return;
+    }
+
+    const btnBuscar = document.querySelector('.btn-periodo-buscar');
+    btnBuscar.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
+    btnBuscar.disabled  = true;
+
+    try {
+        const res  = await fetch(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(usuarioAtual.nome)}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}&role=${encodeURIComponent(usuarioAtual.permissoes.join(','))}`);
+        const data = await res.json();
+
+        const tbody  = document.querySelector('#tabelaResultadoPeriodo tbody');
+        const result = document.getElementById('resultadoPeriodo');
+        const label  = document.getElementById('labelResultadoPeriodo');
+
+        tbody.innerHTML = '';
+
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum registro encontrado nesse período.</td></tr>`;
+        } else {
+            data.forEach(r => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${r.responsavel || '—'}</b></td>
+                        <td>${r.data ? new Date(r.data).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '—'}</td>
+                        <td><b>${r.nf || '—'}</b></td>
+                        <td>${r.fornecedor || '—'}</td>
+                        <td style="font-size:11px;">${r.razaoSocial || '—'}</td>
+                        <td>${r.vencimento ? new Date(r.vencimento).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '—'}</td>
+                        <td>R$ ${formatarValor(r.valor)}</td>
+                        <td style="font-size:11px;">${r.setor || '—'}</td>
+                    </tr>`;
+            });
+        }
+
+        const ini = new Date(inicio + 'T00:00:00').toLocaleDateString('pt-BR');
+        const fim2 = new Date(fim + 'T00:00:00').toLocaleDateString('pt-BR');
+        label.textContent = `${data.length} registro(s) encontrado(s) entre ${ini} e ${fim2}`;
+        result.style.display = 'block';
+        document.getElementById('btnLimparPeriodo').style.display = 'inline-flex';
+        mostrarToast(`${data.length} registros encontrados.`, data.length ? 'success' : 'info');
+    } catch (e) {
+        mostrarToast('Erro ao buscar registros. Tente novamente.', 'error');
+    } finally {
+        btnBuscar.innerHTML = '<i class="ph ph-magnifying-glass"></i> PESQUISAR';
+        btnBuscar.disabled  = false;
+    }
+}
+
+function limparPesquisaPeriodo() {
+    document.getElementById('periodoInicio').value = '';
+    document.getElementById('periodoFim').value    = '';
+    document.getElementById('resultadoPeriodo').style.display  = 'none';
+    document.getElementById('btnLimparPeriodo').style.display  = 'none';
+    document.querySelector('#tabelaResultadoPeriodo tbody').innerHTML = '';
+}
+let modoFullscreen = false;
+function toggleFullscreen() {
+    modoFullscreen = !modoFullscreen;
+    document.body.classList.toggle('fullscreen-mode', modoFullscreen);
+    document.getElementById('fullscreenIcon').className = modoFullscreen ? 'ph ph-arrows-in' : 'ph ph-arrows-out';
+    document.getElementById('btnFullscreen').title = modoFullscreen ? 'Sair da tela cheia' : 'Modo tela cheia';
+}
+
+// =========================================================
+// BADGE DE ADIANTAMENTOS URGENTES NA NAV
+// =========================================================
+function atualizarBadgeAdi(lista) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const urgentes = lista.filter(a => {
+        const diff = Math.ceil((new Date(a.venc) - hoje) / (1000*60*60*24));
+        return diff <= 7;
+    }).length;
+    const badge = document.getElementById('badgeAdi');
+    if (urgentes > 0) {
+        badge.textContent = urgentes;
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// =========================================================
+// EXPORTAR QUALQUER TABELA COMO CSV
+// =========================================================
+function exportarTabelaCSV(tabelaId, nomeArquivo) {
+    const tabela = document.getElementById(tabelaId);
+    if (!tabela) return;
+    const linhas = tabela.querySelectorAll('tr');
+    const csv = [];
+    linhas.forEach(tr => {
+        const cols = [...tr.querySelectorAll('th, td')].map(td => {
+            const txt = td.innerText.replace(/\n/g, ' ').trim();
+            return `"${txt.replace(/"/g, '""')}"`;
+        });
+        if (cols.length) csv.push(cols.join(';'));
+    });
+    if (!csv.length) return;
+    const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const blob = new Blob(['\uFEFF' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${nomeArquivo}_${hoje}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    tocarSomMSN();
+}
 function mostrarErro(elementId, mensagem) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -277,8 +438,102 @@ function entrarNoSistema(data) {
     document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
 
     switchTab('Dashboard');
-    // Carrega blacklist em background para todos os usuários
     carregarBlacklistCache();
+    // Recheck de adiantamentos a cada 30 minutos
+    setInterval(async () => {
+        const res  = await fetch(URL_SCRIPT).catch(() => null);
+        if (!res) return;
+        const data = await res.json().catch(() => null);
+        if (!data?.adiantamentosSetor) return;
+        let lista = data.adiantamentosSetor;
+        if (!temPermissao('gestor') && !temPermissao('administrador') && !temPermissao('diretor'))
+            lista = lista.filter(a => a.responsavel === usuarioAtual.nome);
+        adiantamentosCarregados = lista;
+        atualizarBadgeAdi(lista);
+    }, 30 * 60 * 1000);
+    // Abre modal de boas-vindas após carregar estatísticas
+    setTimeout(() => exibirModalBoasVindas(), 800);
+}
+
+// =========================================================
+// MODAL BOAS-VINDAS
+// =========================================================
+function exibirModalBoasVindas() {
+    const hora = new Date().getHours();
+    const saudacao = hora < 12 ? 'Bom dia,' : hora < 18 ? 'Boa tarde,' : 'Boa noite,';
+    const primeiroNome = usuarioAtual.nome.split(' ')[0];
+    const hoje = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    const hojeStr = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+
+    document.getElementById('bvSaudacao').textContent = saudacao;
+    document.getElementById('bvNome').textContent     = primeiroNome;
+    document.getElementById('bvData').textContent     = hojeStr;
+
+    // Monta cards de resumo
+    const cards = document.getElementById('bvCards');
+    cards.innerHTML = '';
+
+    const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
+    const urgentes  = adiantamentosCarregados.filter(a => {
+        const diff = Math.ceil((new Date(a.venc) - hoje2) / (1000*60*60*24));
+        return diff <= 7 && diff >= 0;
+    }).length;
+    const vencidos  = adiantamentosCarregados.filter(a => new Date(a.venc) < hoje2).length;
+    const totalAdi  = adiantamentosCarregados.length;
+
+    const itensCard = [
+        {
+            icon: 'ph-clock-countdown',
+            cor:  urgentes > 0 ? 'var(--warning)' : 'var(--success)',
+            bg:   urgentes > 0 ? 'rgba(234,179,8,0.12)' : 'rgba(22,163,74,0.1)',
+            valor: urgentes,
+            label: 'adiantamentos vencem em até 7 dias'
+        },
+        {
+            icon: 'ph-warning-circle',
+            cor:  vencidos > 0 ? 'var(--danger)' : 'var(--success)',
+            bg:   vencidos > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(22,163,74,0.1)',
+            valor: vencidos,
+            label: 'adiantamentos vencidos'
+        },
+        {
+            icon: 'ph-receipt',
+            cor:  'var(--accent)',
+            bg:   'rgba(2,132,199,0.1)',
+            valor: totalAdi,
+            label: 'adiantamentos em aberto no total'
+        }
+    ];
+
+    // Adiciona card de cargo/permissões
+    const permsLabel = usuarioAtual.permissoes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' · ');
+    itensCard.push({
+        icon: 'ph-shield-check',
+        cor:  '#f59e0b',
+        bg:   'rgba(245,158,11,0.1)',
+        valor: '',
+        label: permsLabel,
+        subtitulo: true
+    });
+
+    itensCard.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'bv-card';
+        div.style.background = c.bg;
+        div.style.borderColor = c.cor + '55';
+        div.innerHTML = `
+            <i class="ph ${c.icon}" style="font-size:28px;color:${c.cor};"></i>
+            <div>
+                ${c.subtitulo
+                    ? `<p class="bv-card-label" style="color:${c.cor};font-size:13px;font-weight:800;">${c.label}</p>`
+                    : `<p class="bv-card-valor" style="color:${c.cor};">${c.valor}</p>
+                       <p class="bv-card-label">${c.label}</p>`
+                }
+            </div>`;
+        cards.appendChild(div);
+    });
+
+    document.getElementById('modalBoasVindas').style.display = 'flex';
 }
 
 // --- EVENTOS DE TECLADO E MODAL ---
@@ -320,6 +575,7 @@ async function carregarEstatisticas() {
 
             // Salva no cache global
             adiantamentosCarregados = adiantamentosParaExibir;
+            atualizarBadgeAdi(adiantamentosParaExibir);
 
             // ── ALERTA DE LOGIN: dispara apenas uma vez por sessão ──
             if (!alertaAdiJaExibido) {

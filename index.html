@@ -308,6 +308,34 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         MODAL BOAS-VINDAS
+    ====================================================== -->
+    <div id="modalBoasVindas" class="modal" style="display:none;">
+        <div class="modal-content bv-modal-content">
+            <div class="bv-header">
+                <div class="bv-avatar">
+                    <i class="ph ph-user-circle"></i>
+                </div>
+                <div>
+                    <p class="bv-saudacao" id="bvSaudacao">Bom dia</p>
+                    <h2 class="bv-nome" id="bvNome">Usuário</h2>
+                    <p class="bv-data" id="bvData"></p>
+                </div>
+                <i class="ph ph-x bv-fechar" onclick="fecharModal('modalBoasVindas')"></i>
+            </div>
+
+            <div class="bv-cards" id="bvCards"></div>
+
+            <button class="bv-btn-entrar" onclick="fecharModal('modalBoasVindas')">
+                <i class="ph ph-arrow-right"></i> ENTRAR NO SISTEMA
+            </button>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
         <nav>
@@ -322,6 +350,10 @@
             </button>
             <button class="nav-btn" id="btn-adiantamento" onclick="switchTab('Adiantamento')">
                 <i class="ph ph-clock-counter-clockwise"></i> ADIANTAMENTO
+                <span id="badgeAdi" class="nav-badge" style="display:none"></span>
+            </button>
+            <button class="nav-btn" id="btn-historico" onclick="switchTab('Historico')">
+                <i class="ph ph-clock-clockwise"></i> HISTÓRICO
             </button>
             <button class="nav-btn" id="btn-projecao" onclick="switchTab('Projecao')" style="display:none">
                 <i class="ph ph-package"></i> <span id="btnProjecaoLabel">PROJEÇÃO</span>
@@ -429,15 +461,49 @@
                     </button>
                 </form>
 
-                <div class="search-section">
-                    <div class="search-box">
-                        <i class="ph ph-magnifying-glass"></i>
-                        <input type="text" id="inputBusca" placeholder="Pesquisar NF ou Fornecedor no histórico do CORE SCM...">
-                        <button class="btn-search-global" onclick="buscarNoBanco()">PESQUISAR GLOBAL</button>
+                <!-- PESQUISA POR PERÍODO -->
+                <div class="periodo-search-box" id="periodoFilter">
+                    <div class="periodo-search-row">
+                        <i class="ph ph-calendar-blank"></i>
+                        <span>Buscar notas por período:</span>
+                        <input type="date" id="periodoInicio">
+                        <span>até</span>
+                        <input type="date" id="periodoFim">
+                        <button class="btn-periodo-buscar" onclick="buscarPorPeriodo()">
+                            <i class="ph ph-magnifying-glass"></i> PESQUISAR
+                        </button>
+                        <button class="btn-periodo-limpar" onclick="limparPesquisaPeriodo()" id="btnLimparPeriodo" style="display:none">
+                            <i class="ph ph-x"></i> LIMPAR
+                        </button>
+                    </div>
+                    <div id="resultadoPeriodo" style="display:none; margin-top:16px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                            <span id="labelResultadoPeriodo" style="font-size:12px;font-weight:700;color:var(--text-muted);"></span>
+                            <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaResultadoPeriodo', 'notas_periodo')">
+                                <i class="ph ph-file-csv"></i> EXPORTAR CSV
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table id="tabelaResultadoPeriodo">
+                                <thead>
+                                    <tr>
+                                        <th>RESPONSÁVEL</th>
+                                        <th>DATA</th>
+                                        <th>NF</th>
+                                        <th>FORNECEDOR</th>
+                                        <th>RAZÃO SOCIAL</th>
+                                        <th>VENCIMENTO</th>
+                                        <th>VALOR</th>
+                                        <th>SETOR</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div class="table-container">
+                <div class="table-container" style="margin-top:24px;">
                     <table id="tabelaDados">
                         <thead><tr id="tableHeader"></tr></thead>
                         <tbody></tbody>
@@ -447,7 +513,11 @@
                 <div class="actions-footer" id="areaAcoes" style="display:none">
                     <button class="btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
                     <button class="btn-sync" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
+                    <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaDados', 'lote_' + abaAtual.toLowerCase())" title="Exportar lote atual como CSV">
+                        <i class="ph ph-file-csv"></i> CSV
+                    </button>
                 </div>
+                <div id="syncStatus" style="display:none; text-align:center; margin-top:10px; font-size:12px; font-weight:700;"></div>
 
                 <!-- TABELA DE ADIANTAMENTOS — visível só na aba Adiantamento -->
                 <div id="monitorAdiantamentosSection" style="display:none; margin-top: 40px;">
@@ -456,7 +526,12 @@
                         <p>Carregando adiantamentos...</p>
                     </div>
                     <div class="monitor-section">
-                        <h3 class="section-subtitle"><i class="ph ph-clock-countdown"></i> ADIANTAMENTOS EM ABERTO E PRAZOS</h3>
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                            <h3 class="section-subtitle" style="margin-bottom:0;"><i class="ph ph-clock-countdown"></i> ADIANTAMENTOS EM ABERTO E PRAZOS</h3>
+                            <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaMonitorAdi', 'adiantamentos')">
+                                <i class="ph ph-file-csv"></i> EXPORTAR CSV
+                            </button>
+                        </div>
                         <div class="table-container">
                             <table id="tabelaMonitorAdi">
                                 <thead>
@@ -479,9 +554,14 @@
 
             <!-- ABA PROJEÇÃO DE COMPRAS -->
             <div id="view-projecao" style="display:none">
-                <div class="header-tab">
-                    <h2 id="projTitulo">Projeção de Compras</h2>
-                    <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">Filtrar itens por cobertura e status</p>
+                <div class="header-tab" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h2 id="projTitulo">Projeção de Compras</h2>
+                        <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">Filtrar itens por cobertura e status</p>
+                    </div>
+                    <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="Modo tela cheia">
+                        <i class="ph ph-arrows-out" id="fullscreenIcon"></i>
+                    </button>
                 </div>
 
                 <div id="proj-loading" class="loading-overlay">
@@ -563,6 +643,59 @@
                 </div>
             </div>
 
+            <!-- ABA HISTÓRICO -->
+            <div id="view-historico" style="display:none">
+                <div class="header-tab" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <h2 style="font-size:22px;font-weight:900;">
+                            <i class="ph ph-clock-clockwise"></i> Meu Histórico
+                        </h2>
+                        <p style="color:var(--text-muted);font-size:12px;margin-top:4px;">Todos os seus registros enviados ao sistema</p>
+                    </div>
+                    <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaHistorico','historico')">
+                        <i class="ph ph-file-csv"></i> EXPORTAR CSV
+                    </button>
+                </div>
+
+                <div class="periodo-filter" style="margin-top:20px;">
+                    <i class="ph ph-calendar"></i>
+                    <span>Período:</span>
+                    <input type="date" id="histInicio" onchange="filtrarHistorico()">
+                    <span>até</span>
+                    <input type="date" id="histFim" onchange="filtrarHistorico()">
+                    <select id="histTipo" onchange="filtrarHistorico()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--card-bg);color:var(--text-main);font-size:12px;font-weight:700;cursor:pointer;">
+                        <option value="">Todos os tipos</option>
+                        <option value="Digitadas">Digitadas</option>
+                        <option value="Recebimento">Recebidas</option>
+                        <option value="Adiantamento">Adiantamento</option>
+                    </select>
+                    <button onclick="limparFiltroHistorico()"><i class="ph ph-x"></i> LIMPAR</button>
+                </div>
+
+                <div id="hist-loading" class="loading-overlay" style="display:none">
+                    <div class="spinner"></div>
+                    <p>Carregando histórico...</p>
+                </div>
+
+                <div class="table-container" style="margin-top:16px;">
+                    <table id="tabelaHistorico">
+                        <thead>
+                            <tr>
+                                <th>DATA</th>
+                                <th>TIPO</th>
+                                <th>NF</th>
+                                <th>FORNECEDOR</th>
+                                <th>VALOR</th>
+                                <th>VENCIMENTO</th>
+                                <th style="text-align:center;width:80px;">EDITAR</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p id="histResumo" style="font-size:12px;color:var(--text-muted);margin-top:12px;text-align:right;"></p>
+            </div>
+
             <!-- ABA ADMINISTRAÇÃO -->
             <div id="view-admin" style="display:none">
                 <div class="header-tab" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
@@ -578,6 +711,9 @@
                         </button>
                         <button class="btn-admin-tab" id="tabBtnBlacklist" onclick="switchAdminTab('blacklist')">
                             <i class="ph ph-prohibit"></i> BLACKLIST
+                        </button>
+                        <button class="btn-admin-tab" id="tabBtnLog" onclick="switchAdminTab('log')">
+                            <i class="ph ph-scroll"></i> LOG
                         </button>
                     </div>
                 </div>
@@ -650,6 +786,35 @@
                         </table>
                     </div>
                 </div>
+                <!-- SUB-ABA LOG -->
+                <div id="adminTabLog" style="display:none; margin-top:24px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <h3 style="font-weight:900;font-size:16px;"><i class="ph ph-scroll"></i> Log de Atividades</h3>
+                            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Registros de login e ações do sistema</p>
+                        </div>
+                        <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaLog','log_atividades')">
+                            <i class="ph ph-file-csv"></i> EXPORTAR CSV
+                        </button>
+                    </div>
+                    <div id="log-loading" class="loading-overlay" style="display:none">
+                        <div class="spinner"></div><p>Carregando log...</p>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabelaLog">
+                            <thead>
+                                <tr>
+                                    <th>DATA/HORA</th>
+                                    <th>USUÁRIO</th>
+                                    <th>AÇÃO</th>
+                                    <th>DETALHE</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -752,8 +917,27 @@
     </div>
 
     <!-- =====================================================
-         MODAL ADICIONAR À BLACKLIST
+         MODAL EDITAR REGISTRO
     ====================================================== -->
+    <div id="modalEditar" class="modal" style="display:none;">
+        <div class="modal-content usuario-modal-content">
+            <div class="modal-header">
+                <h3><i class="ph ph-pencil-simple"></i> EDITAR REGISTRO</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalEditar')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <div class="form-grid" style="margin-top:24px;" id="editarFormGrid"></div>
+            <input type="hidden" id="editarTipo">
+            <input type="hidden" id="editarIndex">
+            <div class="saida-confirm-btns" style="margin-top:28px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalEditar')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-salvar-usuario" onclick="salvarEdicao()">
+                    <i class="ph ph-check-circle"></i> SALVAR ALTERAÇÕES
+                </button>
+            </div>
+        </div>
+    </div>
     <div id="modalBlacklist" class="modal" style="display:none;">
         <div class="modal-content saida-confirm-content">
             <div class="saida-confirm-header">

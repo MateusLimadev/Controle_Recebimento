@@ -2296,3 +2296,32 @@ body.fullscreen-mode .container {
     align-items: center;
     flex-wrap: wrap;
 }
+
+/* ==========================================================================
+   31. BOTÃO DE TEMA NA TELA DE LOGIN
+   ========================================================================== */
+
+.btn-theme-login {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    z-index: 100;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+.btn-theme-login:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: rotate(20deg);
+}

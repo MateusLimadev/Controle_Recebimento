@@ -35,7 +35,11 @@ function toggleTheme() {
     const b = document.body;
     const isDark = b.getAttribute('data-theme') === 'dark';
     b.setAttribute('data-theme', isDark ? 'light' : 'dark');
-    document.getElementById('themeIcon').className = isDark ? 'ph ph-moon' : 'ph ph-sun';
+    const newIcon = isDark ? 'ph ph-moon' : 'ph ph-sun';
+    const headerIcon = document.getElementById('themeIcon');
+    const loginIcon  = document.getElementById('themeIconLogin');
+    if (headerIcon) headerIcon.className = newIcon;
+    if (loginIcon)  loginIcon.className  = newIcon;
 }
 
 function logout() { location.reload(); }

@@ -2345,3 +2345,33 @@ body.fullscreen-mode .container {
     padding: 4px 0;
 }
 .btn-esqueci-senha:hover { color: var(--accent); }
+/* ==========================================================================
+   BOTÃO LIMPAR LOG
+   ========================================================================== */
+
+.btn-limpar-log {
+    padding: 9px 16px;
+    background: transparent;
+    color: var(--danger);
+    border: 1.5px solid var(--danger);
+    border-radius: 10px;
+    font-weight: 900;
+    font-size: 11px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.btn-limpar-log:hover {
+    background: var(--danger);
+    color: white;
+    transform: translateY(-1px);
+}
+.btn-limpar-log:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}

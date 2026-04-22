@@ -915,9 +915,14 @@
                             <h3 style="font-weight:900;font-size:16px;"><i class="ph ph-scroll"></i> Log de Atividades</h3>
                             <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Registros de login e ações do sistema</p>
                         </div>
-                        <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaLog','log_atividades')">
-                            <i class="ph ph-file-csv"></i> EXPORTAR CSV
-                        </button>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaLog','log_atividades')">
+                                <i class="ph ph-file-csv"></i> EXPORTAR CSV
+                            </button>
+                            <button class="btn-limpar-log" onclick="confirmarLimparLog()">
+                                <i class="ph ph-trash"></i> LIMPAR LOG
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Filtro de período -->
@@ -1083,6 +1088,31 @@
             </div>
         </div>
     </div>
+    <!-- =====================================================
+         MODAL CONFIRMAR LIMPEZA DO LOG
+    ====================================================== -->
+    <div id="modalLimparLog" class="modal" style="display:none;">
+        <div class="modal-content saida-confirm-content">
+            <div class="saida-confirm-header">
+                <div class="saida-confirm-icon-wrap" style="background:rgba(239,68,68,0.1);">
+                    <i class="ph ph-trash saida-confirm-icon" style="color:var(--danger);"></i>
+                </div>
+                <div>
+                    <h3 class="saida-confirm-titulo" style="color:var(--danger);">LIMPAR LOG</h3>
+                    <p class="saida-confirm-subtitulo">Todos os registros de atividade serão apagados permanentemente da planilha. Esta ação não pode ser desfeita.</p>
+                </div>
+            </div>
+            <div class="saida-confirm-btns">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalLimparLog')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-saida-confirmar" onclick="executarLimparLog()">
+                    <i class="ph ph-trash"></i> SIM, LIMPAR TUDO
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalBlacklist" class="modal" style="display:none;">
         <div class="modal-content saida-confirm-content">
             <div class="saida-confirm-header">

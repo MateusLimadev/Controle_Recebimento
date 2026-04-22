@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -2116,7 +2116,30 @@ function registrarLog(acao, detalhe = '') {
     }).catch(() => {});
 }
 
-let _logCompleto = []; // cache para filtro client-side
+function confirmarLimparLog() {
+    document.getElementById('modalLimparLog').style.display = 'flex';
+}
+
+async function executarLimparLog() {
+    fecharModal('modalLimparLog');
+    const btn = document.querySelector('.btn-limpar-log');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> LIMPANDO...';
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=limparLog&solicitante=${encodeURIComponent(loginAtual)}`));
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro);
+        _logCompleto = [];
+        renderizarTabelaLog([]);
+        mostrarToast('Log limpo com sucesso.', 'success');
+        registrarLog('LIMPAR LOG', 'Log de atividades apagado pelo administrador');
+    } catch (e) {
+        mostrarToast('Erro ao limpar log: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-trash"></i> LIMPAR LOG';
+    }
+}
 
 async function carregarLog() {
     document.getElementById('log-loading').style.display = 'flex';

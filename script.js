@@ -1212,7 +1212,7 @@ async function carregarProjecao(nomeUsuarioForcar) {
     document.getElementById('proj-content').style.display = 'none';
 
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`));
         const data = await res.json();
 
         if (data.erro) {

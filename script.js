@@ -524,11 +524,25 @@ function renderizarHistoricoNotas() {
 
     resumo.textContent = `${total} nota(s) — página ${_histNotasPagina} de ${totalPags}`;
 
+    // Mostra coluna retirada só na aba Recebimento
+    const isRecebimento = abaAtual === 'Recebimento';
+    document.getElementById('thRetirada').style.display = isRecebimento ? '' : 'none';
+    const colSpan = isRecebimento ? 10 : 9;
+
     pagina.forEach((n, idx) => {
         const editada  = n.editada === true || n.editada === 'EDITADA';
-        const rowStyle = editada ? 'background:rgba(245,158,11,0.07);' : '';
+        const retirada = n.retirada === true || !!n.setorRetirada;
+        const rowStyle = editada ? 'background:rgba(245,158,11,0.07);' : retirada ? 'background:rgba(2,132,199,0.05);' : '';
         const badge    = editada ? `<span style="background:#f59e0b22;color:#f59e0b;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;margin-left:6px;">EDITADA</span>` : '';
         const absIdx   = _histNotas.indexOf(n);
+
+        const btnRetirada = isRecebimento
+            ? retirada
+                ? `<td style="text-align:center;"><span style="font-size:10px;font-weight:800;color:var(--accent);">${n.setorRetirada || 'Retirado'}</span></td>`
+                : `<td style="text-align:center;"><button onclick="abrirRetirada(${absIdx})"
+                    style="background:transparent;border:1.5px solid var(--accent);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--accent);" title="Registrar retirada">
+                    <i class="ph ph-package"></i></button></td>`
+            : '';
 
         tbody.innerHTML += `
             <tr style="${rowStyle}">
@@ -540,6 +554,7 @@ function renderizarHistoricoNotas() {
                 <td>R$ ${formatarValor(n.valor)}</td>
                 <td style="font-size:11px;">${n.setor || '—'}</td>
                 <td style="font-size:11px;">${n.tipo || '—'}</td>
+                ${btnRetirada}
                 <td style="text-align:center;">
                     <button onclick="abrirEdicaoNota(${absIdx})"
                         style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--accent);" title="Editar">
@@ -564,6 +579,49 @@ function mudarPaginaHist(p) {
     _histNotasPagina = p;
     renderizarHistoricoNotas();
     document.getElementById('historicoNotasSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── RETIRADA ──────────────────────────────────────────────
+
+function abrirRetirada(idx) {
+    const n = _histNotas[idx];
+    if (!n) return;
+    document.getElementById('retiradaNfLabel').textContent = n.nf;
+    document.getElementById('retiradaRowIndex').value = n.rowIndex;
+    document.getElementById('retiradaSetor').value = '';
+    document.getElementById('modalRetirada').style.display = 'flex';
+    setTimeout(() => document.getElementById('retiradaSetor').focus(), 100);
+}
+
+async function confirmarRetirada() {
+    const rowIndex = parseInt(document.getElementById('retiradaRowIndex').value);
+    const setor    = document.getElementById('retiradaSetor').value.trim();
+    if (!setor) { mostrarToast('Informe o setor que retirou.', 'warning'); return; }
+
+    const btn = document.querySelector('#modalRetirada .btn-saida-confirmar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> SALVANDO...';
+
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'registrarRetirada', rowIndex, setorRetirada: setor })
+        });
+
+        // Atualiza cache local
+        const nota = _histNotas.find(n => n.rowIndex === rowIndex);
+        if (nota) { nota.setorRetirada = setor; nota.retirada = true; }
+
+        fecharModal('modalRetirada');
+        renderizarHistoricoNotas();
+        mostrarToast('Retirada registrada com sucesso!', 'success');
+        registrarLog('RETIRADA', `NF ${document.getElementById('retiradaNfLabel').textContent} — Setor: ${setor}`);
+    } catch (e) {
+        mostrarToast('Erro ao registrar retirada.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-package"></i> CONFIRMAR RETIRADA';
+    }
 }
 
 // ── EDIÇÃO ────────────────────────────────────────────────
@@ -894,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog', 'modalEditarNota'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog', 'modalEditarNota', 'modalRetirada'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -992,41 +1050,68 @@ async function criarTabsDiretor() {
     }
 }
 
+const ADI_PAGE_SIZE = 15;
+let _adiPagina = 1;
+
 function renderizarTabelaAdiantamentos(lista) {
-    const tbody = document.querySelector("#tabelaMonitorAdi tbody");
-    tbody.innerHTML = "";
+    const tbody    = document.querySelector("#tabelaMonitorAdi tbody");
+    const paginacao = document.getElementById('adiPaginacao');
+    tbody.innerHTML    = "";
+    paginacao.innerHTML = "";
 
     if (!lista || lista.length === 0) {
         tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:20px;'>Nenhum adiantamento pendente.</td></tr>";
         return;
     }
 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const total     = lista.length;
+    const totalPags = Math.ceil(total / ADI_PAGE_SIZE);
+    const inicio    = (_adiPagina - 1) * ADI_PAGE_SIZE;
+    const pagina    = lista.slice(inicio, Math.min(inicio + ADI_PAGE_SIZE, total));
 
-    lista.forEach(adi => {
-        const diff = Math.ceil((new Date(adi.venc) - hoje) / (1000 * 60 * 60 * 24));
+    pagina.forEach(adi => {
+        const vencDate = new Date(adi.venc);
+        const diff = Math.ceil((vencDate - hoje) / (1000 * 60 * 60 * 24));
         let cls = "prazo-ok", txt = "No Prazo";
-        if (diff < 0)       { cls = "prazo-vencido"; txt = "⚠️ VENCIDO"; }
-        else if (diff <= 7) { cls = "prazo-urgente"; txt = "⏳ URGENTE"; }
+        if (diff < 0)       { cls = "prazo-vencido"; txt = "VENCIDO"; }
+        else if (diff <= 7) { cls = "prazo-urgente"; txt = "URGENTE"; }
 
         tbody.innerHTML += `
             <tr id="row-adi-${adi.nf}">
                 <td><b>${adi.responsavel}</b></td>
                 <td>${adi.nf}</td>
                 <td>${adi.fornecedor}</td>
-                <td>${new Date(adi.venc).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                <td>${vencDate.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
                 <td>R$ ${formatarValor(adi.valor)}</td>
                 <td><span class="status-prazo ${cls}">${txt}</span></td>
                 <td style="text-align:center">
-                    <button class="btn-saida-adi"
-                        title="Registrar saída / quitar adiantamento"
+                    <button class="btn-saida-adi" title="Registrar saída"
                         onclick="deletarAdiantamento('${adi.nf}', '${adi.responsavel}')">
                         <i class="ph ph-door-open"></i>
                     </button>
                 </td>
             </tr>`;
     });
+
+    // Paginação
+    if (totalPags > 1) {
+        const btn = (label, p, ativo) =>
+            `<button onclick="mudarPaginaAdi(${p})" style="padding:6px 14px;border-radius:8px;border:1.5px solid ${ativo ? 'var(--accent)' : 'var(--border)'};background:${ativo ? 'var(--accent)' : 'transparent'};color:${ativo ? '#fff' : 'var(--text-main)'};font-weight:800;font-size:12px;cursor:${ativo ? 'default' : 'pointer'}">${label}</button>`;
+        if (_adiPagina > 1) paginacao.innerHTML += btn('‹', _adiPagina - 1, false);
+        for (let p = Math.max(1, _adiPagina - 2); p <= Math.min(totalPags, _adiPagina + 2); p++) {
+            paginacao.innerHTML += btn(p, p, p === _adiPagina);
+        }
+        if (_adiPagina < totalPags) paginacao.innerHTML += btn('›', _adiPagina + 1, false);
+
+        paginacao.innerHTML += `<span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${total} adiantamento(s)</span>`;
+    }
+}
+
+function mudarPaginaAdi(p) {
+    _adiPagina = p;
+    renderizarTabelaAdiantamentos(adiantamentosCarregados);
+    document.getElementById('monitorAdiantamentosSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function carregarAdiantamentos() {

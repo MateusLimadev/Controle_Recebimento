@@ -674,6 +674,7 @@
                                     <th>VALOR</th>
                                     <th>SETOR</th>
                                     <th>TIPO</th>
+                                    <th id="thRetirada" style="display:none;text-align:center;width:80px;">RETIRADA</th>
                                     <th style="text-align:center;width:60px;">EDITAR</th>
                                 </tr>
                             </thead>
@@ -713,6 +714,7 @@
                                 <tbody></tbody>
                             </table>
                         </div>
+                        <div id="adiPaginacao" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;flex-wrap:wrap;"></div>
                     </div>
                 </div>
             </div>
@@ -1190,6 +1192,37 @@
             </div>
         </div>
     </div>
+    <!-- =====================================================
+         MODAL REGISTRAR RETIRADA (RECEBIDAS)
+    ====================================================== -->
+    <div id="modalRetirada" class="modal" style="display:none;">
+        <div class="modal-content saida-confirm-content">
+            <div class="saida-confirm-header">
+                <div class="saida-confirm-icon-wrap" style="background:rgba(2,132,199,0.1);">
+                    <i class="ph ph-package saida-confirm-icon" style="color:var(--accent);"></i>
+                </div>
+                <div>
+                    <h3 class="saida-confirm-titulo">REGISTRAR RETIRADA</h3>
+                    <p class="saida-confirm-subtitulo">NF: <b id="retiradaNfLabel">—</b></p>
+                </div>
+            </div>
+            <div class="field-group" style="margin-top:16px;">
+                <label>Setor que retirou</label>
+                <input type="text" id="retiradaSetor" placeholder="Ex: UTI NEONATAL, ALMOX GERAL..."
+                    style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg-system);color:var(--text-main);font-size:14px;">
+            </div>
+            <input type="hidden" id="retiradaRowIndex">
+            <div class="saida-confirm-btns" style="margin-top:20px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalRetirada')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-saida-confirmar" onclick="confirmarRetirada()">
+                    <i class="ph ph-package"></i> CONFIRMAR RETIRADA
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- =====================================================
          MODAL EDITAR NOTA
     ====================================================== -->

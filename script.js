@@ -124,11 +124,11 @@ async function buscarPorPeriodo() {
     btnBuscar.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
     btnBuscar.disabled  = true;
 
-    // Sempre usa primeiro nome — sem override de gestor aqui
     const primeiroNome = usuarioAtual.nome.split(' ')[0];
+    const nomeCompleto = encodeURIComponent(usuarioAtual.nome);
 
     try {
-        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(primeiroNome)}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`));
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&primeiroNome=${encodeURIComponent(primeiroNome)}&nomeCompleto=${nomeCompleto}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`));
         const data = await res.json();
 
         const tbody  = document.querySelector('#tabelaResultadoPeriodo tbody');
@@ -472,7 +472,8 @@ async function carregarHistoricoNotas() {
 
     try {
         const primeiroNome = usuarioAtual.nome.split(' ')[0];
-        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getHistoricoNotas&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(primeiroNome)}`));
+        const nomeCompleto = encodeURIComponent(usuarioAtual.nome);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getHistoricoNotas&aba=${encodeURIComponent(abaAtual)}&primeiroNome=${encodeURIComponent(primeiroNome)}&nomeCompleto=${nomeCompleto}`));
         const data = await res.json();
         if (data.erro) throw new Error(data.erro);
         _histNotas        = data;

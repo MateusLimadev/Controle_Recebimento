@@ -638,6 +638,52 @@
                 </div>
                 <div id="syncStatus" style="display:none; text-align:center; margin-top:10px; font-size:12px; font-weight:700;"></div>
 
+                <!-- HISTÓRICO DE NOTAS REGISTRADAS -->
+                <div id="historicoNotasSection" style="display:none; margin-top:40px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                        <div>
+                            <h3 style="font-weight:900;font-size:16px;margin:0;"><i class="ph ph-clock-clockwise"></i> Notas Registradas</h3>
+                            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;" id="historicoResumo"></p>
+                        </div>
+                        <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaHistoricoNotas','notas_historico')">
+                            <i class="ph ph-file-csv"></i> EXPORTAR
+                        </button>
+                    </div>
+                    <!-- Barra de busca -->
+                    <div class="periodo-search-box" style="margin-bottom:16px;">
+                        <div class="periodo-search-row">
+                            <i class="ph ph-magnifying-glass" style="color:var(--accent);"></i>
+                            <input type="text" id="histBuscaInput"
+                                placeholder="Buscar por NF, fornecedor, setor..."
+                                oninput="filtrarHistoricoNotas()"
+                                style="flex:1;padding:9px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg-system);color:var(--text-main);font-size:13px;">
+                        </div>
+                    </div>
+                    <div id="hist-notas-loading" class="loading-overlay" style="display:none">
+                        <div class="spinner"></div><p>Carregando notas...</p>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabelaHistoricoNotas">
+                            <thead>
+                                <tr>
+                                    <th>DATA</th>
+                                    <th>NF</th>
+                                    <th>FORNECEDOR</th>
+                                    <th>RAZÃO SOCIAL</th>
+                                    <th>VENCIMENTO</th>
+                                    <th>VALOR</th>
+                                    <th>SETOR</th>
+                                    <th>TIPO</th>
+                                    <th style="text-align:center;width:60px;">EDITAR</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <!-- PAGINAÇÃO -->
+                    <div id="histNotasPaginacao" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;flex-wrap:wrap;"></div>
+                </div>
+
                 <!-- TABELA DE ADIANTAMENTOS — visível só na aba Adiantamento -->
                 <div id="monitorAdiantamentosSection" style="display:none; margin-top: 40px;">
                     <div id="adi-loading" class="loading-overlay" style="display:none">
@@ -1144,6 +1190,61 @@
             </div>
         </div>
     </div>
+    <!-- =====================================================
+         MODAL EDITAR NOTA
+    ====================================================== -->
+    <div id="modalEditarNota" class="modal" style="display:none;">
+        <div class="modal-content usuario-modal-content">
+            <div class="modal-header">
+                <h3><i class="ph ph-pencil-simple"></i> EDITAR NOTA</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalEditarNota')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:8px;margin-bottom:20px;">
+                A linha será marcada como <b style="color:#f59e0b;">EDITADA</b> na planilha.
+            </p>
+            <div class="form-grid">
+                <div class="field-group">
+                    <label>Número NF</label>
+                    <input type="text" id="edit_nf">
+                </div>
+                <div class="field-group">
+                    <label>Fornecedor</label>
+                    <input type="text" id="edit_fornecedor">
+                </div>
+                <div class="field-group">
+                    <label>Razão Social</label>
+                    <input type="text" id="edit_razao">
+                </div>
+                <div class="field-group">
+                    <label>Data Emissão</label>
+                    <input type="date" id="edit_data">
+                </div>
+                <div class="field-group">
+                    <label>Vencimento</label>
+                    <input type="date" id="edit_vencimento">
+                </div>
+                <div class="field-group">
+                    <label>Valor (R$)</label>
+                    <input type="text" id="edit_valor">
+                </div>
+                <div class="field-group">
+                    <label>Setor</label>
+                    <input type="text" id="edit_setor">
+                </div>
+            </div>
+            <input type="hidden" id="edit_rowIndex">
+            <input type="hidden" id="edit_aba">
+            <div class="saida-confirm-btns" style="margin-top:24px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalEditarNota')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-salvar-usuario" onclick="salvarEdicaoNota()">
+                    <i class="ph ph-check-circle"></i> SALVAR EDIÇÃO
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- =====================================================
          MODAL CONFIRMAR RESET DE SENHA
     ====================================================== -->

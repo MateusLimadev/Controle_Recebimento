@@ -117,21 +117,18 @@ async function buscarPorPeriodo() {
     const inicio = document.getElementById('periodoInicio').value;
     const fim    = document.getElementById('periodoFim').value;
 
-    if (!inicio || !fim) {
-        mostrarToast('⚠️ Selecione a data de início e fim.', 'warning');
-        return;
-    }
-    if (inicio > fim) {
-        mostrarToast('⚠️ A data de início deve ser anterior à data fim.', 'warning');
-        return;
-    }
+    if (!inicio || !fim) { mostrarToast('Selecione a data de início e fim.', 'warning'); return; }
+    if (inicio > fim)    { mostrarToast('A data de início deve ser anterior à data fim.', 'warning'); return; }
 
     const btnBuscar = document.querySelector('.btn-periodo-buscar');
     btnBuscar.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
     btnBuscar.disabled  = true;
 
+    // Sempre usa primeiro nome — sem override de gestor aqui
+    const primeiroNome = usuarioAtual.nome.split(' ')[0];
+
     try {
-        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(usuarioAtual.nome)}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}&role=${encodeURIComponent(usuarioAtual.permissoes.join(','))}`));
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=buscarPorPeriodo&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(primeiroNome)}&inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`));
         const data = await res.json();
 
         const tbody  = document.querySelector('#tabelaResultadoPeriodo tbody');
@@ -141,25 +138,26 @@ async function buscarPorPeriodo() {
         tbody.innerHTML = '';
 
         if (!data.length) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum registro encontrado nesse período.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum registro encontrado nesse período.</td></tr>`;
         } else {
             data.forEach(r => {
+                // Datas já vêm formatadas do servidor (DD/MM/YYYY)
                 tbody.innerHTML += `
                     <tr>
                         <td><b>${r.responsavel || '—'}</b></td>
-                        <td>${r.data ? new Date(r.data).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '—'}</td>
+                        <td>${r.data || '—'}</td>
                         <td><b>${r.nf || '—'}</b></td>
                         <td>${r.fornecedor || '—'}</td>
                         <td style="font-size:11px;">${r.razaoSocial || '—'}</td>
-                        <td>${r.vencimento ? new Date(r.vencimento).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '—'}</td>
+                        <td>${r.vencimento || '—'}</td>
                         <td>R$ ${formatarValor(r.valor)}</td>
                         <td style="font-size:11px;">${r.setor || '—'}</td>
                     </tr>`;
             });
         }
 
-        const ini = new Date(inicio + 'T00:00:00').toLocaleDateString('pt-BR');
-        const fim2 = new Date(fim + 'T00:00:00').toLocaleDateString('pt-BR');
+        const ini  = new Date(inicio + 'T00:00:00').toLocaleDateString('pt-BR');
+        const fim2 = new Date(fim    + 'T00:00:00').toLocaleDateString('pt-BR');
         label.textContent = `${data.length} registro(s) encontrado(s) entre ${ini} e ${fim2}`;
         result.style.display = 'block';
         document.getElementById('btnLimparPeriodo').style.display = 'inline-flex';
@@ -453,8 +451,199 @@ async function confirmarNovaSenha() {
 }
 
 // =========================================================
-// ESQUECI MINHA SENHA
+// HISTÓRICO DE NOTAS REGISTRADAS (DIGITADAS / RECEBIDAS)
 // =========================================================
+
+const HIST_PAGE_SIZE  = 20;
+let _histNotas        = [];
+let _histNotasFiltrado = [];
+let _histNotasPagina  = 1;
+
+async function carregarHistoricoNotas() {
+    if (abaAtual !== 'Digitadas' && abaAtual !== 'Recebimento') return;
+
+    const section = document.getElementById('historicoNotasSection');
+    section.style.display = 'block';
+    document.getElementById('hist-notas-loading').style.display = 'flex';
+    document.querySelector('#tabelaHistoricoNotas tbody').innerHTML = '';
+    document.getElementById('histNotasPaginacao').innerHTML = '';
+    document.getElementById('historicoResumo').textContent = 'Carregando...';
+    document.getElementById('histBuscaInput').value = '';
+
+    try {
+        const primeiroNome = usuarioAtual.nome.split(' ')[0];
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getHistoricoNotas&aba=${encodeURIComponent(abaAtual)}&responsavel=${encodeURIComponent(primeiroNome)}`));
+        const data = await res.json();
+        if (data.erro) throw new Error(data.erro);
+        _histNotas        = data;
+        _histNotasFiltrado = data;
+        _histNotasPagina  = 1;
+        renderizarHistoricoNotas();
+    } catch (e) {
+        document.getElementById('historicoResumo').textContent = 'Erro ao carregar.';
+        mostrarToast('Erro ao carregar histórico: ' + e.message, 'error');
+    } finally {
+        document.getElementById('hist-notas-loading').style.display = 'none';
+    }
+}
+
+function filtrarHistoricoNotas() {
+    const q = document.getElementById('histBuscaInput').value.trim().toLowerCase();
+    _histNotasFiltrado = q
+        ? _histNotas.filter(n =>
+            (n.nf         || '').toLowerCase().includes(q) ||
+            (n.fornecedor || '').toLowerCase().includes(q) ||
+            (n.razaoSocial|| '').toLowerCase().includes(q) ||
+            (n.setor      || '').toLowerCase().includes(q)
+          )
+        : _histNotas;
+    _histNotasPagina = 1;
+    renderizarHistoricoNotas();
+}
+
+function renderizarHistoricoNotas() {
+    const tbody     = document.querySelector('#tabelaHistoricoNotas tbody');
+    const paginacao = document.getElementById('histNotasPaginacao');
+    const resumo    = document.getElementById('historicoResumo');
+    tbody.innerHTML    = '';
+    paginacao.innerHTML = '';
+
+    const lista = _histNotasFiltrado;
+
+    if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhuma nota encontrada.</td></tr>`;
+        resumo.textContent = '0 notas';
+        return;
+    }
+
+    const total     = lista.length;
+    const totalPags = Math.ceil(total / HIST_PAGE_SIZE);
+    const inicio    = (_histNotasPagina - 1) * HIST_PAGE_SIZE;
+    const fim       = Math.min(inicio + HIST_PAGE_SIZE, total);
+    const pagina    = lista.slice(inicio, fim);
+
+    resumo.textContent = `${total} nota(s) — página ${_histNotasPagina} de ${totalPags}`;
+
+    pagina.forEach((n, idx) => {
+        const editada  = n.editada === true || n.editada === 'EDITADA';
+        const rowStyle = editada ? 'background:rgba(245,158,11,0.07);' : '';
+        const badge    = editada ? `<span style="background:#f59e0b22;color:#f59e0b;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;margin-left:6px;">EDITADA</span>` : '';
+        const absIdx   = _histNotas.indexOf(n);
+
+        tbody.innerHTML += `
+            <tr style="${rowStyle}">
+                <td style="font-size:12px;">${n.data || '—'}</td>
+                <td><b>${n.nf || '—'}</b>${badge}</td>
+                <td>${n.fornecedor || '—'}</td>
+                <td style="font-size:11px;">${n.razaoSocial || '—'}</td>
+                <td style="font-size:12px;">${n.vencimento || '—'}</td>
+                <td>R$ ${formatarValor(n.valor)}</td>
+                <td style="font-size:11px;">${n.setor || '—'}</td>
+                <td style="font-size:11px;">${n.tipo || '—'}</td>
+                <td style="text-align:center;">
+                    <button onclick="abrirEdicaoNota(${absIdx})"
+                        style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--accent);" title="Editar">
+                        <i class="ph ph-pencil-simple"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    if (totalPags > 1) {
+        const btn = (label, page, ativo) =>
+            `<button onclick="mudarPaginaHist(${page})" style="padding:6px 14px;border-radius:8px;border:1.5px solid ${ativo ? 'var(--accent)' : 'var(--border)'};background:${ativo ? 'var(--accent)' : 'transparent'};color:${ativo ? '#fff' : 'var(--text-main)'};font-weight:800;font-size:12px;cursor:${ativo ? 'default' : 'pointer'}">${label}</button>`;
+        if (_histNotasPagina > 1) paginacao.innerHTML += btn('‹ Ant', _histNotasPagina - 1, false);
+        for (let p = Math.max(1, _histNotasPagina - 2); p <= Math.min(totalPags, _histNotasPagina + 2); p++) {
+            paginacao.innerHTML += btn(p, p, p === _histNotasPagina);
+        }
+        if (_histNotasPagina < totalPags) paginacao.innerHTML += btn('Prox ›', _histNotasPagina + 1, false);
+    }
+}
+
+function mudarPaginaHist(p) {
+    _histNotasPagina = p;
+    renderizarHistoricoNotas();
+    document.getElementById('historicoNotasSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── EDIÇÃO ────────────────────────────────────────────────
+
+function abrirEdicaoNota(idx) {
+    const n = _histNotas[idx];
+    if (!n) return;
+    document.getElementById('edit_nf').value         = n.nf || '';
+    document.getElementById('edit_fornecedor').value = n.fornecedor || '';
+    document.getElementById('edit_razao').value      = n.razaoSocial || '';
+    document.getElementById('edit_data').value       = converterDataParaInput(n.data);
+    document.getElementById('edit_vencimento').value = converterDataParaInput(n.vencimento);
+    document.getElementById('edit_valor').value      = n.valor || '';
+    document.getElementById('edit_setor').value      = n.setor || '';
+    document.getElementById('edit_rowIndex').value   = n.rowIndex;
+    document.getElementById('edit_aba').value        = abaAtual;
+    document.getElementById('modalEditarNota').style.display = 'flex';
+}
+
+function converterDataParaInput(dataStr) {
+    if (!dataStr) return '';
+    // DD/MM/YYYY → YYYY-MM-DD
+    const m = dataStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    return dataStr;
+}
+
+async function salvarEdicaoNota() {
+    const rowIndex   = document.getElementById('edit_rowIndex').value;
+    const aba        = document.getElementById('edit_aba').value;
+    const primeiroNome = usuarioAtual.nome.split(' ')[0];
+
+    const payload = {
+        rowIndex:    parseInt(rowIndex),
+        aba:         aba,
+        responsavel: primeiroNome,
+        nf:          document.getElementById('edit_nf').value.trim(),
+        fornecedor:  document.getElementById('edit_fornecedor').value.trim(),
+        razaoSocial: document.getElementById('edit_razao').value.trim(),
+        data:        document.getElementById('edit_data').value,
+        vencimento:  document.getElementById('edit_vencimento').value,
+        valor:       document.getElementById('edit_valor').value.trim(),
+        setor:       document.getElementById('edit_setor').value.trim(),
+    };
+
+    const btn = document.querySelector('#modalEditarNota .btn-salvar-usuario');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> SALVANDO...';
+
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=editarNota&solicitante=${encodeURIComponent(loginAtual)}`), {
+            method: 'POST',
+            mode:   'no-cors',
+            body:   JSON.stringify({ tipo: 'editarNota', ...payload })
+        });
+
+        // Atualiza cache local
+        const nota = _histNotas.find(n => n.rowIndex === parseInt(rowIndex));
+        if (nota) {
+            nota.nf         = payload.nf;
+            nota.fornecedor = payload.fornecedor;
+            nota.razaoSocial = payload.razaoSocial;
+            nota.data       = formatarDataBR(payload.data);
+            nota.vencimento = formatarDataBR(payload.vencimento);
+            nota.valor      = payload.valor;
+            nota.setor      = payload.setor;
+            nota.editada    = true;
+        }
+
+        fecharModal('modalEditarNota');
+        renderizarHistoricoNotas();
+        mostrarToast('✅ Nota editada com sucesso!', 'success');
+        registrarLog('EDITAR NOTA', `NF ${payload.nf} — aba ${aba}`);
+    } catch (e) {
+        mostrarToast('Erro ao salvar edição.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-check-circle"></i> SALVAR EDIÇÃO';
+    }
+}
 let _resetLoginPendente = null;
 
 function abrirEsqueciSenha() {
@@ -705,7 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog', 'modalEditarNota'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -1388,7 +1577,14 @@ function switchTab(aba) {
         configurarStatusCard(aba);
         configurarTableHeader();
         atualizarTabela();
-        if (aba === 'Adiantamento') carregarAdiantamentos();
+        if (aba === 'Adiantamento') {
+            document.getElementById('historicoNotasSection').style.display = 'none';
+            carregarAdiantamentos();
+        } else if (aba === 'Digitadas' || aba === 'Recebimento') {
+            setTimeout(() => carregarHistoricoNotas(), 200);
+        } else {
+            document.getElementById('historicoNotasSection').style.display = 'none';
+        }
     }
 }
 

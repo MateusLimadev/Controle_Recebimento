@@ -737,13 +737,205 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
 
 /* --- 15. RESPONSIVIDADE --- */
 
-@media (max-width: 768px) {
-    header { padding: 10px 20px; flex-direction: column; gap: 15px; }
-    .header-center h1 { font-size: 26px; }
-    .container { padding: 2rem; width: 95%; }
-    .dashboard-grid { grid-template-columns: 1fr; }
-    .actions-footer { grid-template-columns: 1fr; }
+/* ==========================================================================
+   RESPONSIVIDADE COMPLETA — MOBILE · TABLET · TV · TELÃO
+   ========================================================================== */
+
+/* ── TABLET (≤1024px) ─────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .main-wrapper { padding: 20px 16px; }
+
+    .header-right .btn-header-action span { display: none; }
+    .header-right .btn-header-action i   { margin: 0; }
+
+    .nav-container { gap: 2px; padding: 0 12px; overflow-x: auto; flex-wrap: nowrap; }
+    .nav-btn        { font-size: 10px; padding: 10px 10px; white-space: nowrap; }
+
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .fg-2      { grid-column: span 1; }
+
+    .stat-card h3 { font-size: 28px; }
+
+    .table-container { overflow-x: auto; }
+    table { min-width: 600px; }
 }
+
+/* ── MOBILE (≤768px) ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    /* Header */
+    .app-header { padding: 10px 16px; flex-wrap: wrap; gap: 10px; }
+    .header-left .logo-img { width: 36px; height: 36px; }
+    .header-center .brand-title { font-size: 18px; letter-spacing: 1px; }
+    .header-center p { display: none; }
+    .header-right { gap: 6px; }
+    .header-right .btn-header-action { padding: 7px 10px; font-size: 10px; }
+    .header-right .btn-header-action span { display: none; }
+    .header-right .btn-header-action i   { margin: 0; font-size: 14px; }
+    .header-user { font-size: 11px; padding: 6px 10px; }
+    .header-user i { display: none; }
+
+    /* Nav */
+    .nav-container {
+        padding: 0 8px;
+        gap: 2px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .nav-container::-webkit-scrollbar { display: none; }
+    .nav-btn { font-size: 10px; padding: 10px 8px; white-space: nowrap; gap: 4px; }
+    .nav-btn i { font-size: 12px; }
+
+    /* Main */
+    .main-wrapper { padding: 16px 12px; }
+    .view-title   { font-size: 18px; }
+    .card-box      { padding: 20px 16px; border-radius: 14px; }
+
+    /* Forms */
+    .form-grid { grid-template-columns: 1fr; gap: 12px; }
+    .fg-2      { grid-column: span 1; }
+    .field-group input,
+    .field-group select { font-size: 14px; padding: 10px 12px; }
+
+    /* Dashboard */
+    .dashboard-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .stat-card { padding: 16px 14px; border-radius: 14px; }
+    .stat-card h3 { font-size: 26px; }
+    .stat-card small { font-size: 9px; }
+
+    /* Tables */
+    .table-container { overflow-x: auto; border-radius: 12px; }
+    table { min-width: 520px; font-size: 12px; }
+    th, td { padding: 10px 10px; }
+
+    /* Buttons footer */
+    .actions-footer { grid-template-columns: 1fr; gap: 10px; }
+    .btn-sync  { font-size: 13px; padding: 14px; }
+    .btn-copy  { font-size: 12px; }
+
+    /* Modals */
+    .modal-content,
+    .usuario-modal-content,
+    .saida-confirm-content { padding: 20px 16px; border-radius: 16px; margin: 12px; max-width: calc(100vw - 24px); }
+    .saida-confirm-btns { flex-direction: column; }
+    .saida-confirm-btns button { width: 100%; }
+
+    /* Periodo search */
+    .periodo-search-row { flex-wrap: wrap; gap: 8px; }
+    .periodo-search-row input[type="date"] { min-width: 130px; }
+
+    /* Login */
+    .login-card { padding: 28px 20px; border-radius: 20px; }
+    .login-header h1 { font-size: 28px; }
+}
+
+/* ── MOBILE PEQUENO (≤480px) ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .header-center .brand-title { font-size: 15px; }
+    .alerta-adi-counters { flex-direction: column; }
+    .stat-card h3 { font-size: 22px; }
+    .header-right { gap: 4px; }
+    .btn-saida-adi { padding: 6px 8px; }
+}
+
+/* ── TV / TELÃO (≥1920px) ─────────────────────────────────────────────── */
+@media (min-width: 1920px) {
+    :root { --font-size-base: 15px; }
+    .main-wrapper  { max-width: 1800px; padding: 40px 60px; }
+    .app-header    { padding: 18px 60px; }
+    .nav-container { padding: 0 60px; }
+    .nav-btn       { font-size: 13px; padding: 16px 22px; }
+    .stat-card h3  { font-size: 52px; }
+    .stat-card small { font-size: 12px; }
+    table          { font-size: 15px; }
+    th, td         { padding: 16px 20px; }
+    .card-box      { padding: 40px; border-radius: 24px; }
+    .brand-title   { font-size: 28px !important; letter-spacing: 5px !important; }
+    .btn-sync      { font-size: 16px; padding: 18px; }
+}
+
+/* ── TV 4K (≥2560px) ─────────────────────────────────────────────────── */
+@media (min-width: 2560px) {
+    .main-wrapper  { max-width: 2400px; padding: 60px 80px; }
+    .app-header    { padding: 24px 80px; }
+    .nav-container { padding: 0 80px; }
+    .nav-btn       { font-size: 16px; padding: 20px 28px; }
+    .stat-card h3  { font-size: 72px; }
+    table          { font-size: 18px; }
+    th, td         { padding: 20px 24px; }
+    .brand-title   { font-size: 36px !important; letter-spacing: 7px !important; }
+}
+
+/* ── MODO TELA CHEIA (DASHBOARD) ──────────────────────────────────────── */
+.dash-fullscreen-mode .app-header,
+.dash-fullscreen-mode .nav-wrapper,
+.dash-fullscreen-mode .main-wrapper > *:not(#view-dashboard) {
+    display: none !important;
+}
+
+.dash-fullscreen-mode #view-dashboard {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: var(--bg-main);
+    padding: 24px 32px;
+    overflow-y: auto;
+}
+
+.dash-fullscreen-mode .dash-fullscreen-bar {
+    display: flex !important;
+}
+
+.dash-fullscreen-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.dash-fullscreen-bar .brand-fs {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.dash-fullscreen-bar .clock-fs {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+.dash-fullscreen-bar .exit-fs-btn {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition);
+}
+.dash-fullscreen-bar .exit-fs-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+/* Dashboard em fullscreen — cards maiores */
+.dash-fullscreen-mode .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+.dash-fullscreen-mode .stat-card h3 { font-size: 52px; }
+.dash-fullscreen-mode .stat-card small { font-size: 11px; }
+.dash-fullscreen-mode table { font-size: 15px; }
+.dash-fullscreen-mode th, .dash-fullscreen-mode td { padding: 14px 18px; }
+.dash-fullscreen-mode .section-subtitle { font-size: 18px; }
 
 /* ==========================================================================
    16. MODAL ALERTA DE ADIANTAMENTOS — POPUP DE LOGIN

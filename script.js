@@ -792,7 +792,57 @@ async function confirmarResetSenha() {
     }
 }
 
-// Helper global de permissões
+// =========================================================
+// TELA CHEIA — DASHBOARD
+// =========================================================
+
+let _dashFsAtivo = false;
+let _clockInterval = null;
+
+function toggleDashFullscreen() {
+    _dashFsAtivo = !_dashFsAtivo;
+    document.body.classList.toggle('dash-fullscreen-mode', _dashFsAtivo);
+
+    const icon  = document.getElementById('dashFullscreenIcon');
+    const label = document.getElementById('dashFullscreenLabel');
+    if (icon)  icon.className  = _dashFsAtivo ? 'ph ph-arrows-in'  : 'ph ph-arrows-out';
+    if (label) label.textContent = _dashFsAtivo ? 'SAIR' : 'TELA CHEIA';
+
+    if (_dashFsAtivo) {
+        _clockInterval = setInterval(atualizarRelogioFs, 1000);
+        atualizarRelogioFs();
+        // Fullscreen API nativo (funciona em TVs e Chrome)
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+        clearInterval(_clockInterval);
+        if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+}
+
+function atualizarRelogioFs() {
+    const el = document.getElementById('dashClock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('pt-BR');
+}
+
+// Sai do fullscreen ao pressionar ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && _dashFsAtivo) toggleDashFullscreen();
+});
+
+// Sai do modo ao sair do fullscreen nativo (ex: F11)
+document.addEventListener('fullscreenchange', function() {
+    if (!document.fullscreenElement && _dashFsAtivo) {
+        _dashFsAtivo = false;
+        document.body.classList.remove('dash-fullscreen-mode');
+        clearInterval(_clockInterval);
+        const icon  = document.getElementById('dashFullscreenIcon');
+        const label = document.getElementById('dashFullscreenLabel');
+        if (icon)  icon.className   = 'ph ph-arrows-out';
+        if (label) label.textContent = 'TELA CHEIA';
+    }
+});
 function temPermissao(p) {
     return usuarioAtual.permissoes && usuarioAtual.permissoes.includes(p);
 }

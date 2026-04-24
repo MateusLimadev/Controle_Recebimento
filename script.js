@@ -1487,6 +1487,8 @@ function renderizarPaginaProjecao() {
                 <td>${item.saldoCD || 0}</td>
                 <td>${item.temRP ? '✓' : '✗'}</td>
                 <td>${item.temEmpenho ? '✓' : '✗'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? parseFloat(item.consumoDiario.toFixed(3)) : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? parseFloat(item.consumoMensal.toFixed(3)) : '—'}</td>
                 <td>${statusBadges}</td>
                 <td style="text-align:center;">
                     <button class="btn-add-carrinho ${carrinho.some(c => c.codigo === item.codigo) ? 'no-carrinho' : ''}"
@@ -1494,6 +1496,8 @@ function renderizarPaginaProjecao() {
                         data-descricao="${item.descricao.replace(/"/g, '&quot;')}"
                         data-cobertura="${item.cobertura || 0}"
                         data-status="${statusTexto}"
+                        data-consumo-diario="${item.consumoDiario || 0}"
+                        data-consumo-mensal="${item.consumoMensal || 0}"
                         title="${carrinho.some(c => c.codigo === item.codigo) ? 'Remover do carrinho' : 'Adicionar ao carrinho'}"
                         onclick="toggleCarrinhoItem(this)">
                         <i class="${carrinho.some(c => c.codigo === item.codigo) ? 'ph ph-check-circle' : 'ph ph-shopping-cart'}"></i>
@@ -1899,19 +1903,20 @@ function fecharCarrinho() {
 }
 
 function toggleCarrinhoItem(btn) {
-    const codigo     = btn.dataset.codigo;
-    const descricao  = btn.dataset.descricao;
-    const cobertura  = parseFloat(btn.dataset.cobertura) || 0;
-    const statusTexto = btn.dataset.status;
+    const codigo          = btn.dataset.codigo;
+    const descricao       = btn.dataset.descricao;
+    const cobertura       = parseFloat(btn.dataset.cobertura) || 0;
+    const statusTexto     = btn.dataset.status;
+    const consumoDiario   = parseFloat(btn.dataset.consumoDiario) || 0;
+    const consumoMensal   = parseFloat(btn.dataset.consumoMensal) || 0;
 
     const idx = carrinho.findIndex(i => i.codigo === codigo);
     if (idx >= 0) {
         carrinho.splice(idx, 1);
     } else {
-        carrinho.push({ codigo, descricao, cobertura, statusTexto });
+        carrinho.push({ codigo, descricao, cobertura, statusTexto, consumoDiario, consumoMensal });
     }
     atualizarContadorCarrinho();
-    // Atualiza visual do botão na tabela sem re-renderizar tudo
     const noCarrinho = carrinho.some(i => i.codigo === codigo);
     btn.classList.toggle('no-carrinho', noCarrinho);
     btn.title = noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho';
@@ -1955,6 +1960,8 @@ function renderizarCarrinho() {
                 <td><b>${item.codigo}</b></td>
                 <td style="max-width:160px; font-size:11px;">${item.descricao}</td>
                 <td style="text-align:center; font-weight:700;">${item.cobertura ?? '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? parseFloat(item.consumoDiario.toFixed(3)) : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? parseFloat(item.consumoMensal.toFixed(3)) : '—'}</td>
                 <td>${item.statusTexto ?? '—'}</td>
                 <td>
                     <button class="carrinho-remover-btn" onclick="removerDoCarrinho(${idx})" title="Remover">
@@ -2005,14 +2012,16 @@ async function enviarCarrinho() {
     const abaDestino   = `Carrinho_${primeiroNome}`;
 
     const payload = carrinho.map(item => ({
-        codigo:      item.codigo,
-        descricao:   item.descricao,
-        cobertura:   item.cobertura,
-        status:      item.statusTexto,
-        responsavel: usuarioAtual.nome,
-        observacao:  obs,
-        data:        new Date().toLocaleDateString('pt-BR'),
-        aba:         abaDestino
+        codigo:         item.codigo,
+        descricao:      item.descricao,
+        cobertura:      item.cobertura,
+        status:         item.statusTexto,
+        responsavel:    usuarioAtual.nome,
+        observacao:     obs,
+        data:           new Date().toLocaleDateString('pt-BR'),
+        aba:            abaDestino,
+        consumoDiario:  item.consumoDiario || 0,
+        consumoMensal:  item.consumoMensal || 0
     }));
 
     try {

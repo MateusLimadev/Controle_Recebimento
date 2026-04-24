@@ -801,18 +801,19 @@ function desenharPizzaProjecao(itens) {
     const legenda = document.getElementById('projPizzaLegenda');
     if (!canvas || !itens || !itens.length) return;
 
-    const total       = itens.length;
-    const comSaldo    = itens.filter(i => i.saldoCD > 0).length;
-    const comEmpenho  = itens.filter(i => i.temEmpenho).length;
-    const comRP       = itens.filter(i => i.temRP).length;
-    const zerados     = itens.filter(i => i.zeradoSemCobertura).length;
-    const outros      = total - comSaldo - comEmpenho - comRP - zerados;
+    const total           = itens.length;
+    const comSaldo        = itens.filter(i => i.saldoCD > 0).length;
+    const comEmpenho      = itens.filter(i => i.temEmpenho).length;
+    const comRP           = itens.filter(i => i.temRP).length;
+    const compraFZ        = itens.filter(i => i.zeradoSemCobertura && i.cobertura <= 25).length;
+    const zeradosCobertura = itens.filter(i => i.cobertura <= 0).length;
+    const outros          = Math.max(0, total - comSaldo - comEmpenho - comRP - compraFZ);
 
     const fatias = [
-        { label: 'Saldo CD',   valor: comSaldo,   cor: '#0284c7' },
-        { label: 'Empenho',    valor: comEmpenho, cor: '#f59e0b' },
-        { label: 'RP',         valor: comRP,       cor: '#10b981' },
-        { label: 'Compra FZ',  valor: zerados,     cor: '#ef4444' },
+        { label: 'Saldo CD',   valor: comSaldo,        cor: '#0284c7' },
+        { label: 'Empenho',    valor: comEmpenho,      cor: '#f59e0b' },
+        { label: 'RP',         valor: comRP,           cor: '#10b981' },
+        { label: 'Compra FZ (Críticos)', valor: compraFZ, cor: '#ef4444' },
         { label: 'Outros',     valor: outros > 0 ? outros : 0, cor: '#94a3b8' },
     ].filter(f => f.valor > 0)
      .sort((a, b) => b.valor - a.valor);
@@ -844,16 +845,14 @@ function desenharPizzaProjecao(itens) {
     ctx.fill();
 
     // Centro: quantidade de Compra FZ
-    const fzItem = fatias.find(f => f.label === 'Compra FZ');
-    const fzQtd  = fzItem ? fzItem.valor : 0;
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 22px Calibri, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(fzQtd, cx, cy - 8);
+    ctx.fillText(zeradosCobertura, cx, cy - 8);
     ctx.font = 'bold 9px Calibri, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('Compras FZ', cx, cy + 10);
+    ctx.fillText('Zerados', cx, cy + 10);
 
     // Legenda
     legenda.innerHTML = fatias.map(f => `
@@ -872,21 +871,22 @@ function desenharMiniPizza(canvasId, legendaId, totalId, itens) {
     const totalEl = document.getElementById(totalId);
     if (!canvas || !itens) return;
 
-    const total      = itens.length;
-    const comSaldo   = itens.filter(i => i.saldoCD > 0).length;
-    const comEmpenho = itens.filter(i => i.temEmpenho).length;
-    const comRP      = itens.filter(i => i.temRP).length;
-    const zerados    = itens.filter(i => i.zeradoSemCobertura).length;
-    const outros     = Math.max(0, total - comSaldo - comEmpenho - comRP - zerados);
+    const total           = itens.length;
+    const comSaldo        = itens.filter(i => i.saldoCD > 0).length;
+    const comEmpenho      = itens.filter(i => i.temEmpenho).length;
+    const comRP           = itens.filter(i => i.temRP).length;
+    const compraFZ        = itens.filter(i => i.zeradoSemCobertura && i.cobertura <= 25).length;
+    const zeradosCobertura = itens.filter(i => i.cobertura <= 0).length;
+    const outros          = Math.max(0, total - comSaldo - comEmpenho - comRP - compraFZ);
 
     if (totalEl) totalEl.textContent = total + ' itens no total';
 
     const fatias = [
-        { label: 'Saldo CD',   valor: comSaldo,   cor: '#0284c7' },
-        { label: 'Empenho',    valor: comEmpenho, cor: '#f59e0b' },
-        { label: 'RP',         valor: comRP,       cor: '#10b981' },
-        { label: 'Compra FZ',  valor: zerados,     cor: '#ef4444' },
-        { label: 'Outros',     valor: outros,      cor: '#94a3b8' },
+        { label: 'Saldo CD',   valor: comSaldo,        cor: '#0284c7' },
+        { label: 'Empenho',    valor: comEmpenho,      cor: '#f59e0b' },
+        { label: 'RP',         valor: comRP,           cor: '#10b981' },
+        { label: 'Compra FZ (Críticos)', valor: compraFZ, cor: '#ef4444' },
+        { label: 'Outros',     valor: outros,          cor: '#94a3b8' },
     ].filter(f => f.valor > 0)
      .sort((a, b) => b.valor - a.valor); // ordena por maior % primeiro
 
@@ -908,15 +908,13 @@ function desenharMiniPizza(canvasId, legendaId, totalId, itens) {
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.52, 0, 2 * Math.PI);
     ctx.fillStyle = bgMini; ctx.fill();
 
-    const fzMini = fatias.find(f => f.label === 'Compra FZ');
-    const fzQtdMini = fzMini ? fzMini.valor : 0;
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px Calibri, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(fzQtdMini, cx, cy - 7);
+    ctx.fillText(zeradosCobertura, cx, cy - 7);
     ctx.font = 'bold 8px Calibri, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('Compras FZ', cx, cy + 9);
+    ctx.fillText('Zerados', cx, cy + 9);
 
     legenda.innerHTML = fatias.map(f =>
         `<div style="display:flex;align-items:center;gap:6px;">
@@ -1574,6 +1572,8 @@ function ordenarPorCobertura() {
         itensParaExibir = dadosProjecao.filter(i => i.temEmpenho);
     } else if (filtroProjecaoAtual === 'zerado') {
         itensParaExibir = dadosProjecao.filter(i => i.zeradoSemCobertura);
+    } else if (filtroProjecaoAtual === 'zeradoCobertura') {
+        itensParaExibir = dadosProjecao.filter(i => i.cobertura <= 0);
     }
 
     // Ordena por cobertura
@@ -1604,6 +1604,8 @@ function filtrarProjecao(tipo) {
         filtrado = dadosProjecao.filter(i => i.temEmpenho);
     } else if (tipo === 'zerado') {
         filtrado = dadosProjecao.filter(i => i.zeradoSemCobertura);
+    } else if (tipo === 'zeradoCobertura') {
+        filtrado = dadosProjecao.filter(i => i.cobertura <= 0);
     }
 
     // Aplica ordenação atual
@@ -1659,7 +1661,11 @@ function renderizarPaginaProjecao() {
             temAlgumStatus = true;
         }
         if (item.zeradoSemCobertura) {
-            statusBadges += '<span class="badge-status zerado"><i class="ph ph-warning-diamond"></i> CRÍTICO</span>';
+            if (item.cobertura > 25) {
+                statusBadges += '<span class="badge-status" style="background:rgba(99,102,241,0.15);color:#6366f1;font-weight:800;"><i class="ph ph-clock"></i> COMPRA EM BREVE</span>';
+            } else {
+                statusBadges += '<span class="badge-status zerado"><i class="ph ph-warning-diamond"></i> CRÍTICO</span>';
+            }
             temAlgumStatus = true;
         }
 
@@ -1669,10 +1675,11 @@ function renderizarPaginaProjecao() {
 
         // Texto limpo do status para o carrinho/CSV
         let statusTexto = 'COMPRAR';
-        if (item.zeradoSemCobertura)    statusTexto = 'CRÍTICO';
-        else if (item.temRP)            statusTexto = 'RP';
-        else if (item.saldoCD > 0)      statusTexto = 'CD';
-        else if (item.temEmpenho)       statusTexto = 'EMPENHO';
+        if (item.zeradoSemCobertura) {
+            statusTexto = item.cobertura > 25 ? 'COMPRA EM BREVE' : 'CRÍTICO';
+        } else if (item.temRP)       statusTexto = 'RP';
+        else if (item.saldoCD > 0)   statusTexto = 'CD';
+        else if (item.temEmpenho)    statusTexto = 'EMPENHO';
 
         tbody.innerHTML += `
             <tr>
@@ -2369,7 +2376,8 @@ function buscarNaProjecao() {
     if (filtroProjecaoAtual === 'rp')           base = base.filter(i => i.temRP);
     else if (filtroProjecaoAtual === 'cd')       base = base.filter(i => i.saldoCD > 0);
     else if (filtroProjecaoAtual === 'empenho')  base = base.filter(i => i.temEmpenho);
-    else if (filtroProjecaoAtual === 'zerado')   base = base.filter(i => i.zeradoSemCobertura);
+    else if (filtroProjecaoAtual === 'zerado')          base = base.filter(i => i.zeradoSemCobertura);
+    else if (filtroProjecaoAtual === 'zeradoCobertura') base = base.filter(i => i.cobertura <= 0);
 
     atualizarTabelaProjecao(base);
 }
@@ -2385,7 +2393,8 @@ function aplicarFiltroAtual() {
     if (filtroProjecaoAtual === 'rp')          itens = itens.filter(i => i.temRP);
     else if (filtroProjecaoAtual === 'cd')      itens = itens.filter(i => i.saldoCD > 0);
     else if (filtroProjecaoAtual === 'empenho') itens = itens.filter(i => i.temEmpenho);
-    else if (filtroProjecaoAtual === 'zerado')  itens = itens.filter(i => i.zeradoSemCobertura);
+    else if (filtroProjecaoAtual === 'zerado')          itens = itens.filter(i => i.zeradoSemCobertura);
+    else if (filtroProjecaoAtual === 'zeradoCobertura') itens = itens.filter(i => i.cobertura <= 0);
 
     itens.sort((a, b) => ordenacaoCobertura === 'asc' ? a.cobertura - b.cobertura : b.cobertura - a.cobertura);
     atualizarTabelaProjecao(itens);

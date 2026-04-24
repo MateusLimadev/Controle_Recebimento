@@ -801,6 +801,7 @@ let _clockInterval = null;
 
 function toggleDashFullscreen() {
     _dashFsAtivo = !_dashFsAtivo;
+    document.body.classList.toggle('fullscreen-mode', _dashFsAtivo);
     document.body.classList.toggle('dash-fullscreen-mode', _dashFsAtivo);
 
     const icon  = document.getElementById('dashFullscreenIcon');
@@ -836,6 +837,7 @@ document.addEventListener('fullscreenchange', function() {
     if (!document.fullscreenElement && _dashFsAtivo) {
         _dashFsAtivo = false;
         document.body.classList.remove('dash-fullscreen-mode');
+        document.body.classList.remove('fullscreen-mode');
         clearInterval(_clockInterval);
         const icon  = document.getElementById('dashFullscreenIcon');
         const label = document.getElementById('dashFullscreenLabel');

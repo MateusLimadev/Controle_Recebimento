@@ -869,9 +869,9 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
 }
 
 /* ── MODO TELA CHEIA (DASHBOARD) ──────────────────────────────────────── */
-.dash-fullscreen-mode .app-header,
-.dash-fullscreen-mode .nav-wrapper,
-.dash-fullscreen-mode .main-wrapper > *:not(#view-dashboard) {
+.dash-fullscreen-mode #mainHeader,
+.dash-fullscreen-mode #mainNav,
+.dash-fullscreen-mode .container > *:not(#view-dashboard) {
     display: none !important;
 }
 
@@ -882,6 +882,7 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
     background: var(--bg-main);
     padding: 24px 32px;
     overflow-y: auto;
+    display: block !important;
 }
 
 .dash-fullscreen-mode .dash-fullscreen-bar {
@@ -891,40 +892,44 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
 .dash-fullscreen-bar {
     display: none;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-}
-
-.dash-fullscreen-bar .brand-fs {
-    font-size: 22px;
-    font-weight: 900;
-    color: var(--accent);
-    letter-spacing: 3px;
-    text-transform: uppercase;
+    justify-content: center;
+    margin-bottom: 24px;
 }
 
 .dash-fullscreen-bar .clock-fs {
-    font-size: 32px;
+    font-size: 48px;
     font-weight: 900;
     color: var(--text-main);
     font-variant-numeric: tabular-nums;
+    letter-spacing: 4px;
 }
 
-.dash-fullscreen-bar .exit-fs-btn {
-    background: transparent;
+/* Botão sair fixo no canto — só aparece em fullscreen */
+.dash-exit-fixed {
+    display: none;
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 9999;
+    background: rgba(0,0,0,0.4);
     border: 1.5px solid var(--border);
     border-radius: 10px;
-    padding: 8px 16px;
+    padding: 8px 14px;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
     cursor: pointer;
-    display: flex;
     align-items: center;
     gap: 6px;
+    backdrop-filter: blur(8px);
     transition: var(--transition);
 }
-.dash-fullscreen-bar .exit-fs-btn:hover { border-color: var(--danger); color: var(--danger); }
+.dash-exit-fixed:hover { color: var(--danger); border-color: var(--danger); }
+body.dash-fullscreen-mode .dash-exit-fixed { display: flex; }
+
+/* No fullscreen: mostra barra do relógio, esconde botão normal */
+body.dash-fullscreen-mode .dash-fullscreen-bar { display: flex; }
+body.dash-fullscreen-mode #dashFsButtonWrap   { display: none !important; }
 
 /* Dashboard em fullscreen — cards maiores */
 .dash-fullscreen-mode .dashboard-grid {
@@ -2479,6 +2484,19 @@ body.fullscreen-mode nav {
 body.fullscreen-mode .container {
     max-width: 100%;
     padding: 16px;
+}
+/* Dashboard em fullscreen-mode: ocupa tela toda */
+body.dash-fullscreen-mode .container > *:not(#view-dashboard) {
+    display: none !important;
+}
+body.dash-fullscreen-mode #view-dashboard {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: var(--bg-main);
+    padding: 24px 32px;
+    overflow-y: auto;
+    display: block !important;
 }
 
 /* actions-footer with CSV button */

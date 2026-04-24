@@ -880,41 +880,42 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
     inset: 0;
     z-index: 9000;
     background: var(--bg-main);
-    padding: 24px 32px;
+    padding: 12px 28px 20px;
     overflow-y: auto;
     display: block !important;
 }
 
 .dash-fullscreen-mode .dash-fullscreen-bar {
     display: flex !important;
+    margin-bottom: 12px;
 }
 
 .dash-fullscreen-bar {
     display: none;
     align-items: center;
     justify-content: center;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
 }
 
 .dash-fullscreen-bar .clock-fs {
-    font-size: 48px;
+    font-size: 32px;
     font-weight: 900;
     color: var(--text-main);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
 }
 
 /* Botão sair fixo no canto — só aparece em fullscreen */
 .dash-exit-fixed {
     display: none;
     position: fixed;
-    top: 16px;
-    right: 20px;
+    top: 12px;
+    right: 16px;
     z-index: 9999;
     background: rgba(0,0,0,0.4);
     border: 1.5px solid var(--border);
     border-radius: 10px;
-    padding: 8px 14px;
+    padding: 6px 12px;
     color: var(--text-muted);
     font-size: 11px;
     font-weight: 800;
@@ -931,16 +932,30 @@ body.dash-fullscreen-mode .dash-exit-fixed { display: flex; }
 body.dash-fullscreen-mode .dash-fullscreen-bar { display: flex; }
 body.dash-fullscreen-mode #dashFsButtonWrap   { display: none !important; }
 
-/* Dashboard em fullscreen — cards maiores */
+/* Dashboard em fullscreen — layout compacto mas legível */
 .dash-fullscreen-mode .dashboard-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 0;
 }
-.dash-fullscreen-mode .stat-card h3 { font-size: 52px; }
+.dash-fullscreen-mode .stat-card {
+    padding: 18px 20px;
+}
+.dash-fullscreen-mode .stat-card h3 { font-size: 44px; }
 .dash-fullscreen-mode .stat-card small { font-size: 11px; }
-.dash-fullscreen-mode table { font-size: 15px; }
-.dash-fullscreen-mode th, .dash-fullscreen-mode td { padding: 14px 18px; }
-.dash-fullscreen-mode .section-subtitle { font-size: 18px; }
+
+/* Seção projeções mais compacta */
+.dash-fullscreen-mode #dashProjCards { margin-top: 18px; }
+.dash-fullscreen-mode #dashProjCards .section-subtitle { font-size: 13px; margin-bottom: 10px; }
+.dash-fullscreen-mode #dashProjCards .proj-pizza-grid { gap: 14px; }
+.dash-fullscreen-mode #dashProjCards .stat-card { padding: 16px 18px; }
+
+/* Tabela produtividade mais compacta */
+.dash-fullscreen-mode #dash-gestor { margin-top: 18px; }
+.dash-fullscreen-mode .section-subtitle { font-size: 14px; }
+.dash-fullscreen-mode table { font-size: 13px; }
+.dash-fullscreen-mode th { padding: 10px 14px; }
+.dash-fullscreen-mode td { padding: 8px 14px; }
 
 /* ==========================================================================
    16. MODAL ALERTA DE ADIANTAMENTOS — POPUP DE LOGIN

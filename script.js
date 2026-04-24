@@ -793,8 +793,199 @@ async function confirmarResetSenha() {
 }
 
 // =========================================================
-// TELA CHEIA — DASHBOARD
+// GRÁFICO PIZZA — RESUMO PROJEÇÃO
 // =========================================================
+
+function desenharPizzaProjecao(itens) {
+    const canvas  = document.getElementById('projPizzaChart');
+    const legenda = document.getElementById('projPizzaLegenda');
+    if (!canvas || !itens || !itens.length) return;
+
+    const total       = itens.length;
+    const comSaldo    = itens.filter(i => i.saldoCD > 0).length;
+    const comEmpenho  = itens.filter(i => i.temEmpenho).length;
+    const comRP       = itens.filter(i => i.temRP).length;
+    const zerados     = itens.filter(i => i.zeradoSemCobertura).length;
+    const outros      = total - comSaldo - comEmpenho - comRP - zerados;
+
+    const fatias = [
+        { label: 'Saldo CD',   valor: comSaldo,   cor: '#0284c7' },
+        { label: 'Empenho',    valor: comEmpenho, cor: '#f59e0b' },
+        { label: 'RP',         valor: comRP,       cor: '#10b981' },
+        { label: 'Compra FZ',  valor: zerados,     cor: '#ef4444' },
+        { label: 'Outros',     valor: outros > 0 ? outros : 0, cor: '#94a3b8' },
+    ].filter(f => f.valor > 0)
+     .sort((a, b) => b.valor - a.valor);
+
+    const ctx  = canvas.getContext('2d');
+    const cx   = canvas.width  / 2;
+    const cy   = canvas.height / 2;
+    const r    = Math.min(cx, cy) - 8;
+    let angulo = -Math.PI / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    fatias.forEach(f => {
+        const pct   = f.valor / total;
+        const angFim = angulo + pct * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, angulo, angFim);
+        ctx.closePath();
+        ctx.fillStyle = f.cor;
+        ctx.fill();
+        angulo = angFim;
+    });
+
+    // Furo central (donut)
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.52, 0, 2 * Math.PI);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#ffffff';
+    ctx.fill();
+
+    // Centro: quantidade de Compra FZ
+    const fzItem = fatias.find(f => f.label === 'Compra FZ');
+    const fzQtd  = fzItem ? fzItem.valor : 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px Calibri, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fzQtd, cx, cy - 8);
+    ctx.font = 'bold 9px Calibri, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('Compras FZ', cx, cy + 10);
+
+    // Legenda
+    legenda.innerHTML = fatias.map(f => `
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:12px;height:12px;border-radius:3px;background:${f.cor};flex-shrink:0;display:inline-block;"></span>
+            <span style="color:var(--text-muted)">${f.label}</span>
+            <b style="color:var(--text-main);margin-left:auto;padding-left:12px;">${f.valor}</b>
+            <span style="color:var(--text-muted);font-size:11px;">(${Math.round(f.valor/total*100)}%)</span>
+        </div>`).join('');
+}
+
+// ── MINI PIZZA PARA CARDS DA DASHBOARD ────────────────────
+function desenharMiniPizza(canvasId, legendaId, totalId, itens) {
+    const canvas  = document.getElementById(canvasId);
+    const legenda = document.getElementById(legendaId);
+    const totalEl = document.getElementById(totalId);
+    if (!canvas || !itens) return;
+
+    const total      = itens.length;
+    const comSaldo   = itens.filter(i => i.saldoCD > 0).length;
+    const comEmpenho = itens.filter(i => i.temEmpenho).length;
+    const comRP      = itens.filter(i => i.temRP).length;
+    const zerados    = itens.filter(i => i.zeradoSemCobertura).length;
+    const outros     = Math.max(0, total - comSaldo - comEmpenho - comRP - zerados);
+
+    if (totalEl) totalEl.textContent = total + ' itens no total';
+
+    const fatias = [
+        { label: 'Saldo CD',   valor: comSaldo,   cor: '#0284c7' },
+        { label: 'Empenho',    valor: comEmpenho, cor: '#f59e0b' },
+        { label: 'RP',         valor: comRP,       cor: '#10b981' },
+        { label: 'Compra FZ',  valor: zerados,     cor: '#ef4444' },
+        { label: 'Outros',     valor: outros,      cor: '#94a3b8' },
+    ].filter(f => f.valor > 0)
+     .sort((a, b) => b.valor - a.valor); // ordena por maior % primeiro
+
+    const ctx = canvas.getContext('2d');
+    const cx  = canvas.width / 2, cy = canvas.height / 2;
+    const r   = Math.min(cx, cy) - 4;
+    let ang   = -Math.PI / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    fatias.forEach(f => {
+        const end = ang + (f.valor / total) * 2 * Math.PI;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, ang, end); ctx.closePath();
+        ctx.fillStyle = f.cor; ctx.fill();
+        ang = end;
+    });
+
+    const bgMini = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#1e293b';
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.52, 0, 2 * Math.PI);
+    ctx.fillStyle = bgMini; ctx.fill();
+
+    const fzMini = fatias.find(f => f.label === 'Compra FZ');
+    const fzQtdMini = fzMini ? fzMini.valor : 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Calibri, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(fzQtdMini, cx, cy - 7);
+    ctx.font = 'bold 8px Calibri, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('Compras FZ', cx, cy + 9);
+
+    legenda.innerHTML = fatias.map(f =>
+        `<div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:11px;height:11px;border-radius:3px;background:${f.cor};flex-shrink:0;"></span>
+            <span style="color:var(--text-muted);flex:1;font-size:12px;">${f.label}</span>
+            <b style="color:var(--text-main);font-size:13px;">${f.valor}</b>
+            <span style="color:var(--text-muted);font-size:11px;min-width:32px;text-align:right;">${Math.round(f.valor/total*100)}%</span>
+        </div>`
+    ).join('');
+}
+
+async function carregarPizzasDashboard() {
+    const wrap = document.getElementById('dashProjCards');
+    if (wrap) wrap.style.display = 'block';
+
+    try {
+        // Busca a lista real de compradores para pegar os nomes corretos
+        const resComp = await fetch(addAuth(`${URL_SCRIPT}?action=getCompradores`));
+        const compradores = await resComp.json();
+        if (!compradores || !compradores.length) return;
+
+        // Limpa os cards existentes e reconstrói dinamicamente
+        const grid = wrap.querySelector('.proj-pizza-grid');
+
+        for (const comp of compradores) {
+            const nomeUsuario = comp.nomeUsuario; // ex: CRISLENE, ERNESTO
+            const canvasId   = `dashPizza_${nomeUsuario}`;
+            const legendaId  = `dashLegenda_${nomeUsuario}`;
+            const totalId    = `dashTotal_${nomeUsuario}`;
+
+            // Cria card se não existir
+            if (!document.getElementById(canvasId) && grid) {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.style.cssText = 'padding:24px;display:flex;flex-direction:column;gap:16px;';
+                card.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div>
+                            <small style="font-weight:900;letter-spacing:1px;font-size:13px;">PROJEÇÃO — ${nomeUsuario}</small>
+                            <p id="${totalId}" style="font-size:12px;color:var(--text-muted);margin-top:2px;font-weight:600;">carregando...</p>
+                        </div>
+                        <i class="ph ph-shopping-cart-simple" style="font-size:24px;color:var(--accent);opacity:0.6;"></i>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:24px;">
+                        <canvas id="${canvasId}" width="130" height="130" style="flex-shrink:0;"></canvas>
+                        <div id="${legendaId}" style="display:flex;flex-direction:column;gap:7px;font-size:12px;flex:1;"></div>
+                    </div>`;
+                grid.appendChild(card);
+            }
+
+            // Carrega dados da projeção
+            try {
+                const res  = await fetch(addAuth(`${URL_SCRIPT}?action=projecao&usuario=${encodeURIComponent(nomeUsuario)}`));
+                const data = await res.json();
+                if (!data.erro && data.itens) {
+                    desenharMiniPizza(canvasId, legendaId, totalId, data.itens);
+                } else {
+                    const el = document.getElementById(totalId);
+                    if (el) el.textContent = data.erro || 'Sem dados';
+                }
+            } catch(e) {
+                const el = document.getElementById(totalId);
+                if (el) el.textContent = 'Erro ao carregar';
+            }
+        }
+    } catch(e) {
+        console.warn('Erro ao carregar pizzas dashboard:', e);
+    }
+}
 
 let _dashFsAtivo = false;
 let _clockInterval = null;
@@ -1064,6 +1255,8 @@ async function carregarEstatisticas() {
 
         // Carrega dados de projeção em background
         await carregarProjecaoBackground();
+        // Carrega pizzas das projeções nos cards da dashboard
+        carregarPizzasDashboard();
     } catch (e) {
         document.getElementById('dash-loading').innerHTML =
             "<p style='color:var(--danger)'>Erro ao carregar dados do Google Sheets.</p>";
@@ -1255,6 +1448,7 @@ async function carregarProjecao(nomeUsuarioForcar) {
         filtroProjecaoAtual = 'todos';
         renderizarChipsPrefixos(prefixosAtivos);
         atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
+        desenharPizzaProjecao(dadosProjecao);
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';
         return;
@@ -1277,6 +1471,7 @@ async function carregarProjecao(nomeUsuarioForcar) {
         filtroProjecaoAtual = 'todos';
         renderizarChipsPrefixos(prefixosAtivos);
         atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
+        desenharPizzaProjecao(dadosProjecao);
 
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';

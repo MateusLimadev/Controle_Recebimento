@@ -989,6 +989,55 @@
                             <tbody></tbody>
                         </table>
                     </div>
+
+                    <!-- ADICIONAR ITEM À PROJEÇÃO -->
+                    <div style="margin-top:40px;padding-top:28px;border-top:2px solid var(--border);">
+                        <h3 style="font-weight:900;font-size:16px;color:var(--accent);margin-bottom:4px;">
+                            <i class="ph ph-plus-circle"></i> Adicionar Item à Projeção
+                        </h3>
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">
+                            Busca o item na BASE_DADOS e adiciona com consumo definido por você.
+                            Útil para itens com consumo zero que vão começar a ser usados.
+                        </p>
+
+                        <div class="form-grid" style="gap:14px;">
+                            <div class="field-group">
+                                <label>Código do Item</label>
+                                <input type="text" id="addProjCodigo" placeholder="Ex: 51010122"
+                                    style="font-family:monospace;" oninput="limparPreviewAddProj()">
+                            </div>
+                            <div class="field-group">
+                                <label>Consumo Diário (definido por você)</label>
+                                <input type="number" id="addProjConsumo" placeholder="Ex: 0.5" step="0.001" min="0">
+                            </div>
+                            <div class="field-group">
+                                <label>Comprador</label>
+                                <select id="addProjComprador" style="padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg-system);color:var(--text-main);font-size:13px;">
+                                    <option value="">Carregando...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button class="btn-periodo-buscar" style="margin-top:14px;" onclick="buscarItemParaProj()">
+                            <i class="ph ph-magnifying-glass"></i> BUSCAR ITEM
+                        </button>
+
+                        <!-- Preview do item encontrado -->
+                        <div id="addProjPreview" style="display:none;margin-top:20px;padding:18px 20px;border:1.5px solid var(--accent);border-radius:14px;background:var(--bg-card);">
+                            <p style="font-size:11px;font-weight:900;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Item encontrado</p>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;" id="addProjDados"></div>
+                            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+                                <button class="btn-salvar-usuario" onclick="confirmarAddProj()">
+                                    <i class="ph ph-check-circle"></i> CONFIRMAR E ADICIONAR
+                                </button>
+                                <button class="btn-saida-cancelar" onclick="limparPreviewAddProj()">
+                                    <i class="ph ph-x"></i> CANCELAR
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="addProjErro" style="display:none;margin-top:14px;padding:12px 16px;border-radius:10px;background:rgba(239,68,68,0.1);color:var(--danger);font-size:13px;font-weight:700;"></div>
+                    </div>
                 </div>
                 <!-- SUB-ABA LOG -->
                 <div id="adminTabLog" style="display:none; margin-top:24px;">

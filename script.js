@@ -2640,7 +2640,7 @@ function switchAdminTab(tab) {
     document.getElementById('tabBtnUsuarios').classList.toggle('ativo',  tab === 'usuarios');
     document.getElementById('tabBtnBlacklist').classList.toggle('ativo', tab === 'blacklist');
     document.getElementById('tabBtnLog').classList.toggle('ativo',       tab === 'log');
-    if (tab === 'blacklist') carregarBlacklist();
+    if (tab === 'blacklist') { carregarBlacklist(); preencherCompradoresAddProj(); }
     if (tab === 'log')       carregarLog();
 }
 
@@ -2770,6 +2770,114 @@ function renderizarTabelaLog(lista) {
 // =========================================================
 
 // Carrega só os códigos (cache leve) — para filtro na projeção
+// =========================================================
+// ADICIONAR ITEM À PROJEÇÃO
+// =========================================================
+
+let _addProjItemCache = null;
+
+function limparPreviewAddProj() {
+    document.getElementById('addProjPreview').style.display = 'none';
+    document.getElementById('addProjErro').style.display = 'none';
+    _addProjItemCache = null;
+}
+
+async function preencherCompradoresAddProj() {
+    const sel = document.getElementById('addProjComprador');
+    if (!sel || sel.options.length > 1) return;
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getCompradores`));
+        const data = await res.json();
+        sel.innerHTML = data.map(c => `<option value="${c.nomeUsuario}">${c.nome}</option>`).join('');
+    } catch(e) { sel.innerHTML = '<option value="">Erro ao carregar</option>'; }
+}
+
+async function buscarItemParaProj() {
+    const codigo  = document.getElementById('addProjCodigo').value.trim().toUpperCase();
+    const consumo = document.getElementById('addProjConsumo').value.trim();
+    const erroEl  = document.getElementById('addProjErro');
+    const prevEl  = document.getElementById('addProjPreview');
+
+    limparPreviewAddProj();
+
+    if (!codigo) { erroEl.textContent = 'Informe o código do item.'; erroEl.style.display = 'block'; return; }
+    if (!consumo || isNaN(parseFloat(consumo))) { erroEl.textContent = 'Informe o consumo diário.'; erroEl.style.display = 'block'; return; }
+
+    const btn = document.querySelector('[onclick="buscarItemParaProj()"]');
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> BUSCANDO...';
+    btn.disabled = true;
+
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=buscarItemBaseDados&codigo=${encodeURIComponent(codigo)}`));
+        const data = await res.json();
+
+        if (data.erro || !data.codigo) {
+            erroEl.textContent = data.erro || 'Item não encontrado na BASE_DADOS.';
+            erroEl.style.display = 'block';
+            return;
+        }
+
+        _addProjItemCache = { ...data, consumoDiario: parseFloat(consumo) };
+
+        const consumoMensal = (parseFloat(consumo) * 30).toFixed(3);
+        document.getElementById('addProjDados').innerHTML = `
+            <div><small style="color:var(--text-muted);font-size:10px;">CÓDIGO</small><p style="font-weight:900;font-family:monospace;">${data.codigo}</p></div>
+            <div style="grid-column:span 2"><small style="color:var(--text-muted);font-size:10px;">DESCRIÇÃO</small><p style="font-weight:700;font-size:13px;">${data.descricao}</p></div>
+            <div><small style="color:var(--text-muted);font-size:10px;">COBERTURA ATUAL</small><p style="font-weight:700;">${data.cobertura ?? '—'}</p></div>
+            <div><small style="color:var(--text-muted);font-size:10px;">STATUS</small><p style="font-weight:700;">${data.status || '—'}</p></div>
+            <div><small style="color:var(--text-muted);font-size:10px;">SALDO CD (150)</small><p style="font-weight:700;">${data.saldo150 ?? '—'}</p></div>
+            <div><small style="color:var(--text-muted);font-size:10px;">CONSUMO DIÁRIO (definido)</small><p style="font-weight:700;color:var(--accent);">${consumo}</p></div>
+            <div><small style="color:var(--text-muted);font-size:10px;">CONSUMO MENSAL EST.</small><p style="font-weight:700;color:var(--accent);">${consumoMensal}</p></div>`;
+
+        prevEl.style.display = 'block';
+    } catch(e) {
+        erroEl.textContent = 'Erro ao buscar item: ' + e.message;
+        erroEl.style.display = 'block';
+    } finally {
+        btn.innerHTML = '<i class="ph ph-magnifying-glass"></i> BUSCAR ITEM';
+        btn.disabled = false;
+    }
+}
+
+async function confirmarAddProj() {
+    if (!_addProjItemCache) return;
+    const comprador = document.getElementById('addProjComprador').value;
+    if (!comprador) { mostrarToast('Selecione o comprador.', 'warning'); return; }
+
+    const btn = document.querySelector('[onclick="confirmarAddProj()"]');
+    btn.innerHTML = '<i class="ph ph-circle-notch rotating"></i> ADICIONANDO...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(addAuth(`${URL_SCRIPT}?action=adicionarItemProjecao`), {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                tipo: 'adicionarItemProjecao',
+                codigo:       _addProjItemCache.codigo,
+                descricao:    _addProjItemCache.descricao,
+                cobertura:    _addProjItemCache.cobertura,
+                status:       _addProjItemCache.status,
+                saldo150:     _addProjItemCache.saldo150,
+                consumoDiario: _addProjItemCache.consumoDiario,
+                comprador,
+                solicitante:  loginAtual
+            })
+        });
+
+        mostrarToast(`Item ${_addProjItemCache.codigo} adicionado à projeção de ${comprador}!`, 'success');
+        registrarLog('ADD PROJEÇÃO', `Código ${_addProjItemCache.codigo} adicionado à projeção de ${comprador}`);
+        limparPreviewAddProj();
+        document.getElementById('addProjCodigo').value = '';
+        document.getElementById('addProjConsumo').value = '';
+    } catch(e) {
+        mostrarToast('Erro ao adicionar item.', 'error');
+    } finally {
+        btn.innerHTML = '<i class="ph ph-check-circle"></i> CONFIRMAR E ADICIONAR';
+        btn.disabled = false;
+    }
+}
+
 async function carregarBlacklistCache() {
     try {
         const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getBlacklist`));
@@ -2785,7 +2893,7 @@ async function carregarBlacklist() {
     document.getElementById('blacklist-loading').style.display = 'flex';
     document.querySelector('#tabelaBlacklist tbody').innerHTML = '';
     try {
-        const res  = await fetch(`${URL_SCRIPT}?action=getBlacklist`);
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getBlacklist`));
         const data = await res.json();
         renderizarTabelaBlacklist(data || []);
     } catch (e) {

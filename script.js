@@ -1687,8 +1687,8 @@ function renderizarPaginaProjecao() {
                 <td>${item.descricao}</td>
                 <td>${item.cobertura || 0}</td>
                 <td>${item.saldoCD || 0}</td>
-                <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? parseFloat(item.consumoDiario.toFixed(3)) : '—'}</td>
-                <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? parseFloat(item.consumoMensal.toFixed(3)) : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? item.consumoDiario.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 2}) : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? item.consumoMensal.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 2}) : '—'}</td>
                 <td>${statusBadges}</td>
                 <td style="text-align:center;">
                     <button onclick="abrirSaldoSub('${item.codigo}', ${item.consumoDiario || 0})"
@@ -2166,8 +2166,8 @@ function renderizarCarrinho() {
                 <td><b>${item.codigo}</b></td>
                 <td style="max-width:160px; font-size:11px;">${item.descricao}</td>
                 <td style="text-align:center; font-weight:700;">${item.cobertura ?? '—'}</td>
-                <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? parseFloat(item.consumoDiario.toFixed(3)) : '—'}</td>
-                <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? parseFloat(item.consumoMensal.toFixed(3)) : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? item.consumoDiario.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 2}) : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? item.consumoMensal.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 2}) : '—'}</td>
                 <td>${item.statusTexto ?? '—'}</td>
                 <td>
                     <button class="carrinho-remover-btn" onclick="removerDoCarrinho(${idx})" title="Remover">

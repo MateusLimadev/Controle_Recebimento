@@ -1425,6 +1425,9 @@ let itensFiltradosProjecao = [];
 // Cache de adiantamentos (compartilhado entre dashboard e aba Adiantamento)
 let adiantamentosCarregados = [];
 
+// Ponto de compra (slider da projeção) — padrão 50 dias
+let pontoCompraAtual = 50;
+
 // Prefixos de código por usuário { 'CRIS': ['42','43'], 'ERNESTO': ['61','62',...] }
 let prefixosConfig = {};
 // Prefixos atualmente ativos na UI (Set)
@@ -1467,6 +1470,12 @@ async function carregarProjecao(nomeUsuarioForcar) {
 
         dadosProjecao  = data.itens || [];
         filtroProjecaoAtual = 'todos';
+        // Reseta o slider para o padrão ao carregar nova projeção
+        pontoCompraAtual = 50;
+        const slider = document.getElementById('pontoCompraSlider');
+        const label  = document.getElementById('pontoCompraLabel');
+        if (slider) slider.value = 50;
+        if (label)  label.textContent = '50 dias';
         renderizarChipsPrefixos(prefixosAtivos);
         atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
         desenharPizzaProjecao(dadosProjecao);
@@ -1594,7 +1603,8 @@ function filtrarProjecao(tipo) {
     event.target.closest('.filtro-btn').classList.add('filtro-ativo');
 
     filtroProjecaoAtual = tipo;
-    let filtrado = dadosProjecao;
+    // Aplica o ponto de compra primeiro
+    let filtrado = aplicarFiltroPrefixo(dadosProjecao).filter(i => i.cobertura <= pontoCompraAtual);
 
     if (tipo === 'rp') {
         filtrado = dadosProjecao.filter(i => i.temRP);
@@ -1661,22 +1671,22 @@ function renderizarPaginaProjecao() {
             temAlgumStatus = true;
         }
         if (item.zeradoSemCobertura) {
-            if (item.cobertura > 25) {
-                statusBadges += '<span class="badge-status" style="background:rgba(99,102,241,0.15);color:#6366f1;font-weight:800;"><i class="ph ph-clock"></i> COMPRA EM BREVE</span>';
-            } else {
+            if (item.cobertura === 0) {
                 statusBadges += '<span class="badge-status zerado"><i class="ph ph-warning-diamond"></i> CRÍTICO</span>';
+            } else {
+                statusBadges += '<span class="badge-status comprar"><i class="ph ph-shopping-cart"></i> COMPRAR</span>';
             }
             temAlgumStatus = true;
         }
 
         if (!temAlgumStatus) {
-            statusBadges = '<span class="badge-status" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;"><i class="ph ph-shopping-cart"></i> COMPRAR</span>';
+            statusBadges = '<span class="badge-status comprar"><i class="ph ph-shopping-cart"></i> COMPRAR</span>';
         }
 
         // Texto limpo do status para o carrinho/CSV
         let statusTexto = 'COMPRAR';
         if (item.zeradoSemCobertura) {
-            statusTexto = item.cobertura > 25 ? 'COMPRA EM BREVE' : 'CRÍTICO';
+            statusTexto = item.cobertura === 0 ? 'CRÍTICO' : 'COMPRAR';
         } else if (item.temRP)       statusTexto = 'RP';
         else if (item.saldoCD > 0)   statusTexto = 'CD';
         else if (item.temEmpenho)    statusTexto = 'EMPENHO';
@@ -2392,8 +2402,16 @@ function limparBuscaProjecao() {
     aplicarFiltroAtual();
 }
 
+function atualizarPontoCompra(valor) {
+    pontoCompraAtual = parseInt(valor);
+    document.getElementById('pontoCompraLabel').textContent = valor + ' dias';
+    aplicarFiltroAtual();
+}
+
 function aplicarFiltroAtual() {
     let itens = aplicarFiltroPrefixo(dadosProjecao);
+    // Aplica o ponto de compra — mostra apenas itens com cobertura dentro do limite
+    itens = itens.filter(i => i.cobertura <= pontoCompraAtual);
     if (filtroProjecaoAtual === 'rp')          itens = itens.filter(i => i.temRP);
     else if (filtroProjecaoAtual === 'cd')      itens = itens.filter(i => i.saldoCD > 0);
     else if (filtroProjecaoAtual === 'empenho') itens = itens.filter(i => i.temEmpenho);

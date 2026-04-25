@@ -787,6 +787,23 @@
                         <div id="prefixosChips" class="prefixos-chips"></div>
                     </div>
 
+                    <!-- SLIDER PONTO DE COMPRA -->
+                    <div class="ponto-compra-wrap">
+                        <div class="ponto-compra-header">
+                            <i class="ph ph-sliders-horizontal"></i>
+                            <span>PONTO DE COMPRA</span>
+                            <strong id="pontoCompraLabel">50 dias</strong>
+                            <span class="ponto-compra-hint">exibindo itens com cobertura até este limite</span>
+                        </div>
+                        <div class="ponto-compra-slider-row">
+                            <span class="ponto-compra-edge">0</span>
+                            <input type="range" id="pontoCompraSlider" min="0" max="365" value="50" step="5"
+                                oninput="atualizarPontoCompra(this.value)"
+                                class="ponto-compra-slider">
+                            <span class="ponto-compra-edge">365 dias</span>
+                        </div>
+                    </div>
+
                     <!-- FILTROS DE STATUS -->
                     <div class="filtros-projecao">
                         <button class="filtro-btn filtro-ativo" onclick="filtrarProjecao('todos')">
@@ -801,11 +818,11 @@
                         <button class="filtro-btn" onclick="filtrarProjecao('empenho')">
                             <span class="badge-filtro empenho">EMP</span> COM EMPENHO
                         </button>
-                        <button class="filtro-btn perigo" onclick="filtrarProjecao('zerado')">
-                            <span class="badge-filtro zerado">!</span> COMPRA FZ
+                        <button class="filtro-btn" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="filtrarProjecao('zerado')">
+                            <span class="badge-filtro" style="background:#8b5cf6;">FZ</span> COMPRA FZ
                         </button>
-                        <button class="filtro-btn" style="border-color:#6366f1;color:#6366f1;" onclick="filtrarProjecao('zeradoCobertura')">
-                            <span style="background:#6366f1;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:900;margin-right:4px;">0</span> ZERADOS
+                        <button class="filtro-btn perigo" onclick="filtrarProjecao('zeradoCobertura')">
+                            <span class="badge-filtro zerado"><i class="ph ph-warning-diamond"></i></span> ZERADOS
                         </button>
                     </div>
 

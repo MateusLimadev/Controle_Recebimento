@@ -1213,6 +1213,11 @@ body.dash-fullscreen-mode #dashFsButtonWrap   { display: none !important; }
     color: var(--danger);
 }
 
+.badge-status.comprar {
+    background: rgba(234, 88, 12, 0.15);
+    color: #ea580c;
+}
+
 /* ==========================================================================
    18. MODAL ALERTA DE PROJEÇÃO
    ========================================================================== */
@@ -2599,4 +2604,71 @@ body.dash-fullscreen-mode #view-dashboard {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
+}
+
+/* ==========================================================================
+   33. SLIDER PONTO DE COMPRA — PROJEÇÃO
+   ========================================================================== */
+
+.ponto-compra-wrap {
+    background: var(--bg-system);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.ponto-compra-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    flex-wrap: wrap;
+}
+
+.ponto-compra-header i { font-size: 16px; color: var(--accent); }
+
+.ponto-compra-header strong {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 900;
+    min-width: 60px;
+}
+
+.ponto-compra-hint {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.ponto-compra-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ponto-compra-slider {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 6px;
+    cursor: pointer;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+.ponto-compra-edge {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 36px;
+    white-space: nowrap;
 }

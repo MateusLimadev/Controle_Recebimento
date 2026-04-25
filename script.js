@@ -1194,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmaSenha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 
     // Fecha modais clicando fora
-    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog', 'modalEditarNota', 'modalRetirada'].forEach(id => {
+    ['searchModal', 'modalAlertaAdi', 'modalAlertaProj', 'modalConfirmaSaida', 'modalUsuario', 'modalDeletarUsuario', 'modalResetarSenha', 'modalBlacklist', 'modalEsqueciSenha', 'modalLimparLog', 'modalEditarNota', 'modalRetirada', 'modalSaldoSub'].forEach(id => {
         document.getElementById(id).addEventListener('click', function(e) {
             if (e.target === this) fecharModal(id);
         });
@@ -1692,6 +1692,12 @@ function renderizarPaginaProjecao() {
                 <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? parseFloat(item.consumoDiario.toFixed(3)) : '—'}</td>
                 <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? parseFloat(item.consumoMensal.toFixed(3)) : '—'}</td>
                 <td>${statusBadges}</td>
+                <td style="text-align:center;">
+                    <button onclick="abrirSaldoSub('${item.codigo}', ${item.consumoDiario || 0})"
+                        style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:5px 7px;cursor:pointer;color:var(--text-muted);" title="Ver saldo nos subestoques">
+                        <i class="ph ph-warehouse"></i>
+                    </button>
+                </td>
                 <td style="text-align:center;">
                     <button class="btn-add-carrinho ${carrinho.some(c => c.codigo === item.codigo) ? 'no-carrinho' : ''}"
                         data-codigo="${item.codigo}"
@@ -2771,8 +2777,65 @@ function renderizarTabelaLog(lista) {
 
 // Carrega só os códigos (cache leve) — para filtro na projeção
 // =========================================================
-// ADICIONAR ITEM À PROJEÇÃO
+// MODAL SALDO SUBESTOQUES
 // =========================================================
+
+async function abrirSaldoSub(codigo, consumoDiario) {
+    document.getElementById('modalSaldoSub').style.display = 'flex';
+    document.getElementById('modalSaldoSubCodigo').textContent = codigo;
+    document.getElementById('modalSaldoSubLoading').style.display = 'block';
+    document.getElementById('modalSaldoSubConteudo').innerHTML = '';
+
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getSaldoSub&codigo=${encodeURIComponent(codigo)}`));
+        const data = await res.json();
+
+        if (data.erro || !data.length) {
+            document.getElementById('modalSaldoSubConteudo').innerHTML =
+                `<p style="text-align:center;color:var(--text-muted);padding:24px;">Nenhum saldo encontrado para este item.</p>`;
+            return;
+        }
+
+        const totalQtd = data.reduce((s, r) => s + (r.quantidade || 0), 0);
+        const coberturaTotal = consumoDiario > 0 ? Math.round(totalQtd / consumoDiario) : '—';
+
+        let html = `
+            <div style="background:var(--bg-system);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;">
+                <div><small style="color:var(--text-muted);font-size:10px;">TOTAL EM ESTOQUE</small><p style="font-weight:900;font-size:18px;color:var(--accent);">${totalQtd}</p></div>
+                <div><small style="color:var(--text-muted);font-size:10px;">COBERTURA TOTAL</small><p style="font-weight:900;font-size:18px;color:var(--accent);">${coberturaTotal}${typeof coberturaTotal === 'number' ? ' dias' : ''}</p></div>
+            </div>
+            <div style="margin-top:12px;">
+            <table style="font-size:13px;width:100%;">
+                <thead><tr>
+                    <th style="text-align:left;">SUBESTOQUE</th>
+                    <th style="text-align:right;">QUANTIDADE</th>
+                    <th style="text-align:right;">COBERTURA (DIAS)</th>
+                </tr></thead>
+                <tbody>`;
+
+        data.forEach(r => {
+            const cob = consumoDiario > 0 && r.quantidade > 0
+                ? Math.round(r.quantidade / consumoDiario)
+                : '—';
+            const corCob = typeof cob === 'number'
+                ? cob < 25 ? 'color:#ef4444;' : cob < 90 ? 'color:#f59e0b;' : 'color:#10b981;'
+                : '';
+            html += `<tr>
+                <td>${r.subestoque}</td>
+                <td style="text-align:right;font-weight:700;">${r.quantidade}</td>
+                <td style="text-align:right;font-weight:900;${corCob}">${cob}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        document.getElementById('modalSaldoSubConteudo').innerHTML = html;
+    } catch(e) {
+        document.getElementById('modalSaldoSubConteudo').innerHTML =
+            `<p style="color:var(--danger);text-align:center;padding:20px;">Erro ao carregar: ${e.message}</p>`;
+    } finally {
+        document.getElementById('modalSaldoSubLoading').style.display = 'none';
+    }
+}
 
 let _addProjItemCache = null;
 

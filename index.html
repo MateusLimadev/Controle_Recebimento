@@ -826,6 +826,7 @@
                                     <th title="Consumo médio diário">C/DIA</th>
                                     <th title="Consumo médio mensal estimado">C/MÊS</th>
                                     <th>STATUS</th>
+                                    <th style="text-align:center;width:44px;" title="Ver saldo nos subestoques"><i class="ph ph-warehouse"></i></th>
                                     <th style="text-align:center; width:60px;"><i class="ph ph-shopping-cart"></i></th>
                                 </tr>
                             </thead>
@@ -1219,6 +1220,25 @@
             </div>
         </div>
     </div>
+    <!-- =====================================================
+         MODAL SALDO SUBESTOQUES
+    ====================================================== -->
+    <div id="modalSaldoSub" class="modal" style="display:none;">
+        <div class="modal-content usuario-modal-content" style="max-width:none;width:80vw;">
+            <div class="modal-header">
+                <div>
+                    <h3><i class="ph ph-warehouse"></i> SALDO NOS SUBESTOQUES</h3>
+                    <p id="modalSaldoSubCodigo" style="font-size:12px;color:var(--text-muted);margin-top:4px;font-family:monospace;"></p>
+                </div>
+                <i class="ph ph-x" onclick="fecharModal('modalSaldoSub')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <div id="modalSaldoSubLoading" style="text-align:center;padding:32px;display:none;">
+                <div class="spinner"></div>
+            </div>
+            <div id="modalSaldoSubConteudo" style="margin-top:16px;"></div>
+        </div>
+    </div>
+
     <!-- =====================================================
          MODAL CONFIRMAR LIMPEZA DO LOG
     ====================================================== -->

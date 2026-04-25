@@ -1687,8 +1687,6 @@ function renderizarPaginaProjecao() {
                 <td>${item.descricao}</td>
                 <td>${item.cobertura || 0}</td>
                 <td>${item.saldoCD || 0}</td>
-                <td>${item.temRP ? '✓' : '✗'}</td>
-                <td>${item.temEmpenho ? '✓' : '✗'}</td>
                 <td style="font-size:12px;color:var(--text-muted);">${item.consumoDiario > 0 ? parseFloat(item.consumoDiario.toFixed(3)) : '—'}</td>
                 <td style="font-size:12px;color:var(--text-muted);">${item.consumoMensal > 0 ? parseFloat(item.consumoMensal.toFixed(3)) : '—'}</td>
                 <td>${statusBadges}</td>

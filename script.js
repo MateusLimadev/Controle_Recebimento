@@ -4,6 +4,15 @@ const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T
 let usuarioAtual = null;
 let loginAtual   = null;
 let sessaoAtual  = null; // { token, expira }
+
+// Flags de cache — evita recarregar ao trocar de aba
+// São zeradas apenas pelo botão ATUALIZAR ou F5
+const _cache = {
+    dashboard:    false,
+    adiantamento: false,
+    historico:    false,
+    usuarios:     false,
+};
 let abaAtual = "Digitadas";
 let listas = { "Digitadas": [], "Recebimento": [], "Adiantamento": [] };
 
@@ -65,28 +74,36 @@ async function refreshData() {
     const icon = document.getElementById('refreshIcon');
     icon.classList.add('rotating');
 
+    // Zera todas as flags de cache — força novo fetch em tudo
+    Object.keys(_cache).forEach(k => _cache[k] = false);
+
     try {
-        // Sempre recarrega blacklist e estatísticas do dashboard em background
         await carregarBlacklistCache();
         await carregarEstatisticas();
+        _cache.dashboard = true;
 
-        // Recarrega dados específicos da aba atual
-        if (abaAtual === 'Dashboard') {
-            // já feito acima
-
-        } else if (abaAtual === 'Projecao' || abaAtual.startsWith('Projecao_')) {
-            dadosProjecao = []; // força novo fetch
+        if (abaAtual === 'Projecao' || abaAtual.startsWith('Projecao_')) {
+            dadosProjecao = [];
+            compradorCarregado = '';
             await carregarProjecao(abaAtual.startsWith('Projecao_') ? abaAtual.replace('Projecao_', '') : null);
 
         } else if (abaAtual === 'Adiantamento') {
-            adiantamentosCarregados = []; // força novo fetch
+            adiantamentosCarregados = [];
             await carregarAdiantamentos();
+            _cache.adiantamento = true;
 
         } else if (abaAtual === 'Admin') {
             await carregarUsuarios();
 
+        } else if (abaAtual === 'Digitadas' || abaAtual === 'Recebimento') {
+            _histNotas = [];
+            await carregarHistoricoNotas();
+            _cache.historico = true;
+
+        } else if (abaAtual === 'Admin') {
+            await carregarUsuarios();
+            _cache.usuarios = true;
         }
-        // Abas de notas: a tabela local já é a fonte da verdade, não precisa recarregar
 
     } finally {
         setTimeout(() => icon.classList.remove('rotating'), 600);
@@ -1503,6 +1520,7 @@ async function carregarProjecaoBackground() {
 
 // --- VARIÁVEL GLOBAL PARA ARMAZENAR DADOS DE PROJEÇÃO ---
 let dadosProjecao = [];
+let compradorCarregado = ''; // rastreia qual comprador está em cache
 let filtroProjecaoAtual = 'todos';
 let ordenacaoCobertura = 'asc';
 let paginaAtualProjecao = 1;
@@ -1536,8 +1554,8 @@ let carrinho = []; // { codigo, descricao, cobertura, statusTexto }
 async function carregarProjecao(nomeUsuarioForcar) {
     const nomeUsuario = nomeUsuarioForcar || usuarioAtual.nome.split(' ')[0].toUpperCase();
 
-    // Se dados já foram carregados em background para este usuário, mostra logo
-    if (!nomeUsuarioForcar && dadosProjecao.length > 0) {
+    // Se já temos dados do mesmo comprador em cache, mostra sem novo fetch
+    if (dadosProjecao.length > 0 && compradorCarregado === nomeUsuario) {
         filtroProjecaoAtual = 'todos';
         compradorProjecaoAtual = nomeUsuario;
         renderizarChipsPrefixos(prefixosAtivos);
@@ -1565,6 +1583,7 @@ async function carregarProjecao(nomeUsuarioForcar) {
 
         dadosProjecao  = data.itens || [];
         filtroProjecaoAtual = 'todos';
+        compradorCarregado = nomeUsuario;
         // Reseta o slider para o padrão ao carregar nova projeção
         pontoCompraAtual = 50;
         const slider = document.getElementById('pontoCompraSlider');
@@ -2040,7 +2059,7 @@ function switchTab(aba) {
         document.getElementById('view-admin').style.display = 'none';
         const isGestorOuAdmin = temPermissao('gestor') || temPermissao('administrador');
         document.getElementById('dash-gestor').style.display = isGestorOuAdmin ? 'block' : 'none';
-        carregarEstatisticas();
+        if (!_cache.dashboard) { carregarEstatisticas(); _cache.dashboard = true; }
     } else if (aba === 'Projecao' || aba.startsWith('Projecao_')) {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'none';
@@ -2051,8 +2070,7 @@ function switchTab(aba) {
             const nomeUsuario = aba.replace('Projecao_', '');
             document.getElementById('projTitulo').innerText = `Projeção de Compras — ${nomeUsuario.charAt(0) + nomeUsuario.slice(1).toLowerCase()}`;
             prefixosAtivos = new Set(prefixosConfig[nomeUsuario] || []);
-            dadosProjecao = [];
-            carregarProjecao(nomeUsuario);
+            carregarProjecao(nomeUsuario); // já tem cache interno via dadosProjecao.length
         } else {
             const nomeUsuario = usuarioAtual.nome.split(' ')[0];
             document.getElementById('projTitulo').innerText = `Projeção de Compras — ${nomeUsuario}`;
@@ -2064,7 +2082,7 @@ function switchTab(aba) {
         document.getElementById('view-forms').style.display = 'none';
         document.getElementById('view-projecao').style.display = 'none';
         document.getElementById('view-admin').style.display = 'block';
-        carregarUsuarios();
+        if (!_cache.usuarios) { carregarUsuarios(); _cache.usuarios = true; }
     } else {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'block';
@@ -2078,9 +2096,9 @@ function switchTab(aba) {
         atualizarTabela();
         if (aba === 'Adiantamento') {
             document.getElementById('historicoNotasSection').style.display = 'none';
-            carregarAdiantamentos();
+            if (!_cache.adiantamento) { carregarAdiantamentos(); _cache.adiantamento = true; }
         } else if (aba === 'Digitadas' || aba === 'Recebimento') {
-            setTimeout(() => carregarHistoricoNotas(), 200);
+            if (!_cache.historico) { setTimeout(() => carregarHistoricoNotas(), 200); _cache.historico = true; }
         } else {
             document.getElementById('historicoNotasSection').style.display = 'none';
         }

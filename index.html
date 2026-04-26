@@ -114,6 +114,10 @@
                 <i id="themeIcon" class="ph ph-moon"></i>
                 <span>DARK</span>
             </div>
+            <div class="notif-btn" id="notifHeaderBtn" onclick="abrirPainelNotificacoes()" title="Notificações">
+                <i class="ph ph-bell"></i>
+                <span id="notifContador" class="notif-contador" style="display:none">0</span>
+            </div>
             <div class="carrinho-btn" id="carrinhoHeaderBtn" onclick="abrirCarrinho()" title="Lista de compras">
                 <i class="ph ph-shopping-cart"></i>
                 <span>COMPRAS</span>
@@ -125,6 +129,51 @@
             </div>
         </div>
     </header>
+
+    <!-- PAINEL DE NOTIFICAÇÕES -->
+    <div id="notifOverlay" class="notif-overlay" onclick="fecharPainelNotificacoes()" style="display:none"></div>
+    <div id="notifDrawer" class="notif-drawer">
+        <div class="notif-drawer-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <i class="ph ph-bell" style="font-size:20px;color:var(--accent)"></i>
+                <h3>NOTIFICAÇÕES</h3>
+            </div>
+            <button class="btn-fechar-notif" onclick="fecharPainelNotificacoes()"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="notifLista" class="notif-lista">
+            <div class="notif-vazia"><i class="ph ph-bell-slash"></i><span>Nenhuma notificação pendente</span></div>
+        </div>
+    </div>
+
+    <!-- MINI MENU STATUS COMPRA -->
+    <div id="statusCompraMenu" class="status-compra-menu" style="display:none">
+        <div class="status-compra-menu-header">
+            <span id="statusCompraMenuTitulo">STATUS DO PROCESSO</span>
+            <button onclick="fecharMenuStatusCompra()"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="status-compra-opcoes">
+            <button class="status-opcao fase-1" onclick="definirStatusCompra('EM ORÇAMENTO')">
+                <i class="ph ph-magnifying-glass"></i> EM ORÇAMENTO
+            </button>
+            <button class="status-opcao fase-2" onclick="definirStatusCompra('REQUISIÇÃO DE COMPRA')">
+                <i class="ph ph-file-text"></i> REQUISIÇÃO DE COMPRA
+            </button>
+            <button class="status-opcao fase-3" onclick="definirStatusCompra('ORDEM DE COMPRA')">
+                <i class="ph ph-receipt"></i> ORDEM DE COMPRA
+            </button>
+            <button class="status-opcao fase-4" onclick="definirStatusCompra('AGUARDANDO ENTREGA DO FORNECEDOR')">
+                <i class="ph ph-truck"></i> AGUARDANDO ENTREGA
+            </button>
+            <div class="status-compra-divider"></div>
+            <button class="status-opcao fase-entregue" onclick="marcarEntregue()">
+                <i class="ph ph-check-circle"></i> MARCAR COMO ENTREGUE
+            </button>
+            <button class="status-opcao fase-remover" onclick="removerStatusCompra()">
+                <i class="ph ph-trash"></i> REMOVER STATUS
+            </button>
+        </div>
+    </div>
+    <div id="statusCompraOverlay" class="status-compra-overlay" onclick="fecharMenuStatusCompra()" style="display:none"></div>
 
     <!-- DRAWER CARRINHO DE COMPRAS -->
     <div id="carrinhoOverlay" class="carrinho-overlay" onclick="fecharCarrinho()" style="display:none"></div>
@@ -760,10 +809,29 @@
 
                 <div id="proj-content" style="display:none">
 
-                    <!-- GRÁFICO PIZZA — RESUMO DO STATUS DOS ITENS -->
-                    <div id="projPizzaWrap" style="display:flex;align-items:center;justify-content:center;gap:32px;margin-bottom:24px;flex-wrap:wrap;">
-                        <canvas id="projPizzaChart" width="160" height="160" style="flex-shrink:0;"></canvas>
-                        <div id="projPizzaLegenda" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                    <!-- GRÁFICOS — STATUS DOS ITENS + PROCESSO DE COMPRA -->
+                    <div style="display:flex;gap:32px;margin-bottom:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
+
+                        <!-- Gráfico 1: Status dos itens -->
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                            <span style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">SITUAÇÃO DOS ITENS</span>
+                            <div style="display:flex;align-items:center;gap:24px;">
+                                <canvas id="projPizzaChart" width="140" height="140" style="flex-shrink:0;"></canvas>
+                                <div id="projPizzaLegenda" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                            </div>
+                        </div>
+
+                        <div style="width:1px;background:var(--border);align-self:stretch;"></div>
+
+                        <!-- Gráfico 2: Processo de compra -->
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                            <span style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">PROCESSO DE COMPRA</span>
+                            <div style="display:flex;align-items:center;gap:24px;">
+                                <canvas id="projProcessoChart" width="140" height="140" style="flex-shrink:0;"></canvas>
+                                <div id="projProcessoLegenda" style="display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                            </div>
+                        </div>
+
                     </div>
 
                     <!-- BUSCA NA PROJEÇÃO -->
@@ -791,7 +859,7 @@
                     <div class="ponto-compra-wrap">
                         <div class="ponto-compra-header">
                             <i class="ph ph-sliders-horizontal"></i>
-                            <span>LEAD TIME</span>
+                            <span>PONTO DE COMPRA</span>
                             <strong id="pontoCompraLabel">50 dias</strong>
                             <span class="ponto-compra-hint">exibindo itens com cobertura até este limite</span>
                         </div>
@@ -931,6 +999,9 @@
                         </button>
                         <button class="btn-admin-tab" id="tabBtnLog" onclick="switchAdminTab('log')">
                             <i class="ph ph-scroll"></i> LOG
+                        </button>
+                        <button class="btn-admin-tab" id="tabBtnSistema" onclick="switchAdminTab('sistema')">
+                            <i class="ph ph-gear"></i> SISTEMA
                         </button>
                     </div>
                 </div>
@@ -1106,6 +1177,38 @@
                         </table>
                     </div>
                     <p id="logResumo" style="font-size:12px;color:var(--text-muted);margin-top:10px;text-align:right;"></p>
+                </div>
+
+                <!-- SUB-ABA SISTEMA -->
+                <div id="adminTabSistema" style="display:none; margin-top:24px;">
+                    <h3 style="font-weight:900;font-size:16px;margin-bottom:20px;"><i class="ph ph-gear"></i> Configurações do Sistema</h3>
+
+                    <div style="display:flex;flex-direction:column;gap:16px;max-width:600px;">
+                        <!-- Trigger de notificações -->
+                        <div class="stat-card" style="padding:20px 24px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                                <div>
+                                    <p style="font-weight:900;font-size:14px;"><i class="ph ph-bell-ringing" style="color:var(--accent)"></i> Trigger de Notificações</p>
+                                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Ativa o monitoramento automático de cobertura. Roda a cada 1 hora e envia notificações quando a cobertura de um item em processo subir.</p>
+                                </div>
+                                <button onclick="ativarTriggerNotificacoes()" class="btn-novo-usuario" style="white-space:nowrap;">
+                                    <i class="ph ph-play"></i> ATIVAR TRIGGER
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="stat-card" style="padding:20px 24px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                                <div>
+                                    <p style="font-weight:900;font-size:14px;"><i class="ph ph-lightning" style="color:#f59e0b"></i> Verificar Coberturas Agora</p>
+                                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Roda a verificação imediatamente, sem esperar o próximo ciclo automático. Útil para testes ou quando precisar forçar as notificações.</p>
+                                </div>
+                                <button onclick="rodarVerificacaoAgora()" class="btn-novo-usuario" style="white-space:nowrap;background:rgba(245,158,11,0.15);color:#f59e0b;border-color:#f59e0b;">
+                                    <i class="ph ph-play-circle"></i> RODAR AGORA
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
             </div>

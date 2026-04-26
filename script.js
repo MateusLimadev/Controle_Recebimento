@@ -926,6 +926,70 @@ function desenharMiniPizza(canvasId, legendaId, totalId, itens) {
     ).join('');
 }
 
+// ── MINI GRÁFICO DE PROCESSO DE COMPRA PARA CARDS DA DASHBOARD ──────────────
+function desenharMiniProcesso(canvasId, legendaId, itens, mapaStatus) {
+    const canvas  = document.getElementById(canvasId);
+    const legenda = document.getElementById(legendaId);
+    if (!canvas || !itens) return;
+
+    const fases = [
+        { label: 'Sem processo',   cor: 'rgba(100,116,139,0.45)', chave: null },
+        { label: 'Em Orçamento',   cor: '#f59e0b', chave: 'EM ORÇAMENTO' },
+        { label: 'Req. Compra',    cor: '#3b82f6', chave: 'REQUISIÇÃO DE COMPRA' },
+        { label: 'Ordem Compra',   cor: '#8b5cf6', chave: 'ORDEM DE COMPRA' },
+        { label: 'Ag. Entrega',    cor: '#10b981', chave: 'AGUARDANDO ENTREGA DO FORNECEDOR' },
+    ];
+
+    const contagem = {};
+    fases.forEach(f => { if (f.chave) contagem[f.chave] = 0; });
+    Object.values(mapaStatus).forEach(sc => {
+        if (contagem[sc.status] !== undefined) contagem[sc.status]++;
+    });
+    const comProcesso = Object.values(contagem).reduce((a, b) => a + b, 0);
+    const semProcesso = Math.max(0, itens.length - comProcesso);
+    const totalValores = itens.length || 1;
+
+    const fatias = fases.map(f => ({
+        label: f.label, cor: f.cor,
+        valor: f.chave ? contagem[f.chave] : semProcesso
+    })).filter(f => f.valor > 0);
+
+    const ctx = canvas.getContext('2d');
+    const cx  = canvas.width / 2, cy = canvas.height / 2;
+    const r   = Math.min(cx, cy) - 4;
+    let ang   = -Math.PI / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    fatias.forEach(f => {
+        const end = ang + (f.valor / totalValores) * 2 * Math.PI;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, ang, end); ctx.closePath();
+        ctx.fillStyle = f.cor; ctx.fill();
+        ang = end;
+    });
+
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#1e293b';
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.52, 0, 2 * Math.PI);
+    ctx.fillStyle = bg; ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Calibri, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(comProcesso, cx, cy - 7);
+    ctx.font = 'bold 8px Calibri, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('processo', cx, cy + 9);
+
+    legenda.innerHTML = fatias.map(f =>
+        `<div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:9px;height:9px;border-radius:50%;background:${f.cor};flex-shrink:0;"></span>
+            <span style="color:var(--text-muted);flex:1;font-size:11px;">${f.label}</span>
+            <b style="color:var(--text-main);font-size:12px;">${f.valor}</b>
+            <span style="color:var(--text-muted);font-size:10px;min-width:28px;text-align:right;">${Math.round(f.valor/totalValores*100)}%</span>
+        </div>`
+    ).join('');
+}
+
 async function carregarPizzasDashboard() {
     const wrap = document.getElementById('dashProjCards');
     if (wrap) wrap.style.display = 'block';
@@ -940,10 +1004,12 @@ async function carregarPizzasDashboard() {
         const grid = wrap.querySelector('.proj-pizza-grid');
 
         for (const comp of compradores) {
-            const nomeUsuario = comp.nomeUsuario; // ex: CRISLENE, ERNESTO
-            const canvasId   = `dashPizza_${nomeUsuario}`;
-            const legendaId  = `dashLegenda_${nomeUsuario}`;
-            const totalId    = `dashTotal_${nomeUsuario}`;
+            const nomeUsuario    = comp.nomeUsuario;
+            const canvasId       = `dashPizza_${nomeUsuario}`;
+            const legendaId      = `dashLegenda_${nomeUsuario}`;
+            const totalId        = `dashTotal_${nomeUsuario}`;
+            const canvasProcesso = `dashProcesso_${nomeUsuario}`;
+            const legendaProcesso= `dashProcessoLeg_${nomeUsuario}`;
 
             // Cria card se não existir
             if (!document.getElementById(canvasId) && grid) {
@@ -958,9 +1024,24 @@ async function carregarPizzasDashboard() {
                         </div>
                         <i class="ph ph-shopping-cart-simple" style="font-size:24px;color:var(--accent);opacity:0.6;"></i>
                     </div>
-                    <div style="display:flex;align-items:center;gap:24px;">
-                        <canvas id="${canvasId}" width="130" height="130" style="flex-shrink:0;"></canvas>
-                        <div id="${legendaId}" style="display:flex;flex-direction:column;gap:7px;font-size:12px;flex:1;"></div>
+                    <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;">
+                        <!-- Gráfico 1: Situação dos itens -->
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                            <span style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">SITUAÇÃO</span>
+                            <div style="display:flex;align-items:center;gap:16px;">
+                                <canvas id="${canvasId}" width="110" height="110" style="flex-shrink:0;"></canvas>
+                                <div id="${legendaId}" style="display:flex;flex-direction:column;gap:6px;font-size:11px;flex:1;"></div>
+                            </div>
+                        </div>
+                        <div style="width:1px;background:var(--border);align-self:stretch;"></div>
+                        <!-- Gráfico 2: Processo de compra -->
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                            <span style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">PROCESSO</span>
+                            <div style="display:flex;align-items:center;gap:16px;">
+                                <canvas id="${canvasProcesso}" width="110" height="110" style="flex-shrink:0;"></canvas>
+                                <div id="${legendaProcesso}" style="display:flex;flex-direction:column;gap:6px;font-size:11px;flex:1;"></div>
+                            </div>
+                        </div>
                     </div>`;
                 grid.appendChild(card);
             }
@@ -971,6 +1052,12 @@ async function carregarPizzasDashboard() {
                 const data = await res.json();
                 if (!data.erro && data.itens) {
                     desenharMiniPizza(canvasId, legendaId, totalId, data.itens);
+                    // Carrega statusCompra para este comprador e desenha o gráfico de processo
+                    const resStatus = await fetch(`${URL_SCRIPT}?action=getStatusCompra&comprador=${encodeURIComponent(nomeUsuario)}&t=${Date.now()}`);
+                    const dataStatus = await resStatus.json();
+                    const mapa = {};
+                    (dataStatus.itens || []).forEach(i => { mapa[i.codigo] = i; });
+                    desenharMiniProcesso(canvasProcesso, legendaProcesso, data.itens, mapa);
                 } else {
                     const el = document.getElementById(totalId);
                     if (el) el.textContent = data.erro || 'Sem dados';
@@ -1428,6 +1515,11 @@ let adiantamentosCarregados = [];
 // Ponto de compra (slider da projeção) — padrão 50 dias
 let pontoCompraAtual = 50;
 
+// Status de processo de compra por item
+let statusCompraMap = {};          // { codigo: { status, dataStatus, coberturaRegistrada } }
+let itemStatusCompraAtivo = null;  // item sendo editado no mini menu
+let compradorProjecaoAtual = '';   // comprador da projeção sendo visualizada (ex: CRISLENE)
+
 // Prefixos de código por usuário { 'CRIS': ['42','43'], 'ERNESTO': ['61','62',...] }
 let prefixosConfig = {};
 // Prefixos atualmente ativos na UI (Set)
@@ -1447,9 +1539,12 @@ async function carregarProjecao(nomeUsuarioForcar) {
     // Se dados já foram carregados em background para este usuário, mostra logo
     if (!nomeUsuarioForcar && dadosProjecao.length > 0) {
         filtroProjecaoAtual = 'todos';
+        compradorProjecaoAtual = nomeUsuario;
         renderizarChipsPrefixos(prefixosAtivos);
         atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
         desenharPizzaProjecao(dadosProjecao);
+        renderizarGraficoProcesso();
+        carregarNotificacoes();
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';
         return;
@@ -1476,15 +1571,23 @@ async function carregarProjecao(nomeUsuarioForcar) {
         const label  = document.getElementById('pontoCompraLabel');
         if (slider) slider.value = 50;
         if (label)  label.textContent = '50 dias';
+
+        // Carrega status de processo de compra para este comprador
+        compradorProjecaoAtual = nomeUsuario;
+        await carregarStatusCompra(nomeUsuario);
+
         renderizarChipsPrefixos(prefixosAtivos);
         atualizarTabelaProjecao(aplicarFiltroPrefixo(dadosProjecao));
         desenharPizzaProjecao(dadosProjecao);
+        renderizarGraficoProcesso();
+        carregarNotificacoes();
 
         document.getElementById('proj-loading').style.display = 'none';
         document.getElementById('proj-content').style.display = 'block';
     } catch (e) {
+        console.error("Erro carregarProjecao:", e);
         document.getElementById('proj-loading').innerHTML =
-            "<p style='color:var(--danger)'>Erro ao carregar dados de projeção.</p>";
+            `<p style='color:var(--danger)'>Erro ao carregar dados de projeção.<br><small style='opacity:0.7'>${e.message || e}</small></p>`;
     }
 }
 
@@ -1705,6 +1808,44 @@ function renderizarPaginaProjecao() {
                         style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:5px 7px;cursor:pointer;color:var(--text-muted);" title="Ver saldo nos subestoques">
                         <i class="ph ph-warehouse"></i>
                     </button>
+                </td>
+                <td style="text-align:center;">
+                    ${(() => {
+                        const sc = statusCompraMap[item.codigo];
+                        const faseIcon = {
+                            'EM ORÇAMENTO':                       'ph-magnifying-glass',
+                            'REQUISIÇÃO DE COMPRA':               'ph-file-text',
+                            'ORDEM DE COMPRA':                    'ph-receipt',
+                            'AGUARDANDO ENTREGA DO FORNECEDOR':   'ph-truck'
+                        };
+                        const faseColor = {
+                            'EM ORÇAMENTO':                       '#f59e0b',
+                            'REQUISIÇÃO DE COMPRA':               '#3b82f6',
+                            'ORDEM DE COMPRA':                    '#8b5cf6',
+                            'AGUARDANDO ENTREGA DO FORNECEDOR':   '#10b981'
+                        };
+                        if (sc) {
+                            const cor   = faseColor[sc.status] || 'var(--accent)';
+                            const icone = faseIcon[sc.status]  || 'ph-clock';
+                            return `<button class="btn-status-compra ativo"
+                                data-codigo="${item.codigo}"
+                                data-descricao="${item.descricao.replace(/"/g,'&quot;')}"
+                                data-cobertura="${item.cobertura || 0}"
+                                style="border-color:${cor};color:${cor};"
+                                title="${sc.status}"
+                                onclick="abrirMenuStatusCompra(this)">
+                                <i class="ph ${icone}"></i>
+                            </button>`;
+                        }
+                        return `<button class="btn-status-compra"
+                            data-codigo="${item.codigo}"
+                            data-descricao="${item.descricao.replace(/"/g,'&quot;')}"
+                            data-cobertura="${item.cobertura || 0}"
+                            title="Definir status do processo de compra"
+                            onclick="abrirMenuStatusCompra(this)">
+                            <i class="ph ph-clock-countdown"></i>
+                        </button>`;
+                    })()}
                 </td>
                 <td style="text-align:center;">
                     <button class="btn-add-carrinho ${carrinho.some(c => c.codigo === item.codigo) ? 'no-carrinho' : ''}"
@@ -2408,6 +2549,319 @@ function atualizarPontoCompra(valor) {
     aplicarFiltroAtual();
 }
 
+// =============================================================================
+// STATUS DE PROCESSO DE COMPRA
+// =============================================================================
+
+async function carregarStatusCompra(comprador) {
+    try {
+        const param = comprador ? `&comprador=${encodeURIComponent(comprador)}` : '';
+        const resp = await fetch(addAuth(`${URL_SCRIPT}?action=getStatusCompra${param}&t=${Date.now()}`));
+        const data = await resp.json();
+        statusCompraMap = {};
+        (data.itens || []).forEach(i => {
+            if (!comprador || i.comprador.toUpperCase() === comprador.toUpperCase()) {
+                statusCompraMap[i.codigo] = i;
+            }
+        });
+    } catch(e) { console.warn("Erro ao carregar statusCompra:", e); }
+}
+
+function abrirMenuStatusCompra(btn) {
+    const codigo    = btn.dataset.codigo;
+    const descricao = btn.dataset.descricao;
+    const cobertura = btn.dataset.cobertura;
+    itemStatusCompraAtivo = { codigo, descricao, cobertura: parseFloat(cobertura) || 0 };
+
+    document.getElementById('statusCompraMenuTitulo').textContent = descricao.substring(0, 40) + (descricao.length > 40 ? '…' : '');
+
+    // Destaca fase atual se houver
+    const sc = statusCompraMap[codigo];
+    document.querySelectorAll('.status-opcao').forEach(b => b.classList.remove('ativo'));
+    if (sc) {
+        document.querySelectorAll('.status-opcao').forEach(b => {
+            if (b.textContent.trim().includes(sc.status)) b.classList.add('ativo');
+        });
+    }
+
+    document.getElementById('statusCompraOverlay').style.display = 'block';
+    document.getElementById('statusCompraMenu').style.display    = 'block';
+}
+
+function fecharMenuStatusCompra() {
+    document.getElementById('statusCompraOverlay').style.display = 'none';
+    document.getElementById('statusCompraMenu').style.display    = 'none';
+    itemStatusCompraAtivo = null;
+}
+
+async function definirStatusCompra(status) {
+    if (!itemStatusCompraAtivo) return;
+    const { codigo, descricao, cobertura } = itemStatusCompraAtivo;
+    const comprador = compradorProjecaoAtual || usuarioAtual.nome.split(" ")[0].toUpperCase();
+
+    fecharMenuStatusCompra();
+
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'salvarStatusCompra', codigo, descricao, comprador, status, cobertura })
+        });
+        statusCompraMap[codigo] = { codigo, descricao, comprador, status, coberturaRegistrada: cobertura };
+        atualizarTabelaProjecao(itensFiltradosProjecao);
+        renderizarGraficoProcesso();
+        mostrarToast(`✅ Status definido: ${status}`, 'success');
+    } catch(e) { mostrarToast('Erro ao salvar status', 'error'); }
+}
+
+async function removerStatusCompra() {
+    if (!itemStatusCompraAtivo) return;
+    const { codigo } = itemStatusCompraAtivo;
+    const comprador  = compradorProjecaoAtual || usuarioAtual.nome.split(" ")[0].toUpperCase();
+
+    fecharMenuStatusCompra();
+
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'removerStatusCompra', codigo, comprador })
+        });
+        delete statusCompraMap[codigo];
+        atualizarTabelaProjecao(itensFiltradosProjecao);
+        renderizarGraficoProcesso();
+        mostrarToast('Status removido', 'info');
+    } catch(e) { mostrarToast('Erro ao remover status', 'error'); }
+}
+
+async function marcarEntregue() {
+    if (!itemStatusCompraAtivo) return;
+    const { codigo } = itemStatusCompraAtivo;
+    const comprador  = compradorProjecaoAtual || usuarioAtual.nome.split(" ")[0].toUpperCase();
+
+    fecharMenuStatusCompra();
+
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'removerStatusCompra', codigo, comprador })
+        });
+        delete statusCompraMap[codigo];
+        // Remove da projeção localmente até a cobertura cair novamente
+        dadosProjecao = dadosProjecao.filter(i => i.codigo !== codigo);
+        aplicarFiltroAtual();
+        renderizarGraficoProcesso();
+        mostrarToast('✅ Item marcado como entregue e removido da projeção', 'success');
+    } catch(e) { mostrarToast('Erro ao marcar entrega', 'error'); }
+}
+
+// =============================================================================
+// GRÁFICO DE PROCESSO DE COMPRA
+// =============================================================================
+
+function renderizarGraficoProcesso() {
+    const canvas  = document.getElementById('projProcessoChart');
+    const legenda = document.getElementById('projProcessoLegenda');
+    if (!canvas || !legenda) return;
+
+    const fases = [
+        { label: 'Sem processo',           cor: 'rgba(100,116,139,0.5)' },
+        { label: 'Em Orçamento',           cor: '#f59e0b' },
+        { label: 'Req. de Compra',         cor: '#3b82f6' },
+        { label: 'Ordem de Compra',        cor: '#8b5cf6' },
+        { label: 'Ag. Entrega Forn.',      cor: '#10b981' },
+    ];
+
+    const total = dadosProjecao.length || 1;
+    const contagem = {
+        'EM ORÇAMENTO': 0, 'REQUISIÇÃO DE COMPRA': 0,
+        'ORDEM DE COMPRA': 0, 'AGUARDANDO ENTREGA DO FORNECEDOR': 0
+    };
+    Object.values(statusCompraMap).forEach(sc => {
+        if (contagem[sc.status] !== undefined) contagem[sc.status]++;
+    });
+    const comProcesso = Object.values(contagem).reduce((a, b) => a + b, 0);
+    const semProcesso = Math.max(0, (dadosProjecao.length || 0) - comProcesso);
+
+    const valores = [
+        semProcesso,
+        contagem['EM ORÇAMENTO'],
+        contagem['REQUISIÇÃO DE COMPRA'],
+        contagem['ORDEM DE COMPRA'],
+        contagem['AGUARDANDO ENTREGA DO FORNECEDOR']
+    ];
+
+    const ctx = canvas.getContext('2d');
+    const cx  = canvas.width  / 2;
+    const cy  = canvas.height / 2;
+    const r   = Math.min(cx, cy) - 8;
+    let angulo = -Math.PI / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const fatias = fases.map((f, i) => ({ ...f, valor: valores[i] })).filter(f => f.valor > 0);
+    const totalValores = fatias.reduce((a, f) => a + f.valor, 0) || 1;
+
+    fatias.forEach(f => {
+        const angFim = angulo + (f.valor / totalValores) * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, angulo, angFim);
+        ctx.closePath();
+        ctx.fillStyle = f.cor;
+        ctx.fill();
+        angulo = angFim;
+    });
+
+    // Furo central (donut)
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.52, 0, 2 * Math.PI);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#1e1e2e';
+    ctx.fill();
+
+    // Centro: total em processo
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Calibri, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(comProcesso, cx, cy - 7);
+    ctx.font = 'bold 8px Calibri, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('em processo', cx, cy + 9);
+
+    legenda.innerHTML = fatias.map(f => `
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+            <span style="width:10px;height:10px;border-radius:50%;background:${f.cor};flex-shrink:0;display:inline-block;"></span>
+            <span style="color:var(--text-muted)">${f.label}</span>
+            <b style="color:var(--text-main);margin-left:auto;padding-left:8px;">${f.valor}</b>
+            <span style="color:var(--text-muted);font-size:11px;">(${Math.round(f.valor/totalValores*100)}%)</span>
+        </div>`).join('');
+}
+
+// =============================================================================
+// NOTIFICAÇÕES INTERNAS
+// =============================================================================
+
+let notificacoesPendentes = [];
+
+async function carregarNotificacoes() {
+    // Admin vê todas as notificações; comprador só vê as suas
+    const isAdmin = temPermissao('administrador');
+    const comprador = isAdmin ? '' : (compradorProjecaoAtual || usuarioAtual.nome.split(" ")[0].toUpperCase());
+    try {
+        const url = comprador
+            ? addAuth(`${URL_SCRIPT}?action=getNotificacoes&comprador=${encodeURIComponent(comprador)}&t=${Date.now()}`)
+            : addAuth(`${URL_SCRIPT}?action=getNotificacoes&t=${Date.now()}`);
+        const resp = await fetch(url);
+        const data = await resp.json();
+        notificacoesPendentes = data.notificacoes || [];
+        atualizarSinoNotificacoes();
+    } catch(e) { console.warn("Erro ao carregar notificações:", e); }
+}
+
+function atualizarSinoNotificacoes() {
+    const contador = document.getElementById('notifContador');
+    const btn      = document.getElementById('notifHeaderBtn');
+    if (!contador || !btn) return;
+    const qtd = notificacoesPendentes.length;
+    if (qtd > 0) {
+        contador.style.display = 'flex';
+        contador.textContent   = qtd > 9 ? '9+' : qtd;
+        btn.classList.add('tem-notif');
+    } else {
+        contador.style.display = 'none';
+        btn.classList.remove('tem-notif');
+    }
+}
+
+function abrirPainelNotificacoes() {
+    const lista = document.getElementById('notifLista');
+    document.getElementById('notifOverlay').style.display = 'block';
+    document.getElementById('notifDrawer').style.display  = 'flex';
+
+    if (!notificacoesPendentes.length) {
+        lista.innerHTML = '<div class="notif-vazia"><i class="ph ph-bell-slash"></i><span>Nenhuma notificação pendente</span></div>';
+        return;
+    }
+
+    lista.innerHTML = notificacoesPendentes.map(n => `
+        <div class="notif-item" data-linha="${n.linha}" data-codigo="${n.codigo}">
+            <div class="notif-item-header">
+                <span class="notif-item-codigo">${n.codigo}${temPermissao('administrador') && n.comprador ? ` · <span style="color:var(--accent);font-size:10px;">${n.comprador}</span>` : ''}</span>
+                <span class="notif-item-data">${n.data}</span>
+            </div>
+            <p class="notif-item-msg">${n.mensagem}</p>
+            ${n.tipo === 'ENTREGA_PERGUNTA' ? `
+            <div class="notif-item-acoes">
+                <button class="btn-notif-sim" onclick="responderEntrega(${n.linha}, '${n.codigo}', true, this)">
+                    <i class="ph ph-check"></i> SIM, FOI ENTREGUE
+                </button>
+                <button class="btn-notif-nao" onclick="responderEntrega(${n.linha}, '${n.codigo}', false, this)">
+                    <i class="ph ph-x"></i> NÃO, AINDA NÃO
+                </button>
+            </div>` : `
+            <button class="btn-notif-lida" onclick="marcarNotifLida(${n.linha}, this)">
+                <i class="ph ph-check"></i> MARCAR COMO LIDA
+            </button>`}
+        </div>`).join('');
+}
+
+function fecharPainelNotificacoes() {
+    document.getElementById('notifOverlay').style.display = 'none';
+    document.getElementById('notifDrawer').style.display  = 'none';
+}
+
+async function responderEntrega(linha, codigo, foiEntregue, btn) {
+    const comprador = compradorProjecaoAtual || usuarioAtual.nome.split(" ")[0].toUpperCase();
+    btn.closest('.notif-item').style.opacity = '0.5';
+
+    // Marca notificação como lida
+    await fetch(URL_SCRIPT, {
+        method: 'POST', mode: 'no-cors',
+        body: JSON.stringify({ tipo: 'marcarNotificacaoLida', linha })
+    });
+
+    if (foiEntregue) {
+        // Remove do StatusCompra e da projeção local
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'removerStatusCompra', codigo, comprador })
+        });
+        delete statusCompraMap[codigo];
+        dadosProjecao = dadosProjecao.filter(i => i.codigo !== codigo);
+        aplicarFiltroAtual();
+        renderizarGraficoProcesso();
+        mostrarToast('✅ Item removido da projeção — voltará quando a cobertura cair novamente', 'success');
+    } else {
+        // Mantém com status AGUARDANDO ENTREGA DO FORNECEDOR
+        if (statusCompraMap[codigo]) {
+            statusCompraMap[codigo].status = 'AGUARDANDO ENTREGA DO FORNECEDOR';
+        }
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'salvarStatusCompra', codigo, descricao: statusCompraMap[codigo]?.descricao || '', comprador, status: 'AGUARDANDO ENTREGA DO FORNECEDOR', cobertura: statusCompraMap[codigo]?.coberturaRegistrada || 0 })
+        });
+        atualizarTabelaProjecao(itensFiltradosProjecao);
+        renderizarGraficoProcesso();
+        mostrarToast('ℹ️ Item mantido na projeção como "Aguardando Entrega"', 'info');
+    }
+
+    notificacoesPendentes = notificacoesPendentes.filter(n => n.linha !== linha);
+    atualizarSinoNotificacoes();
+    btn.closest('.notif-item').remove();
+    if (!document.querySelectorAll('.notif-item').length) {
+        document.getElementById('notifLista').innerHTML = '<div class="notif-vazia"><i class="ph ph-bell-slash"></i><span>Nenhuma notificação pendente</span></div>';
+    }
+}
+
+async function marcarNotifLida(linha, btn) {
+    await fetch(URL_SCRIPT, {
+        method: 'POST', mode: 'no-cors',
+        body: JSON.stringify({ tipo: 'marcarNotificacaoLida', linha })
+    });
+    notificacoesPendentes = notificacoesPendentes.filter(n => n.linha !== linha);
+    atualizarSinoNotificacoes();
+    btn.closest('.notif-item').remove();
+}
+
 function aplicarFiltroAtual() {
     let itens = aplicarFiltroPrefixo(dadosProjecao);
     // Aplica o ponto de compra — mostra apenas itens com cobertura dentro do limite
@@ -2659,11 +3113,33 @@ function switchAdminTab(tab) {
     document.getElementById('adminTabUsuarios').style.display  = tab === 'usuarios'  ? 'block' : 'none';
     document.getElementById('adminTabBlacklist').style.display = tab === 'blacklist' ? 'block' : 'none';
     document.getElementById('adminTabLog').style.display       = tab === 'log'       ? 'block' : 'none';
+    document.getElementById('adminTabSistema').style.display   = tab === 'sistema'   ? 'block' : 'none';
     document.getElementById('tabBtnUsuarios').classList.toggle('ativo',  tab === 'usuarios');
     document.getElementById('tabBtnBlacklist').classList.toggle('ativo', tab === 'blacklist');
     document.getElementById('tabBtnLog').classList.toggle('ativo',       tab === 'log');
+    document.getElementById('tabBtnSistema').classList.toggle('ativo',   tab === 'sistema');
     if (tab === 'blacklist') { carregarBlacklist(); preencherCompradoresAddProj(); }
     if (tab === 'log')       carregarLog();
+}
+
+async function ativarTriggerNotificacoes() {
+    try {
+        await fetch(addAuth(`${URL_SCRIPT}?action=ativarTrigger`));
+        mostrarToast('✅ Trigger ativado — verificação roda a cada 1 hora', 'success');
+    } catch(e) {
+        mostrarToast('Erro ao ativar trigger', 'error');
+    }
+}
+
+async function rodarVerificacaoAgora() {
+    mostrarToast('⏳ Rodando verificação...', 'info');
+    try {
+        await fetch(addAuth(`${URL_SCRIPT}?action=rodarVerificacaoAgora`));
+        mostrarToast('✅ Verificação concluída — cheque as notificações', 'success');
+        await carregarNotificacoes();
+    } catch(e) {
+        mostrarToast('Erro ao rodar verificação', 'error');
+    }
 }
 
 // =========================================================

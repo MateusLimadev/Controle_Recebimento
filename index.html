@@ -12,13 +12,15 @@
 
     <!-- TELA DE LOGIN -->
     <section id="loginScreen">
+        <div class="login-glow"></div>
+        <div class="login-scanline"></div>
         <button class="btn-theme-login" onclick="toggleTheme()" title="Alternar tema">
             <i id="themeIconLogin" class="ph ph-moon"></i>
         </button>
         <div class="login-box">
             <div class="login-header">
                 <img src="logo core csm.png" alt="CORE SCM Logo" class="login-logo">
-                <h2>Acesso ao CORE SCM <br> Unidade de Suprimentos</h2>
+                <h2>Acesso ao CORE SCM<br>Unidade de Suprimentos</h2>
             </div>
             <div class="login-inputs">
                 <div class="field-group">
@@ -31,7 +33,7 @@
                 </div>
             </div>
             <div class="login-erro" id="loginErro"></div>
-            <button class="btn-login-final" onclick="realizarLogin()">ENTRAR NO SISTEMA</button>
+            <button class="btn-login-final" onclick="realizarLogin()"><span>ENTRAR NO SISTEMA</span></button>
             <button class="btn-esqueci-senha" onclick="abrirEsqueciSenha()">
                 <i class="ph ph-key"></i> Esqueci minha senha
             </button>
@@ -102,7 +104,7 @@
             </div>
         </div>
         <div class="header-right">
-            <div class="user-info-header">
+            <div class="user-info-header" onclick="abrirModalPerfil()" style="cursor:pointer;" title="Meu perfil">
                 <i class="ph ph-user-circle"></i>
                 <span id="userNameHeader">USUÁRIO</span>
             </div>
@@ -506,32 +508,106 @@
         </div>
     </div>
 
+    <!-- MODAL DE PERFIL DO USUÁRIO (popover canto superior direito) -->
+    <div id="modalPerfil" onclick="fecharModalPerfil(event)" style="display:none">
+        <div class="perfil-modal" onclick="event.stopPropagation()">
+            <div class="perfil-modal-header">
+                <div class="perfil-avatar" id="perfilAvatar">M</div>
+                <div>
+                    <p class="perfil-nome" id="perfilNome">Mateus Lima</p>
+                    <p class="perfil-login" id="perfilLogin">supmateus</p>
+                </div>
+                <button class="btn-fechar-perfil" onclick="fecharModalPerfil()"><i class="ph ph-x"></i></button>
+            </div>
+
+            <!-- Painel padrão -->
+            <div id="perfilPainelPrincipal">
+                <!-- Seletor de tema personalizado — aparece só pra quem tem tema próprio -->
+                <div id="perfilSeletorTema" style="display:none; border-bottom:1px solid var(--border); padding: 10px 12px; display:none;">
+                    <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);padding:4px 8px 8px;">Tema</p>
+                    <div style="display:flex;gap:8px;padding:0 8px 4px;">
+                        <button class="btn-tema-opcao" id="btnTemaPadrao" onclick="selecionarTemaPerfil('padrao')">
+                            <i class="ph ph-circles-three"></i> Padrão
+                        </button>
+                        <button class="btn-tema-opcao" id="btnTemaPersonalizado" onclick="selecionarTemaPerfil('personalizado')">
+                            <i class="ph ph-sparkle"></i> <span id="btnTemaPersonalizadoLabel">Personalizado</span>
+                        </button>
+                    </div>
+                </div>
+                <button class="btn-perfil-opcao" onclick="abrirSolicitarTema()">
+                    <i class="ph ph-palette"></i>
+                    <div>
+                        <span>Solicitar Tema Personalizado</span>
+                        <small>Escolha suas cores e envie para o administrador</small>
+                    </div>
+                    <i class="ph ph-caret-right"></i>
+                </button>
+            </div>
+
+            <!-- Painel solicitar tema -->
+            <div id="perfilPainelTema" style="display:none">
+                <button class="btn-perfil-voltar" onclick="voltarPainelPerfil()">
+                    <i class="ph ph-arrow-left"></i> Voltar
+                </button>
+                <p class="perfil-secao-titulo">Escolha suas cores</p>
+                <div class="perfil-cores-grid">
+                    <div class="perfil-cor-item">
+                        <label>Cor Primária</label>
+                        <small>Fundos, cards e superfícies</small>
+                        <input type="color" id="corPrimaria" value="#6366f1">
+                    </div>
+                    <div class="perfil-cor-item">
+                        <label>Cor Secundária</label>
+                        <small>Botões, destaques e links</small>
+                        <input type="color" id="corSecundaria" value="#06b6d4">
+                    </div>
+                </div>
+                <div id="perfilTemaErro" class="login-erro" style="min-height:0;"></div>
+                <button class="btn-perfil-enviar" onclick="enviarSolicitacaoTema()">
+                    <i class="ph ph-paper-plane-tilt"></i> ENVIAR SOLICITAÇÃO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BANNER "VER COMO" -->
+    <div id="verComoBanner" style="display:none">
+        <i class="ph ph-eye banner-eye"></i>
+        <span class="banner-txt">Visualizando como <strong id="verComoNome"></strong></span>
+        <button class="btn-sair-preview" onclick="sairPreviewUsuario()">
+            <i class="ph ph-x"></i> Sair
+        </button>
+    </div>
+
     <!-- TOAST CONTAINER -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
         <nav id="mainNav">
-            <button class="nav-btn" id="btn-dashboard" onclick="switchTab('Dashboard')">
-                <i class="ph ph-chart-line"></i> DASHBOARD
-            </button>
-            <button class="nav-btn active" id="btn-digitadas" onclick="switchTab('Digitadas')">
-                <i class="ph ph-article"></i> DIGITADAS
-            </button>
-            <button class="nav-btn" id="btn-recebimento" onclick="switchTab('Recebimento')">
-                <i class="ph ph-truck"></i> RECEBIDAS
-            </button>
-            <button class="nav-btn" id="btn-adiantamento" onclick="switchTab('Adiantamento')">
-                <i class="ph ph-clock-counter-clockwise"></i> ADIANTAMENTO
-                <span id="badgeAdi" class="nav-badge" style="display:none"></span>
-            </button>
-            <button class="nav-btn" id="btn-projecao" onclick="switchTab('Projecao')" style="display:none">
-                <i class="ph ph-package"></i> <span id="btnProjecaoLabel">PROJEÇÃO</span>
-            </button>
-            <span id="navProjecoesDir"></span>
-            <button class="nav-btn nav-btn-admin" id="btn-admin" onclick="switchTab('Admin')" style="display:none">
-                <i class="ph ph-shield-check"></i> ADMINISTRAÇÃO
-            </button>
+            <div class="nav-container" id="navContainer">
+                <div class="nav-indicator" id="navIndicator"></div>
+                <button class="nav-btn" id="btn-dashboard" onclick="switchTab('Dashboard')">
+                    <i class="ph ph-chart-line"></i> <span class="nav-btn-text">DASHBOARD</span>
+                </button>
+                <button class="nav-btn active" id="btn-digitadas" onclick="switchTab('Digitadas')">
+                    <i class="ph ph-article"></i> <span class="nav-btn-text">DIGITADAS</span>
+                </button>
+                <button class="nav-btn" id="btn-recebimento" onclick="switchTab('Recebimento')">
+                    <i class="ph ph-truck"></i> <span class="nav-btn-text">RECEBIDAS</span>
+                </button>
+                <button class="nav-btn" id="btn-adiantamento" onclick="switchTab('Adiantamento')">
+                    <i class="ph ph-clock-counter-clockwise"></i> <span class="nav-btn-text">ADIANTAMENTO</span>
+                    <span id="badgeAdi" class="nav-badge" style="display:none"></span>
+                </button>
+                <button class="nav-btn" id="btn-projecao" onclick="switchTab('Projecao')" style="display:none">
+                    <i class="ph ph-package"></i> <span class="nav-btn-text" id="btnProjecaoLabel">PROJEÇÃO</span>
+                </button>
+                <span id="navProjecoesDir"></span>
+                <button class="nav-btn nav-btn-admin" id="btn-admin" onclick="switchTab('Admin')" style="display:none">
+                    <i class="ph ph-shield-check"></i> <span class="nav-btn-text">ADMINISTRAÇÃO</span>
+                </button>
+            </div>
         </nav>
 
         <main class="container">

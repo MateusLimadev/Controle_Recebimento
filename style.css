@@ -5,7 +5,7 @@
    ========================================================================== */
 
 /* --- 1. IMPORTAÇÃO E VARIÁVEIS DE TEMA --- */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
 
 :root {
     /* Paleta Core SCM */
@@ -19,7 +19,7 @@
 
     /* Backgrounds e Superfícies */
     --bg-system: #f1f5f9; 
-    --bg-login: #ffffff; /* Fundo limpo para o portal de entrada */
+    --bg-login: #e8f4f8; /* Fundo claro para o portal de entrada */
     --card-bg: #ffffff; 
     --nav-bg: #ffffff;
     --text-main: #1e293b; 
@@ -40,7 +40,7 @@
     --primary-light: #0f172a;
     --accent: #38bdf8; 
     --bg-system: #0f172a; 
-    --bg-login: #0f172a;
+    --bg-login: #030712;
     --card-bg: #1e293b; 
     --nav-bg: #1e293b;
     --text-muted: #cbd5e1; /* Cor clara para os labels aparecerem no fundo escuro */
@@ -87,55 +87,176 @@ body {
 
 /* --- 3. TELA DE LOGIN (ESTILO INSTITUCIONAL COMPACTO - REF: UFVJM) --- */
 
+/* ── LOGIN SUPERTECH ─────────────────────────────────────────── */
+
 #loginScreen {
     height: 100vh;
     width: 100%;
     display: flex;
-    align-items: center; 
-    justify-content: center; 
-    background: var(--bg-login); /* Fundo branco/noturno total */
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-login);
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     z-index: 3000;
+    overflow: hidden;
+    transition: background 0.3s;
 }
 
-/* O Quadrado de Login (Agora pequeno e centralizado) */
+/* Grade animada de fundo */
+#loginScreen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(6,182,212,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(6,182,212,0.07) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridDrift 20s linear infinite;
+}
+
+[data-theme="light"] #loginScreen::before {
+    background-image:
+        linear-gradient(rgba(6,182,212,0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(6,182,212,0.12) 1px, transparent 1px);
+}
+
+@keyframes gridDrift {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(40px); }
+}
+
+/* Vinheta radial para profundidade */
+#loginScreen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 70% at 50% 50%,
+        transparent 30%,
+        rgba(3,7,18,0.85) 100%);
+    pointer-events: none;
+}
+
+/* Glow central pulsante */
+.login-glow {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(6,182,212,0.12) 0%,
+        rgba(99,102,241,0.08) 40%,
+        transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation: glowPulse 4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes glowPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    50%       { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+
+/* Scanline */
+.login-scanline {
+    position: absolute;
+    width: 100%; height: 2px;
+    background: linear-gradient(90deg,
+        transparent, rgba(6,182,212,0.4), transparent);
+    top: -2px;
+    animation: scanline 6s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes scanline {
+    0%   { top: -2px; opacity: 0; }
+    5%   { opacity: 1; }
+    95%  { opacity: 0.6; }
+    100% { top: 100vh; opacity: 0; }
+}
+
+/* Card de login */
 .login-box {
+    position: relative;
+    z-index: 2;
     width: 100%;
-    max-width: 320px; /* Largura estreita conforme solicitado */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: transparent; /* Remove o fundo do container anterior */
-    padding: 0; /* Remove padding desnecessário */
-    box-shadow: none; /* Estilo flat institucional */
+    max-width: 360px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(6,182,212,0.25);
+    border-radius: 16px;
+    padding: 40px 36px;
+    backdrop-filter: blur(20px);
+    box-shadow:
+        0 0 0 1px rgba(6,182,212,0.1),
+        0 0 60px rgba(6,182,212,0.08),
+        0 32px 64px rgba(0,0,0,0.5);
+    animation: cardReveal 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+
+@keyframes cardReveal {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Login card — tema claro */
+[data-theme="light"] .login-box {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(6,182,212,0.3);
+    box-shadow: 0 0 0 1px rgba(6,182,212,0.15), 0 32px 64px rgba(0,0,0,0.12);
+}
+
+[data-theme="light"] .login-header h2 { color: #334155; }
+[data-theme="light"] .login-inputs input { color: #1e293b; background: rgba(6,182,212,0.03); }
+[data-theme="light"] .login-inputs input:focus { background: rgba(6,182,212,0.06); }
+[data-theme="light"] .login-inputs input::placeholder { color: #94a3b8; }
+.login-box::before, .login-box::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+}
+.login-box::before {
+    top: -1px; left: -1px;
+    border-top: 2px solid #06b6d4;
+    border-left: 2px solid #06b6d4;
+    border-radius: 16px 0 0 0;
+}
+.login-box::after {
+    bottom: -1px; right: -1px;
+    border-bottom: 2px solid #06b6d4;
+    border-right: 2px solid #06b6d4;
+    border-radius: 0 0 16px 0;
 }
 
 .login-header {
     width: 100%;
-    margin-bottom: 25px;
+    margin-bottom: 32px;
     text-align: center;
 }
 
 .login-logo {
-    height: 75px; 
+    height: 64px;
     width: auto;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    filter: drop-shadow(0 0 12px rgba(6,182,212,0.5));
 }
 
 .login-header h2 {
-    font-size: 20px;
-    font-weight: 800;
-    color: var(--text-main);
-    letter-spacing: -0.5px;
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 1.6;
 }
 
 .login-inputs {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 16px;
 }
 
 .login-inputs .field-group {
@@ -146,102 +267,106 @@ body {
 }
 
 .login-inputs label {
-    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
     font-weight: 700;
-    color: var(--text-muted);
+    color: #06b6d4;
     text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 .login-inputs input {
     width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 4px; /* Cantos mais retos conforme o exemplo UFVJM */
-    background: var(--input-bg);
-    font-size: 14px;
-    color: var(--text-main);
-    transition: var(--transition);
+    padding: 11px 14px;
+    border: 1px solid rgba(6,182,212,0.2);
+    border-radius: 8px;
+    background: rgba(6,182,212,0.04);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: #e2e8f0;
+    transition: all 0.2s;
+    box-sizing: border-box;
 }
 
+.login-inputs input::placeholder { color: #334155; }
+
 .login-inputs input:focus {
-    border-color: var(--accent);
-    background: #fff;
+    border-color: rgba(6,182,212,0.6);
+    background: rgba(6,182,212,0.08);
     outline: none;
+    box-shadow: 0 0 0 3px rgba(6,182,212,0.1);
+}
+
+.login-erro {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: #f87171;
+    min-height: 18px;
+    margin-top: 8px;
+    text-align: center;
 }
 
 .btn-login-final {
     position: relative;
-  padding: 10px 20px;
-  border-radius: 7px;
-  border: 1px solid rgb(49, 139, 212);
-  font-size: 14px;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 2px;
-  background: transparent;
-  margin-top: 40px;
-  color: #0caceb;
-  overflow: hidden;
-  box-shadow: 0 0 0 0 transparent;
-  -webkit-transition: all 0.2s ease-in;
-  -moz-transition: all 0.2s ease-in;
-  transition: all 0.2s ease-in;
+    width: 100%;
+    padding: 13px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(6,182,212,0.5);
+    background: linear-gradient(135deg,
+        rgba(6,182,212,0.15) 0%,
+        rgba(99,102,241,0.15) 100%);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #06b6d4;
+    cursor: pointer;
+    margin-top: 24px;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.btn-login-final::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(6,182,212,0.3), rgba(99,102,241,0.3));
+    opacity: 0;
+    transition: opacity 0.3s;
 }
 
 .btn-login-final:hover {
-     background: rgb(61, 106, 255);
-  box-shadow: 0 0 30px 5px rgba(0, 142, 236, 0.815);
-  -webkit-transition: all 0.2s ease-out;
-  -moz-transition: all 0.2s ease-out;
-  transition: all 0.2s ease-out;
+    border-color: #06b6d4;
+    box-shadow: 0 0 24px rgba(6,182,212,0.3), 0 0 48px rgba(6,182,212,0.1);
+    color: #fff;
+    transform: translateY(-1px);
 }
 
-.btn-login-final:hover::before {
-  -webkit-animation: sh02 0.5s 0s linear;
-  -moz-animation: sh02 0.5s 0s linear;
-  animation: sh02 0.5s 0s linear;
+.btn-login-final:hover::before { opacity: 1; }
+.btn-login-final:active { transform: translateY(0); }
+
+.btn-login-final span { position: relative; z-index: 1; }
+
+.btn-esqueci-senha {
+    background: transparent;
+    border: none;
+    color: #475569;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    cursor: pointer;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+    transition: color 0.2s;
 }
 
-.btn-login-finalutton::before {
-  content: '';
-  display: block;
-  width: 0px;
-  height: 86%;
-  position: absolute;
-  top: 7%;
-  left: 0%;
-  opacity: 0;
-  background: #fff;
-  box-shadow: 0 0 50px 30px #fff;
-  -webkit-transform: skewX(-20deg);
-  -moz-transform: skewX(-20deg);
-  -ms-transform: skewX(-20deg);
-  -o-transform: skewX(-20deg);
-  transform: skewX(-20deg);
-}
-
-@keyframes sh02 {
-  from {
-    opacity: 0;
-    left: 0%;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-    left: 100%;
-  }
-}
-
-.btn-login-final:active {
-  box-shadow: 0 0 0 0 transparent;
-  -webkit-transition: box-shadow 0.2s ease-in;
-  -moz-transition: box-shadow 0.2s ease-in;
-  transition: box-shadow 0.2s ease-in;
-}
+.btn-esqueci-senha:hover { color: #06b6d4; }
 
 /* --- TELA DE PRIMEIRO ACESSO --- */
 #primeiroAcessoScreen {
@@ -286,20 +411,39 @@ body {
 
 /* --- 4. HEADER DO SISTEMA (ESTILO TRIPARTIDO) --- */
 
+/* ── HEADER SUPERTECH ────────────────────────────────────────── */
+
 header {
-    background: var(--primary);
+    background: rgba(3, 7, 18, 0.95);
     color: white;
-    padding: 10px 40px;
+    padding: 0 32px;
+    height: 58px;
     display: flex;
-    justify-content: space-evenly;
+    justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(6,182,212,0.15);
+    box-shadow: 0 1px 0 rgba(6,182,212,0.08), 0 4px 24px rgba(0,0,0,0.4);
     z-index: 1100;
+    position: relative;
+}
+
+/* Linha decorativa cyan no topo */
+header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(6,182,212,0.6) 30%,
+        rgba(99,102,241,0.6) 70%,
+        transparent 100%);
 }
 
 .header-left .logo-img {
-    height: 45px;
+    height: 38px;
     width: auto;
+    filter: drop-shadow(0 0 8px rgba(6,182,212,0.4));
 }
 
 .header-center .brand-title {
@@ -308,95 +452,198 @@ header {
     gap: 12px;
 }
 
-/* Tipografia Bebas Neue Impactante */
 .header-center h1 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 32px;
-    letter-spacing: 1.5px;
-    line-height: 0.85;
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    line-height: 1;
+    color: #f8fafc;
+    text-shadow: 0 0 20px rgba(6,182,212,0.4);
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
 .header-center h1 span {
-    font-family: 'Inter', sans-serif;
-    font-size: 8.5px;
-    font-weight: 800;
+    font-family: 'Space Mono', monospace;
+    font-size: 7px;
+    font-weight: 400;
     letter-spacing: 4px;
-    color: var(--accent);
+    color: #06b6d4;
     text-transform: uppercase;
-    margin-top: 4px;
+    margin-top: 5px;
+    opacity: 0.8;
 }
 
-/* Lado Direito: Nome e Ações */
 .header-right {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
 }
 
 .user-info-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-right: 15px;
-    padding-right: 15px;
-    border-right: 1px solid rgba(255,255,255,0.1);
+    gap: 8px;
+    margin-right: 12px;
+    padding-right: 12px;
+    border-right: 1px solid rgba(6,182,212,0.15);
 }
 
 #userNameHeader {
-    font-size: 11px;
-    font-weight: 800;
-    color: #f1f5f9;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.refresh-btn, .theme-toggle, .logout-btn, .carrinho-btn {
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-.refresh-btn, .theme-toggle, .logout-btn {
-    cursor: pointer;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 10px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: 0.2s;
+.refresh-btn {
+    background: rgba(6,182,212,0.08);
+    border: 1px solid rgba(6,182,212,0.25);
+    color: #06b6d4;
+}
+.refresh-btn:hover {
+    background: rgba(6,182,212,0.18);
+    box-shadow: 0 0 12px rgba(6,182,212,0.2);
 }
 
-.refresh-btn { background: rgba(2, 132, 199, 0.2); border-color: var(--accent); }
-.logout-btn { background: var(--danger); border: none; }
+.theme-toggle {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #64748b;
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.08); color: #94a3b8; }
 
-/* --- 5. NAVEGAÇÃO SUPERIOR --- */
+.logout-btn {
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #f87171;
+}
+.logout-btn:hover {
+    background: rgba(239,68,68,0.22);
+    box-shadow: 0 0 12px rgba(239,68,68,0.2);
+}
+
+/* ── NAV SUPERTECH ────────────────────────────────────────────── */
 
 nav {
-    background: var(--nav-bg);
+    background: rgba(8, 14, 28, 0.98);
     display: flex;
     justify-content: center;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(6,182,212,0.1);
     position: sticky;
     top: 0;
     z-index: 1000;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+}
+
+/* Linha de scan que percorre o nav */
+nav::after {
+    content: '';
+    position: absolute;
+    left: -100%; top: 0; bottom: 0;
+    width: 60%;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.04), transparent);
+    animation: navScan 8s linear infinite;
+    pointer-events: none;
+}
+@keyframes navScan {
+    0%   { left: -60%; }
+    100% { left: 110%; }
+}
+
+/* Indicador deslizante */
+.nav-indicator {
+    position: absolute;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #06b6d4, #818cf8, transparent);
+    box-shadow: 0 0 12px 2px rgba(6,182,212,0.6);
+    transition: left 0.35s cubic-bezier(0.4,0,0.2,1),
+                width 0.35s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+    border-radius: 999px;
+}
+
+.nav-container {
+    display: flex;
+    align-items: center;
+    position: relative;
 }
 
 .nav-btn {
+    position: relative;
     background: transparent;
     border: none;
-    padding: 18px 25px;
-    color: var(--text-muted);
+    padding: 16px 18px;
+    color: #3d5068;
     cursor: pointer;
-    font-weight: 800;
-    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 9px;
     text-transform: uppercase;
-    border-bottom: 4px solid transparent;
-    transition: var(--transition);
+    letter-spacing: 1.5px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
+/* Flare sweep no hover */
+.nav-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.12), transparent);
+    transition: none;
+    pointer-events: none;
+    transform: skewX(-15deg);
+}
+
+.nav-btn:hover::before {
+    animation: btnFlare 0.5s ease-out forwards;
+}
+
+@keyframes btnFlare {
+    0%   { left: -60%; opacity: 1; }
+    100% { left: 130%; opacity: 0; }
+}
+
+.nav-btn:hover { color: #7dd3e8; }
+
 .nav-btn.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
+    color: #06b6d4;
+    text-shadow: 0 0 16px rgba(6,182,212,0.6);
+    border-bottom-color: transparent;
+}
+
+/* Glow do texto ativo */
+.nav-btn.active .nav-btn-text {
+    animation: textGlow 3s ease-in-out infinite;
+}
+@keyframes textGlow {
+    0%, 100% { text-shadow: 0 0 8px rgba(6,182,212,0.4); }
+    50%       { text-shadow: 0 0 18px rgba(6,182,212,0.8), 0 0 32px rgba(99,102,241,0.3); }
 }
 
 /* --- 6. CONTAINER DO SISTEMA (LOGADO) --- */
@@ -2682,29 +2929,32 @@ body.dash-fullscreen-mode #view-dashboard {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 14px;
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
+    padding: 6px 12px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 11px;
-    font-weight: 800;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
     text-transform: uppercase;
-    color: var(--text-secondary);
-    background: var(--bg-system);
-    transition: var(--transition);
     letter-spacing: 0.5px;
+    color: #64748b;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
 }
 
-.notif-btn:hover, .notif-btn.tem-notif {
-    border-color: var(--accent);
-    color: var(--accent);
-}
+.notif-btn:hover { background: rgba(255,255,255,0.08); color: #94a3b8; }
 
-.notif-btn.tem-notif { animation: sino-pulse 2s infinite; }
+.notif-btn.tem-notif {
+    border-color: rgba(6,182,212,0.4);
+    color: #06b6d4;
+    background: rgba(6,182,212,0.08);
+    animation: sino-pulse 2s infinite;
+}
 
 @keyframes sino-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb, 99,102,241),0.4); }
-    50%       { box-shadow: 0 0 0 6px rgba(var(--accent-rgb, 99,102,241),0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(6,182,212,0.3); }
+    50%       { box-shadow: 0 0 0 4px rgba(6,182,212,0); }
 }
 
 .notif-contador {
@@ -2966,3 +3216,347 @@ body.dash-fullscreen-mode #view-dashboard {
 
 .btn-status-compra:hover { border-color: var(--accent); color: var(--accent); }
 .btn-status-compra.ativo { background: rgba(0,0,0,0.05); }
+
+/* ==========================================================================
+   38. MODAL DE PERFIL
+   ========================================================================== */
+
+/* Modal de perfil — popover no canto superior direito */
+#modalPerfil {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: transparent;
+    display: none;
+}
+
+.perfil-modal {
+    position: absolute;
+    top: 58px;
+    right: 12px;
+    width: 300px;
+    padding: 0;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid rgba(6,182,212,0.2);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(6,182,212,0.08);
+    animation: popoverReveal 0.2s cubic-bezier(0.16,1,0.3,1) forwards;
+    transform-origin: top right;
+}
+
+@keyframes popoverReveal {
+    from { opacity: 0; transform: scale(0.92) translateY(-8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Setinha apontando pro header */
+.perfil-modal::before {
+    content: '';
+    position: absolute;
+    top: -6px; right: 32px;
+    width: 12px; height: 12px;
+    background: var(--bg-card);
+    border-top: 1px solid rgba(6,182,212,0.2);
+    border-left: 1px solid rgba(6,182,212,0.2);
+    transform: rotate(45deg);
+}
+
+.perfil-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+}
+
+.perfil-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(6,182,212,0.3), rgba(99,102,241,0.3));
+    border: 1.5px solid rgba(6,182,212,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    font-weight: 900;
+    color: #06b6d4;
+    flex-shrink: 0;
+}
+
+.perfil-nome {
+    font-weight: 900;
+    font-size: 14px;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.perfil-login {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+}
+
+.btn-fechar-perfil {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition);
+}
+.btn-fechar-perfil:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+.btn-perfil-opcao {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+    color: var(--text-secondary);
+}
+.btn-perfil-opcao:hover { background: var(--bg-system); }
+.btn-perfil-opcao > i:first-child { font-size: 20px; color: var(--accent); flex-shrink: 0; }
+.btn-perfil-opcao > i:last-child { font-size: 14px; color: var(--text-muted); margin-left: auto; }
+.btn-perfil-opcao span { display: block; font-size: 13px; font-weight: 700; }
+.btn-perfil-opcao small { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.btn-perfil-voltar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 14px 20px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.15s;
+}
+.btn-perfil-voltar:hover { color: var(--accent); }
+
+.perfil-secao-titulo {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    padding: 14px 20px 0;
+    margin: 0;
+}
+
+.perfil-cores-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px 20px;
+}
+
+.perfil-cor-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-system);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+}
+.perfil-cor-item label { font-size: 11px; font-weight: 800; color: var(--text-secondary); }
+.perfil-cor-item small { font-size: 10px; color: var(--text-muted); line-height: 1.3; }
+.perfil-cor-item input[type="color"] {
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 2px;
+    background: var(--bg-card);
+    margin-top: 4px;
+}
+
+.btn-perfil-enviar {
+    width: calc(100% - 40px);
+    margin: 8px 20px 20px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(6,182,212,0.4);
+    background: rgba(6,182,212,0.1);
+    color: #06b6d4;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.btn-perfil-enviar:hover { background: rgba(6,182,212,0.2); box-shadow: 0 0 16px rgba(6,182,212,0.2); }
+
+/* Hover no nome do usuário no header */
+.user-info-header:hover { opacity: 0.8; }
+
+/* ==========================================================================
+   39. TEMA VITÓRIA — Rosa e Branco
+   ========================================================================== */
+
+/* CLARO */
+body[data-user="supvitoria"][data-theme="light"] {
+    --primary:       #f472b6;
+    --accent:        #ec4899;
+    --bg-main:       #fff0f6;
+    --bg-card:       #ffffff;
+    --bg-system:     #fce7f3;
+    --border:        rgba(236,72,153,0.2);
+    --text-main:     #831843;
+    --text-secondary:#9d174d;
+    --text-muted:    #be185d;
+    --nav-bg:        #ffffff;
+    --bg-login:      #fdf2f8;
+}
+
+/* ESCURO */
+body[data-user="supvitoria"][data-theme="dark"] {
+    --primary:       #831843;
+    --accent:        #f472b6;
+    --bg-main:       #1a0a12;
+    --bg-card:       #2d0f1e;
+    --bg-system:     #3d1528;
+    --border:        rgba(244,114,182,0.2);
+    --text-main:     #fce7f3;
+    --text-secondary:#fbcfe8;
+    --text-muted:    #f9a8d4;
+    --nav-bg:        #1a0a12;
+}
+
+/* Login screen cor pra Vitória */
+body[data-user="supvitoria"] #loginScreen::before {
+    background-image:
+        linear-gradient(rgba(236,72,153,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(236,72,153,0.08) 1px, transparent 1px);
+}
+body[data-user="supvitoria"] .login-glow {
+    background: radial-gradient(circle, rgba(236,72,153,0.15), rgba(244,114,182,0.08) 40%, transparent 70%);
+}
+body[data-user="supvitoria"] .login-box::before { border-color: #f472b6; }
+body[data-user="supvitoria"] .login-box::after  { border-color: #f472b6; }
+body[data-user="supvitoria"] .login-inputs label { color: #f472b6; }
+body[data-user="supvitoria"] .login-inputs input:focus { border-color: rgba(244,114,182,0.6); box-shadow: 0 0 0 3px rgba(244,114,182,0.12); }
+body[data-user="supvitoria"] .btn-login-final { border-color: rgba(244,114,182,0.5); color: #f472b6; }
+body[data-user="supvitoria"] .btn-login-final:hover { box-shadow: 0 0 24px rgba(244,114,182,0.35); }
+body[data-user="supvitoria"] .login-logo { filter: drop-shadow(0 0 12px rgba(244,114,182,0.5)); }
+
+/* ==========================================================================
+   40. BOTÃO "VER COMO" + BANNER DE PREVIEW
+   ========================================================================== */
+
+.btn-admin-acao.ver-como {
+    background: rgba(99,102,241,0.12);
+    border-color: rgba(99,102,241,0.3);
+    color: #818cf8;
+}
+.btn-admin-acao.ver-como:hover {
+    background: rgba(99,102,241,0.25);
+    border-color: #818cf8;
+}
+
+#verComoBanner {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(99,102,241,0.5);
+    border-radius: 999px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.2);
+    animation: bannerSlide 0.3s cubic-bezier(0.16,1,0.3,1);
+    white-space: nowrap;
+}
+
+@keyframes bannerSlide {
+    from { opacity:0; transform: translateX(-50%) translateY(16px); }
+    to   { opacity:1; transform: translateX(-50%) translateY(0); }
+}
+
+#verComoBanner .banner-eye { font-size: 16px; color: #818cf8; }
+#verComoBanner .banner-txt { font-family: 'Space Mono', monospace; font-size: 11px; color: #94a3b8; }
+#verComoBanner .banner-txt strong { color: #e2e8f0; }
+
+#verComoBanner .btn-sair-preview {
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #f87171;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+}
+.btn-sair-preview:hover { background: rgba(239,68,68,0.3); }
+
+/* ==========================================================================
+   41. BOTÕES SELETOR TEMA NO PERFIL
+   ========================================================================== */
+
+.btn-tema-opcao {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-system);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-tema-opcao.ativo {
+    background: rgba(6,182,212,0.12);
+    border-color: rgba(6,182,212,0.4);
+    color: #06b6d4;
+}
+
+body[data-user="supvitoria"] .btn-tema-opcao.ativo {
+    background: rgba(244,114,182,0.12);
+    border-color: rgba(244,114,182,0.4);
+    color: #f472b6;
+}
+
+.btn-tema-opcao:hover:not(.ativo) {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+}

@@ -59,12 +59,15 @@ function formatarDataBR(iso) {
 function toggleTheme() {
     const b = document.body;
     const isDark = b.getAttribute('data-theme') === 'dark';
-    b.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    const novoTema = isDark ? 'light' : 'dark';
+    b.setAttribute('data-theme', novoTema);
     const newIcon = isDark ? 'ph ph-moon' : 'ph ph-sun';
     const headerIcon = document.getElementById('themeIcon');
     const loginIcon  = document.getElementById('themeIconLogin');
     if (headerIcon) headerIcon.className = newIcon;
     if (loginIcon)  loginIcon.className  = newIcon;
+    // Salva preferência do usuário logado
+    if (loginAtual) localStorage.setItem('tema_' + loginAtual, novoTema);
 }
 
 function logout() { location.reload(); }
@@ -1167,30 +1170,24 @@ function entrarNoSistema(data) {
     document.getElementById('app').style.display = 'block';
     document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
 
-    const podeVerProjecao = temPermissao('comprador') || temPermissao('diretor') || temPermissao('administrador');
-    const isDiretor = temPermissao('diretor') && !temPermissao('comprador');
-
-    // Comprador normal: mostra aba única com o nome dele
-    if (podeVerProjecao && !temPermissao('diretor')) {
-        const primeiroNome = usuarioAtual.nome.split(' ')[0];
-        document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
-        document.getElementById('btn-projecao').style.display = 'inline-flex';
-    } else if (temPermissao('comprador') && temPermissao('diretor')) {
-        // Tem comprador + diretor: mostra a própria aba + abas dos outros
-        const primeiroNome = usuarioAtual.nome.split(' ')[0];
-        document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
-        document.getElementById('btn-projecao').style.display = 'inline-flex';
-        criarTabsDiretor();
-    } else if (temPermissao('diretor')) {
-        // Diretor puro: só vê abas dos compradores
-        document.getElementById('btn-projecao').style.display = 'none';
-        criarTabsDiretor();
-    } else {
-        document.getElementById('btn-projecao').style.display = 'none';
+    // Aplica tema salvo do usuário
+    const temaSalvo = localStorage.getItem('tema_' + loginAtual);
+    if (temaSalvo) {
+        document.body.setAttribute('data-theme', temaSalvo);
+        const icon = temaSalvo === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+        const headerIcon = document.getElementById('themeIcon');
+        if (headerIcon) headerIcon.className = icon;
     }
 
-    document.getElementById('carrinhoHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
-    document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
+    // Aplica tema personalizado por usuário (ex: Vitória = rosa)
+    const modoTema = localStorage.getItem('tema_modo_' + loginAtual);
+    if (modoTema === 'personalizado' || (!modoTema && TEMAS_PERSONALIZADOS[loginAtual?.toLowerCase()])) {
+        aplicarTemaUsuario(loginAtual);
+    } else {
+        document.body.setAttribute('data-user', 'default');
+    }
+    iniciarNavAnimacoes();
+    configurarNavPorUsuario();
 
     switchTab('Dashboard');
     carregarBlacklistCache();
@@ -1208,6 +1205,39 @@ function entrarNoSistema(data) {
     }, 30 * 60 * 1000);
     // Abre modal de boas-vindas após carregar estatísticas
     setTimeout(() => exibirModalBoasVindas(), 800);
+}
+
+// =========================================================
+// CONFIGURAÇÃO DO NAV POR USUÁRIO (reutilizável)
+// =========================================================
+function configurarNavPorUsuario() {
+    // Limpa abas de diretor anteriores
+    const dir = document.getElementById('navProjecoesDir');
+    if (dir) dir.innerHTML = '';
+
+    const podeVerProjecao = temPermissao('comprador') || temPermissao('diretor') || temPermissao('administrador');
+
+    if (podeVerProjecao && !temPermissao('diretor')) {
+        const primeiroNome = usuarioAtual.nome.split(' ')[0];
+        document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
+        document.getElementById('btn-projecao').style.display = 'inline-flex';
+    } else if (temPermissao('comprador') && temPermissao('diretor')) {
+        const primeiroNome = usuarioAtual.nome.split(' ')[0];
+        document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
+        document.getElementById('btn-projecao').style.display = 'inline-flex';
+        criarTabsDiretor();
+    } else if (temPermissao('diretor')) {
+        document.getElementById('btn-projecao').style.display = 'none';
+        criarTabsDiretor();
+    } else {
+        document.getElementById('btn-projecao').style.display = 'none';
+    }
+
+    document.getElementById('carrinhoHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
+    document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
+    document.getElementById('notifHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
+    document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+    setTimeout(atualizarNavIndicador, 50);
 }
 
 // =========================================================
@@ -2036,10 +2066,8 @@ function mudarPaginaAlerta(pagina) {
 
 function switchTab(aba) {
     abaAtual = aba;
-    // Remove active de todos os botões (fixos e dinâmicos)
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
-    // Ativa o botão correto
     if (aba.startsWith('Projecao_')) {
         const nomeUsuario = aba.replace('Projecao_', '').toLowerCase();
         const btnDir = document.getElementById(`btn-proj-${nomeUsuario}`);
@@ -2048,6 +2076,9 @@ function switchTab(aba) {
         const btnEl = document.getElementById('btn-' + aba.toLowerCase());
         if (btnEl) btnEl.classList.add('active');
     }
+
+    // Atualiza o indicador deslizante
+    setTimeout(atualizarNavIndicador, 10);
 
     const monitorSec = document.getElementById('monitorAdiantamentosSection');
     if (monitorSec) monitorSec.style.display = 'none';
@@ -2968,6 +2999,7 @@ function renderizarTabelaUsuarios(lista) {
                 <td>${status}</td>
                 <td style="text-align:center;">
                     <div class="admin-acoes">
+                        <button class="btn-admin-acao ver-como" onclick="verComoUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}');" title="Ver como este usuário"><i class="ph ph-eye"></i></button>
                         <button class="btn-admin-acao editar"  onclick="abrirModalUsuario('${u.login}','${u.nome.replace(/'/g,"\\'")}','${permsEsc}','${prefixosEsc}','${emailEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
                         <button class="btn-admin-acao resetar" onclick="abrirModalResetarSenha('${u.login}','${u.nome.replace(/'/g,"\\'")}');" title="Resetar senha"><i class="ph ph-key"></i></button>
                         <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${u.nome.replace(/'/g,"\\'")}');" title="Remover" ${isSelf ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}><i class="ph ph-trash"></i></button>
@@ -3559,4 +3591,267 @@ async function removerBlacklist(codigo) {
     } catch (e) {
         alert('Erro ao remover da blacklist: ' + e.message);
     }
+}
+// =============================================================================
+// NAV SUPERTECH — INDICADOR DESLIZANTE + TEXT SCRAMBLE
+// =============================================================================
+
+function atualizarNavIndicador() {
+    const indicator = document.getElementById('navIndicador') || document.getElementById('navIndicator');
+    const activeBtn = document.querySelector('.nav-btn.active');
+    if (!indicator || !activeBtn) return;
+    const container = document.getElementById('navContainer');
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    indicator.style.left  = (btnRect.left - containerRect.left + btnRect.width * 0.1) + 'px';
+    indicator.style.width = (btnRect.width * 0.8) + 'px';
+}
+
+// Text scramble ao passar o mouse
+const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&';
+function scrambleText(el) {
+    const original = el.dataset.original || el.textContent.trim();
+    el.dataset.original = original;
+    let frame = 0;
+    const totalFrames = original.length * 2;
+    if (el._scrambleInterval) clearInterval(el._scrambleInterval);
+    el._scrambleInterval = setInterval(() => {
+        el.textContent = original.split('').map((char, i) => {
+            if (char === ' ') return ' ';
+            if (i < Math.floor(frame / 2)) return original[i];
+            return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        }).join('');
+        frame++;
+        if (frame >= totalFrames) {
+            el.textContent = original;
+            clearInterval(el._scrambleInterval);
+        }
+    }, 28);
+}
+
+// Inicializa os efeitos do nav após o login
+function iniciarNavAnimacoes() {
+    // Scramble em todos os botões
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        const textSpan = btn.querySelector('.nav-btn-text');
+        if (!textSpan) return;
+        btn.addEventListener('mouseenter', () => scrambleText(textSpan));
+    });
+
+    // Observer para novos botões de projeção adicionados dinamicamente
+    const navContainer = document.getElementById('navContainer');
+    if (navContainer) {
+        const obs = new MutationObserver(() => {
+            document.querySelectorAll('.nav-btn:not([data-scramble])').forEach(btn => {
+                btn.setAttribute('data-scramble', '1');
+                const textSpan = btn.querySelector('.nav-btn-text');
+                if (textSpan) btn.addEventListener('mouseenter', () => scrambleText(textSpan));
+            });
+            atualizarNavIndicador();
+        });
+        obs.observe(navContainer, { childList: true, subtree: true });
+    }
+
+    // Posição inicial do indicador
+    setTimeout(atualizarNavIndicador, 100);
+    window.addEventListener('resize', atualizarNavIndicador);
+}
+
+// =============================================================================
+// MODAL DE PERFIL + SOLICITAÇÃO DE TEMA
+// =============================================================================
+
+// Mapa de temas personalizados: login → nome do tema
+const TEMAS_PERSONALIZADOS = {
+    'supvitoria': 'Vitória'
+};
+
+function abrirModalPerfil() {
+    const nome  = usuarioAtual?.nome || '';
+    const login = loginAtual || '';
+    document.getElementById('perfilNome').textContent  = nome;
+    document.getElementById('perfilLogin').textContent = login;
+    document.getElementById('perfilAvatar').textContent = nome.charAt(0).toUpperCase();
+    document.getElementById('perfilPainelPrincipal').style.display = 'block';
+    document.getElementById('perfilPainelTema').style.display      = 'none';
+    document.getElementById('perfilTemaErro').textContent          = '';
+
+    // Mostra seletor de tema personalizado se aplicável
+    const temaNome = TEMAS_PERSONALIZADOS[login.toLowerCase()];
+    const seletor  = document.getElementById('perfilSeletorTema');
+    if (temaNome) {
+        seletor.style.display = 'block';
+        document.getElementById('btnTemaPersonalizadoLabel').textContent = temaNome;
+        const usandoPersonalizado = document.body.getAttribute('data-user') === login.toLowerCase();
+        document.getElementById('btnTemaPadrao').classList.toggle('ativo', !usandoPersonalizado);
+        document.getElementById('btnTemaPersonalizado').classList.toggle('ativo', usandoPersonalizado);
+    } else {
+        seletor.style.display = 'none';
+    }
+
+    document.getElementById('modalPerfil').style.display = 'flex';
+}
+
+function selecionarTemaPerfil(opcao) {
+    const login = loginAtual || '';
+    if (opcao === 'personalizado') {
+        document.body.setAttribute('data-user', login.toLowerCase());
+        // Aplica tema padrão do usuário personalizado (claro)
+        const temasFixos = { 'supvitoria': 'light' };
+        const tema = localStorage.getItem('tema_' + login) || temasFixos[login.toLowerCase()] || 'dark';
+        document.body.setAttribute('data-theme', tema);
+        const icon = tema === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+        const h = document.getElementById('themeIcon');
+        if (h) h.className = icon;
+        localStorage.setItem('tema_modo_' + login, 'personalizado');
+    } else {
+        // Remove tema personalizado, volta ao padrão do sistema
+        document.body.setAttribute('data-user', 'default');
+        const temaSalvo = localStorage.getItem('tema_' + login) || 'dark';
+        document.body.setAttribute('data-theme', temaSalvo);
+        const icon = temaSalvo === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+        const h = document.getElementById('themeIcon');
+        if (h) h.className = icon;
+        localStorage.setItem('tema_modo_' + login, 'padrao');
+    }
+    // Atualiza botões
+    document.getElementById('btnTemaPadrao').classList.toggle('ativo', opcao === 'padrao');
+    document.getElementById('btnTemaPersonalizado').classList.toggle('ativo', opcao === 'personalizado');
+}
+
+function fecharModalPerfil(e) {
+    if (e && e.target !== document.getElementById('modalPerfil')) return;
+    const modal = document.getElementById('modalPerfil');
+    modal.style.display = 'none';
+}
+
+function abrirSolicitarTema() {
+    document.getElementById('perfilPainelPrincipal').style.display = 'none';
+    document.getElementById('perfilPainelTema').style.display      = 'block';
+}
+
+function voltarPainelPerfil() {
+    document.getElementById('perfilPainelPrincipal').style.display = 'block';
+    document.getElementById('perfilPainelTema').style.display      = 'none';
+}
+
+async function enviarSolicitacaoTema() {
+    const cor1  = document.getElementById('corPrimaria').value;
+    const cor2  = document.getElementById('corSecundaria').value;
+    const nome  = usuarioAtual?.nome || loginAtual;
+    const login = loginAtual || '';
+    const erro  = document.getElementById('perfilTemaErro');
+
+    erro.textContent = '';
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({
+                tipo: 'solicitarTema',
+                login, nome,
+                corPrimaria: cor1,
+                corSecundaria: cor2
+            })
+        });
+        document.getElementById('modalPerfil').style.display = 'none';
+        mostrarToast('✅ Solicitação enviada! O administrador receberá um email com seu pedido.', 'success', 5000);
+    } catch(e) {
+        erro.textContent = 'Erro ao enviar. Tente novamente.';
+    }
+}
+
+// Aplica data-user no body para temas personalizados
+function aplicarTemaUsuario(login) {
+    document.body.setAttribute('data-user', login.toLowerCase());
+    // Temas fixos por login
+    const temaFixo = { 'supvitoria': 'light' };
+    if (temaFixo[login.toLowerCase()]) {
+        const tema = localStorage.getItem('tema_' + login) || temaFixo[login.toLowerCase()];
+        document.body.setAttribute('data-theme', tema);
+        const icon = tema === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+        const h = document.getElementById('themeIcon');
+        if (h) h.className = icon;
+    }
+}
+
+// =============================================================================
+// VER COMO USUÁRIO (ADMIN) — IMPERSONAÇÃO TOTAL
+// =============================================================================
+
+let _adminSnapshot = null; // guarda estado completo do admin
+
+async function verComoUsuario(login, nome) {
+    // Salva estado completo do admin
+    _adminSnapshot = {
+        usuarioAtual: { ...usuarioAtual },
+        loginAtual,
+        tema: document.body.getAttribute('data-theme'),
+        dataUser: document.body.getAttribute('data-user') || loginAtual,
+    };
+
+    // Busca dados completos do usuário alvo
+    mostrarToast('⏳ Carregando perfil...', 'info', 2000);
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getUsuarios`));
+        const lista = await res.json();
+        const alvo = lista.find(u => u.login === login);
+        if (!alvo) { mostrarToast('Usuário não encontrado', 'error'); return; }
+
+        // Impersona
+        loginAtual   = alvo.login;
+        usuarioAtual = {
+            nome:       alvo.nome,
+            permissoes: alvo.permissoes || alvo.role || 'digitador',
+            prefixos:   alvo.prefixos ? alvo.prefixos.split('|').map(p => p.trim()).filter(Boolean) : []
+        };
+
+        // Aplica tema do usuário
+        aplicarTemaUsuario(login);
+        const temaSalvo = localStorage.getItem('tema_' + login);
+        if (temaSalvo) {
+            document.body.setAttribute('data-theme', temaSalvo);
+            const icon = temaSalvo === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+            const h = document.getElementById('themeIcon');
+            if (h) h.className = icon;
+        }
+
+        // Reconstrói o nav com as permissões do usuário
+        Object.keys(_cache).forEach(k => _cache[k] = false);
+        dadosProjecao = [];
+        compradorCarregado = '';
+        configurarNavPorUsuario();
+        switchTab('Dashboard');
+
+        // Banner
+        document.getElementById('verComoNome').textContent = nome;
+        document.getElementById('verComoBanner').style.display = 'flex';
+        mostrarToast(`👁 Visualizando como ${nome}`, 'info');
+
+    } catch(e) {
+        mostrarToast('Erro ao carregar perfil', 'error');
+    }
+}
+
+function sairPreviewUsuario() {
+    if (!_adminSnapshot) return;
+
+    // Restaura estado do admin
+    usuarioAtual = _adminSnapshot.usuarioAtual;
+    loginAtual   = _adminSnapshot.loginAtual;
+
+    document.body.setAttribute('data-user',  _adminSnapshot.dataUser);
+    document.body.setAttribute('data-theme', _adminSnapshot.tema);
+    const icon = _adminSnapshot.tema === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+    const h = document.getElementById('themeIcon');
+    if (h) h.className = icon;
+
+    // Reconstrói nav com permissões do admin
+    Object.keys(_cache).forEach(k => _cache[k] = false);
+    dadosProjecao = [];
+    compradorCarregado = '';
+    configurarNavPorUsuario();
+    switchTab('Admin');
+
+    document.getElementById('verComoBanner').style.display = 'none';
+    _adminSnapshot = null;
 }

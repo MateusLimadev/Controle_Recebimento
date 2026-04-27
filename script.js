@@ -1294,6 +1294,13 @@ function configurarNavPorUsuario() {
             const el = document.getElementById(id);
             if (el) el.style.display = id.startsWith('fn') ? 'flex' : 'inline-flex';
         });
+        // Admin OPME — só para supmateus
+        if (loginAtual === 'supmateus') {
+            const d = document.getElementById('fn-div-admin-opme');
+            const b = document.getElementById('fn-admin-opme');
+            if (d) d.style.display = 'block';
+            if (b) b.style.display = 'flex';
+        }
         document.getElementById('carrinhoHeaderBtn').style.display = 'none';
         document.getElementById('notifHeaderBtn').style.display = 'flex';
         document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
@@ -2197,14 +2204,17 @@ function switchTab(aba) {
     // Esconde views de protocolos sempre que trocar de aba
     const vp  = document.getElementById('view-protocolos');
     const vps = document.getElementById('view-protocolos-sup');
+    const vao = document.getElementById('view-admin-opme');
     if (vp)  vp.style.display  = 'none';
     if (vps) vps.style.display = 'none';
+    if (vao) vao.style.display = 'none';
 
     // Ativa botão no nav oculto E no float nav
     const mapaFn = {
         'Dashboard': 'fn-dashboard', 'Digitadas': 'fn-digitadas',
         'Recebimento': 'fn-recebimento', 'Adiantamento': 'fn-adiantamento',
-        'Admin': 'fn-admin', 'ProtocolosOpme': 'fn-protocolos-opme',
+        'Admin': 'fn-admin', 'AdminOpme': 'fn-admin-opme',
+        'ProtocolosOpme': 'fn-protocolos-opme',
         'ProtocolosSup': 'fn-protocolos-sup'
     };
     if (aba.startsWith('Projecao_')) {
@@ -2238,7 +2248,7 @@ function switchTab(aba) {
     if (monitorSec) monitorSec.style.display = 'none';
 
     // Em modo OPME só permite ProtocolosOpme
-    if (modoAtual === 'opme' && aba !== 'ProtocolosOpme') {
+    if (modoAtual === 'opme' && aba !== 'ProtocolosOpme' && aba !== 'AdminOpme') {
         switchTab('ProtocolosOpme');
         return;
     }
@@ -2284,6 +2294,16 @@ function switchTab(aba) {
             prefixosAtivos = new Set(usuarioAtual.prefixos || []);
             carregarProjecao();
         }
+    } else if (aba === 'AdminOpme') {
+        document.getElementById('view-dashboard').style.display   = 'none';
+        document.getElementById('view-forms').style.display       = 'none';
+        document.getElementById('view-projecao').style.display    = 'none';
+        document.getElementById('view-admin').style.display       = 'none';
+        const vao = document.getElementById('view-admin-opme');
+        if (vao) vao.style.display = 'block';
+        const vp = document.getElementById('view-protocolos');
+        if (vp) vp.style.display = 'none';
+        carregarUsuariosOpme();
     } else if (aba === 'Admin') {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'none';
@@ -4613,5 +4633,114 @@ async function _verificarStatusProtocolos() {
             _cache.protocolosSup = false;
             await carregarProtocolosSup();
         }
+    }
+}
+// =============================================================================
+// ADMIN OPME — Gestão de usuários do módulo Especiais
+// =============================================================================
+
+function switchOpmeAdminTab(tab) {
+    document.getElementById('opmeAdminTabUsuarios').style.display = tab === 'usuarios' ? 'block' : 'none';
+    document.getElementById('opmeAdminTabLog').style.display      = tab === 'log'      ? 'block' : 'none';
+    document.getElementById('opmeAdminTabSistema').style.display  = tab === 'sistema'  ? 'block' : 'none';
+    document.getElementById('opmeTabBtnUsuarios').classList.toggle('ativo', tab === 'usuarios');
+    document.getElementById('opmeTabBtnLog').classList.toggle('ativo',      tab === 'log');
+    document.getElementById('opmeTabBtnSistema').classList.toggle('ativo',  tab === 'sistema');
+    if (tab === 'log') carregarLogOpme();
+}
+
+async function carregarLogOpme() {
+    // Reutiliza o mesmo endpoint de log mas filtra logins esp
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getLog&t=${Date.now()}`));
+        const data = await res.json();
+        const tbody = document.querySelector('#tabelaLogOpme tbody');
+        const logs  = (data.logs || []).filter(l => l.login && l.login.toLowerCase().startsWith('esp'));
+        tbody.innerHTML = logs.length
+            ? logs.map(l => `<tr>
+                <td>${l.data}</td><td>${l.login}</td><td>${l.acao}</td><td>${l.detalhe||''}</td>
+              </tr>`).join('')
+            : '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text-muted);">Nenhum log OPME encontrado.</td></tr>';
+    } catch(e) {}
+}
+function abrirModalNovoUsuarioOpme() {
+    document.getElementById('opme_nome').value = '';
+    document.getElementById('opme_login').value = 'esp';
+    document.getElementById('opme_email').value = '';
+    document.getElementById('opmeUsuarioErro').textContent = '';
+    document.getElementById('modalNovoUsuarioOpme').style.display = 'flex';
+}
+
+async function salvarNovoUsuarioOpme() {
+    const nome  = document.getElementById('opme_nome').value.trim();
+    const login = document.getElementById('opme_login').value.trim().toLowerCase();
+    const email = document.getElementById('opme_email').value.trim();
+    const erro  = document.getElementById('opmeUsuarioErro');
+
+    if (!nome)  { erro.textContent = 'Preencha o nome.'; return; }
+    if (!login.startsWith('esp')) { erro.textContent = 'Login deve começar com "esp".'; return; }
+    if (login.length < 4) { erro.textContent = 'Login muito curto.'; return; }
+
+    erro.textContent = '';
+    try {
+        const url = addAuth(`${URL_SCRIPT}?action=criarUsuario&solicitante=${encodeURIComponent(loginAtual)}&login=${encodeURIComponent(login)}&nome=${encodeURIComponent(nome)}&permissoes=gestor-opme&prefixos=&email=${encodeURIComponent(email)}&senha=Core%4026`);
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.erro || 'Erro');
+        fecharModal('modalNovoUsuarioOpme');
+        await carregarUsuariosOpme();
+        mostrarToast('✅ Usuário OPME criado! Senha padrão: Core@26', 'success', 5000);
+    } catch(e) {
+        erro.textContent = 'Erro: ' + e.message;
+    }
+}
+
+async function carregarUsuariosOpme() {
+    const tbody = document.getElementById('tabelaUsuariosOpme');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>';
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getUsuarios`));
+        const lista = await res.json();
+        const opme  = lista.filter(u => u.login && u.login.toLowerCase().startsWith('esp'));
+        if (!opme.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted);">Nenhum usuário OPME cadastrado.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = opme.map(u => {
+            const ativo    = u.primeiroAcesso !== 'true';
+            const permsEsc = (u.permissoes||'').replace(/'/g,"\\'");
+            const nomeEsc  = (u.nome||'').replace(/'/g,"\\'");
+            const emailEsc = (u.email||'').replace(/'/g,"\\'");
+            const status   = ativo
+                ? '<span class="badge-ativo">✓ Ativo</span>'
+                : '<span class="badge-primeiro-acesso">⏳ Aguardando 1º acesso</span>';
+            return `<tr>
+                <td><b>${u.nome}</b></td>
+                <td><span style="font-family:monospace;font-size:12px;color:var(--text-muted);">${u.login}</span></td>
+                <td><span style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;display:inline-block;">GESTOR-OPME</span></td>
+                <td>${status}</td>
+                <td style="text-align:center;">
+                    <div class="admin-acoes">
+                        <button class="btn-admin-acao ver-como" onclick="verComoUsuario('${u.login}','${nomeEsc}');" title="Ver como"><i class="ph ph-eye"></i></button>
+                        <button class="btn-admin-acao editar"  onclick="abrirModalUsuario('${u.login}','${nomeEsc}','${permsEsc}','','${emailEsc}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                        <button class="btn-admin-acao resetar" onclick="abrirModalResetarSenha('${u.login}','${nomeEsc}');" title="Resetar senha"><i class="ph ph-key"></i></button>
+                        <button class="btn-admin-acao deletar" onclick="abrirModalDeletar('${u.login}','${nomeEsc}');" title="Remover"><i class="ph ph-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--danger);">Erro ao carregar.</td></tr>';
+    }
+}
+
+async function migrarModulos() {
+    mostrarToast('⏳ Preenchendo coluna módulo...', 'info', 3000);
+    try {
+        await fetch(addAuth(`${URL_SCRIPT}?action=migrarModulos`));
+        mostrarToast('✅ Coluna módulo preenchida com sucesso!', 'success');
+    } catch(e) {
+        mostrarToast('Erro ao executar migração', 'error');
     }
 }

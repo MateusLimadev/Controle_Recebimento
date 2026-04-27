@@ -90,15 +90,71 @@ function toggleTheme() {
     const novoTema = isDark ? 'light' : 'dark';
     b.setAttribute('data-theme', novoTema);
     const newIcon = isDark ? 'ph ph-moon' : 'ph ph-sun';
-    const headerIcon = document.getElementById('themeIcon');
-    const loginIcon  = document.getElementById('themeIconLogin');
-    if (headerIcon) headerIcon.className = newIcon;
-    if (loginIcon)  loginIcon.className  = newIcon;
-    // Salva preferência do usuário logado
+    ['themeIcon','themeIconLogin','themeIconMobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = newIcon;
+    });
     if (loginAtual) localStorage.setItem('tema_' + loginAtual, novoTema);
 }
 
 function logout() { pararPolling(); location.reload(); }
+
+// ── MOBILE NAV DRAWER ──────────────────────────────────────────
+function toggleMobileNav() {
+    const open = document.getElementById('mobileNavDrawer').classList.contains('open');
+    open ? fecharMobileNav() : abrirMobileNav();
+}
+
+function abrirMobileNav() {
+    document.getElementById('mobileNavDrawer').classList.add('open');
+    document.getElementById('mobileNavOverlay').classList.add('open');
+    document.getElementById('hamburgerBtn').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    _atualizarMobileNavLinks();
+}
+
+function fecharMobileNav() {
+    document.getElementById('mobileNavDrawer').classList.remove('open');
+    document.getElementById('mobileNavOverlay').classList.remove('open');
+    document.getElementById('hamburgerBtn').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function _atualizarMobileNavLinks() {
+    // Sincroniza nome/role
+    const nomeEl = document.getElementById('mobileNavNome');
+    const roleEl = document.getElementById('mobileNavRole');
+    if (nomeEl && usuarioAtual) nomeEl.textContent = usuarioAtual.nome || 'USUÁRIO';
+    if (roleEl  && usuarioAtual) roleEl.textContent  = (usuarioAtual.role || '').toUpperCase();
+
+    // Copia os botões visíveis do float-nav para o drawer
+    const container = document.getElementById('mobileNavLinks');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const navMap = [
+        { id: 'fn-dashboard',       tab: 'Dashboard',      label: 'Dashboard',        icon: 'ph-chart-line' },
+        { id: 'fn-digitadas',       tab: 'Digitadas',      label: 'Digitadas',        icon: 'ph-article' },
+        { id: 'fn-recebimento',     tab: 'Recebimento',    label: 'Recebidas',        icon: 'ph-truck' },
+        { id: 'fn-adiantamento',    tab: 'Adiantamento',   label: 'Adiantamento',     icon: 'ph-clock-counter-clockwise' },
+        { id: 'fn-projecao',        tab: 'Projecao',       label: 'Projeção',         icon: 'ph-package' },
+        { id: 'fn-protocolos-opme', tab: 'ProtocolosOpme', label: 'Protocolar Notas', icon: 'ph-clipboard-text' },
+        { id: 'fn-protocolos-sup',  tab: 'ProtocolosSup',  label: 'Protocolos OPME',  icon: 'ph-clipboard-text' },
+        { id: 'fn-admin',           tab: 'Admin',          label: 'Administração',    icon: 'ph-shield-check', admin: true },
+        { id: 'fn-admin-opme',      tab: 'AdminOpme',      label: 'Admin OPME',       icon: 'ph-shield-check', admin: true },
+    ];
+
+    navMap.forEach(item => {
+        const el = document.getElementById(item.id);
+        if (!el || el.style.display === 'none') return;
+        const isActive = el.classList.contains('active');
+        const btn = document.createElement('button');
+        btn.className = `mobile-nav-link${isActive ? ' active' : ''}${item.admin ? ' admin' : ''}`;
+        btn.innerHTML = `<i class="ph ${item.icon}"></i><span>${item.label}</span>`;
+        btn.onclick = () => { switchTab(item.tab); fecharMobileNav(); };
+        container.appendChild(btn);
+    });
+}
 
 // --- BOTÃO DE REFRESH DINÂMICO ---
 async function refreshData() {
@@ -1243,6 +1299,11 @@ function entrarNoSistema(data) {
     }
     iniciarNavAnimacoes();
     configurarNavPorUsuario();
+    // Init drawer mobile com dados do usuário
+    const mobileNome = document.getElementById('mobileNavNome');
+    const mobileRole = document.getElementById('mobileNavRole');
+    if (mobileNome) mobileNome.textContent = usuarioAtual.nome || 'USUÁRIO';
+    if (mobileRole) mobileRole.textContent = (usuarioAtual.role || '').toUpperCase();
     // Redireciona para o módulo escolhido
     if (data._modoOpme) {
         switchTab('ProtocolosOpme');
@@ -2201,6 +2262,8 @@ function switchTab(aba) {
     abaAtual = aba;
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.fn-btn').forEach(b => b.classList.remove('active'));
+    // Atualiza active no drawer mobile
+    document.querySelectorAll('.mobile-nav-link').forEach(b => b.classList.remove('active'));
     // Esconde views de protocolos sempre que trocar de aba
     const vp  = document.getElementById('view-protocolos');
     const vps = document.getElementById('view-protocolos-sup');
@@ -4119,14 +4182,14 @@ _cache.protocolosSup  = false;
 
 function badgeStatusProtocolo(status) {
     const mapa = {
-        'ENVIADO':              { cor: '#f59e0b', icon: 'ph-clock' },
-        'RECEBIDO':             { cor: '#10b981', icon: 'ph-check-circle' },
-        'DEVOLUÇÃO PARCIAL':    { cor: '#ef4444', icon: 'ph-arrow-u-up-left' },
-        'DEVOLVIDO CONFIRMADO': { cor: '#6366f1', icon: 'ph-check-fat' },
+        'ENVIADO':              { cor: '#f59e0b', bg: 'rgba(245,158,11,0.12)', icon: 'ph-paper-plane-tilt' },
+        'RECEBIDO':             { cor: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: 'ph-check-circle' },
+        'DEVOLUÇÃO PARCIAL':    { cor: '#ef4444', bg: 'rgba(239,68,68,0.12)',  icon: 'ph-arrow-u-up-left' },
+        'DEVOLVIDO CONFIRMADO': { cor: '#6366f1', bg: 'rgba(99,102,241,0.12)', icon: 'ph-check-fat' },
     };
-    const s = mapa[status] || { cor: '#94a3b8', icon: 'ph-clock' };
-    return `<span style="display:inline-flex;align-items:center;gap:5px;color:${s.cor};font-size:11px;font-weight:700;">
-        <span style="width:6px;height:6px;border-radius:50%;background:${s.cor};flex-shrink:0;"></span>${status}</span>`;
+    const s = mapa[status] || { cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)', icon: 'ph-clock' };
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${s.bg};color:${s.cor};border:1px solid ${s.cor}33;border-radius:999px;padding:3px 10px;font-size:10px;font-weight:800;white-space:nowrap;">
+        <i class="ph ${s.icon}"></i>${status}</span>`;
 }
 
 // --- OPME: carregar meus protocolos ---
@@ -4147,19 +4210,19 @@ async function carregarMeusProtocolos() {
 
         const renderLinha = (p, isPendente) => {
             const acoes = `
-                <div style="display:flex;gap:2px;align-items:center;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',false)"
-                        title="Ver detalhes" class="btn-prot-acao">
+                        style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#06b6d4;display:flex;align-items:center;gap:5px;">
                         <i class="ph ph-eye"></i> Ver
                     </button>
                     <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')"
-                        title="Exportar CSV" class="btn-prot-acao">
+                        style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#818cf8;display:flex;align-items:center;gap:5px;">
                         <i class="ph ph-file-csv"></i> CSV
                     </button>
                     ${p.status === 'DEVOLUÇÃO PARCIAL' ? `
                     <button onclick="confirmarDevolucao('${p.id}')"
-                        title="Confirmar Devolução" class="btn-prot-acao danger">
-                        <i class="ph ph-check"></i> Confirmar devolução
+                        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#f87171;display:flex;align-items:center;gap:5px;">
+                        <i class="ph ph-check"></i> Confirmar Devolução
                     </button>` : ''}
                 </div>`;
             return `<tr style="border-top:1px solid var(--border);">
@@ -4207,18 +4270,22 @@ async function carregarProtocolosSup() {
             const aguardando = p.status === 'ENVIADO';
             const podeDev    = p.status === 'ENVIADO' || p.status === 'RECEBIDO' || p.status === 'DEVOLUÇÃO PARCIAL';
             const btns = `
-                <div style="display:flex;gap:2px;align-items:center;">
-                    <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Ver notas" class="btn-prot-acao">
+                <div style="display:flex;gap:5px;flex-wrap:nowrap;align-items:center;">
+                    <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Ver notas"
+                        style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#06b6d4;white-space:nowrap;">
                         <i class="ph ph-eye"></i> Ver
                     </button>
-                    ${aguardando ? `<button onclick="confirmarRecebimentoProtocolo('${p.id}')" title="Confirmar recebimento" class="btn-prot-acao success">
-                        <i class="ph ph-check"></i> Confirmar
+                    ${aguardando ? `<button onclick="confirmarRecebimentoProtocolo('${p.id}')" title="Confirmar recebimento"
+                        style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#10b981;white-space:nowrap;">
+                        <i class="ph ph-check-circle"></i> Confirmar
                     </button>` : ''}
-                    ${podeDev ? `<button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Devolver" class="btn-prot-acao danger">
+                    ${podeDev ? `<button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Devolver nota com problema"
+                        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#f87171;white-space:nowrap;">
                         <i class="ph ph-arrow-u-up-left"></i> Devolver
                     </button>` : ''}
-                    <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')" title="CSV" class="btn-prot-acao">
-                        <i class="ph ph-file-csv"></i> CSV
+                    <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')" title="Exportar CSV"
+                        style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#818cf8;white-space:nowrap;">
+                        <i class="ph ph-file-csv"></i>
                     </button>
                 </div>`;
             return `<tr style="border-top:1px solid var(--border);">
@@ -4704,7 +4771,7 @@ async function carregarUsuariosOpme() {
             return;
         }
         tbody.innerHTML = opme.map(u => {
-            const ativo    = u.primeiroAcesso !== 'true';
+            const ativo    = u.status !== 'primeiroAcesso';
             const permsEsc = (u.permissoes||'').replace(/'/g,"\\'");
             const nomeEsc  = (u.nome||'').replace(/'/g,"\\'");
             const emailEsc = (u.email||'').replace(/'/g,"\\'");
@@ -4712,8 +4779,7 @@ async function carregarUsuariosOpme() {
                 ? '<span class="badge-ativo">✓ Ativo</span>'
                 : '<span class="badge-primeiro-acesso">⏳ Aguardando 1º acesso</span>';
             return `<tr>
-                <td><b>${u.nome}</b></td>
-                <td><span style="font-family:monospace;font-size:12px;color:var(--text-muted);">${u.login}</span></td>
+                <td><b>${u.nome}</b><br><span style="font-size:11px;color:var(--text-muted)">${u.login}</span></td>
                 <td><span style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;display:inline-block;">GESTOR-OPME</span></td>
                 <td>${status}</td>
                 <td style="text-align:center;">

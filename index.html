@@ -151,8 +151,43 @@
                 <i class="ph ph-sign-out"></i>
                 <span>SAIR</span>
             </div>
+            <!-- Hamburger — só aparece no mobile -->
+            <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileNav()" title="Menu">
+                <span></span><span></span><span></span>
+            </button>
         </div>
     </header>
+
+    <!-- DRAWER MOBILE NAV -->
+    <div id="mobileNavOverlay" class="mobile-nav-overlay" onclick="fecharMobileNav()"></div>
+    <div id="mobileNavDrawer" class="mobile-nav-drawer">
+        <div class="mobile-nav-header">
+            <div class="mobile-nav-user" onclick="abrirModalPerfil();fecharMobileNav();">
+                <i class="ph ph-user-circle" style="font-size:28px;color:var(--accent);"></i>
+                <div>
+                    <p id="mobileNavNome" style="font-weight:800;font-size:13px;">USUÁRIO</p>
+                    <p id="mobileNavRole" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;"></p>
+                </div>
+            </div>
+            <button onclick="fecharMobileNav()" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="mobile-nav-links" id="mobileNavLinks">
+            <!-- preenchido pelo JS -->
+        </div>
+        <div class="mobile-nav-footer">
+            <button class="mobile-nav-action-btn refresh" onclick="refreshData();fecharMobileNav();">
+                <i class="ph ph-arrows-clockwise"></i> Atualizar dados
+            </button>
+            <button class="mobile-nav-action-btn theme" onclick="toggleTheme();">
+                <i id="themeIconMobile" class="ph ph-moon"></i> Alternar tema
+            </button>
+            <button class="mobile-nav-action-btn logout" onclick="logout()">
+                <i class="ph ph-sign-out"></i> Sair
+            </button>
+        </div>
+    </div>
 
     <!-- PAINEL DE NOTIFICAÇÕES -->
     <div id="notifOverlay" class="notif-overlay" onclick="fecharPainelNotificacoes()" style="display:none"></div>
@@ -1672,16 +1707,15 @@
             </div>
 
             <!-- VIEW — ADMIN OPME -->
-            <div id="view-admin-opme" style="display:none;">
-              <div class="container" style="margin-top:40px;">
-                <div class="header-tab" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+            <div id="view-admin-opme" style="display:none; padding:32px 40px; max-width:1100px; margin:0 auto;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:16px;">
                     <div>
-                        <h2 style="font-size:22px; font-weight:900; color:var(--accent);">
-                            <i class="ph ph-shield-check"></i> Administração — OPME / Especiais
+                        <h2 style="font-size:20px;font-weight:900;display:flex;align-items:center;gap:10px;color:var(--text-main);">
+                            <i class="ph ph-shield-check" style="color:#f59e0b;"></i> Administração — OPME / Especiais
                         </h2>
-                        <p style="color:var(--text-muted); font-size:12px; margin-top:4px;">Gerencie os usuários com acesso ao módulo Especiais</p>
+                        <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">Gerencie os usuários com acesso ao módulo Especiais</p>
                     </div>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         <button class="btn-admin-tab ativo" id="opmeTabBtnUsuarios" onclick="switchOpmeAdminTab('usuarios')">
                             <i class="ph ph-users"></i> USUÁRIOS
                         </button>
@@ -1696,45 +1730,41 @@
 
                 <!-- SUB-ABA USUÁRIOS -->
                 <div id="opmeAdminTabUsuarios">
-                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px; margin-top:24px; gap:12px; flex-wrap:wrap;">
-                        <button class="btn-novo-usuario" style="background:transparent;color:#f59e0b;border:1.5px solid #f59e0b;" onclick="migrarSenhasHash()" title="Converte todas as senhas para hash SHA-256">
-                            <i class="ph ph-shield-check"></i> MIGRAR SENHAS PARA HASH
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+                        <button class="btn-admin-hash" onclick="migrarSenhasHash()">
+                            <i class="ph ph-lock-key"></i> MIGRAR SENHAS PARA HASH
                         </button>
                         <button class="btn-novo-usuario" onclick="abrirModalNovoUsuarioOpme()">
                             <i class="ph ph-user-plus"></i> NOVO USUÁRIO
                         </button>
                     </div>
-                    <div id="admin-opme-loading" class="loading-overlay" style="display:none">
-                        <div class="spinner"></div>
-                        <p>Carregando usuários...</p>
-                    </div>
-                    <div class="table-container">
-                        <table id="tabelaOpmeWrapper">
-                            <thead>
-                                <tr>
-                                    <th>NOME</th>
-                                    <th>LOGIN</th>
-                                    <th>PERMISSÕES</th>
-                                    <th>STATUS</th>
-                                    <th style="text-align:center; width:160px;">AÇÕES</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaUsuariosOpme">
-                                <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="stat-card" style="padding:0;overflow:hidden;">
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;" id="tabelaOpmeWrapper" class="table-container">
+                                <thead>
+                                    <tr>
+                                        <th>NOME</th>
+                                        <th>PERMISSÕES</th>
+                                        <th>STATUS</th>
+                                        <th>AÇÕES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaUsuariosOpme">
+                                    <tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- SUB-ABA LOG -->
-                <div id="opmeAdminTabLog" style="display:none; margin-top:24px;">
+                <div id="opmeAdminTabLog" style="display:none; margin-top:8px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                         <div>
                             <h3 style="font-weight:900;font-size:16px;"><i class="ph ph-scroll"></i> Log de Atividades — OPME</h3>
-                            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Registros de login e ações dos usuários OPME</p>
                         </div>
-                        <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaLogOpme','log_opme')">
-                            <i class="ph ph-file-csv"></i> EXPORTAR CSV
+                        <button onclick="carregarLogOpme()" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
                         </button>
                     </div>
                     <div class="table-container">
@@ -1753,7 +1783,7 @@
                 </div>
 
                 <!-- SUB-ABA SISTEMA -->
-                <div id="opmeAdminTabSistema" style="display:none; margin-top:24px;">
+                <div id="opmeAdminTabSistema" style="display:none; margin-top:8px;">
                     <h3 style="font-weight:900;font-size:16px;margin-bottom:20px;"><i class="ph ph-gear"></i> Configurações do Módulo OPME</h3>
                     <div style="display:flex;flex-direction:column;gap:16px;max-width:600px;">
                         <div class="stat-card" style="padding:20px 24px;">
@@ -1769,7 +1799,6 @@
                         </div>
                     </div>
                 </div>
-              </div><!-- /.container wrapper -->
             </div>
 
         </main>

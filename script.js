@@ -4119,14 +4119,14 @@ _cache.protocolosSup  = false;
 
 function badgeStatusProtocolo(status) {
     const mapa = {
-        'ENVIADO':              { cor: '#f59e0b', bg: 'rgba(245,158,11,0.12)', icon: 'ph-paper-plane-tilt' },
-        'RECEBIDO':             { cor: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: 'ph-check-circle' },
-        'DEVOLUÇÃO PARCIAL':    { cor: '#ef4444', bg: 'rgba(239,68,68,0.12)',  icon: 'ph-arrow-u-up-left' },
-        'DEVOLVIDO CONFIRMADO': { cor: '#6366f1', bg: 'rgba(99,102,241,0.12)', icon: 'ph-check-fat' },
+        'ENVIADO':              { cor: '#f59e0b', icon: 'ph-clock' },
+        'RECEBIDO':             { cor: '#10b981', icon: 'ph-check-circle' },
+        'DEVOLUÇÃO PARCIAL':    { cor: '#ef4444', icon: 'ph-arrow-u-up-left' },
+        'DEVOLVIDO CONFIRMADO': { cor: '#6366f1', icon: 'ph-check-fat' },
     };
-    const s = mapa[status] || { cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)', icon: 'ph-clock' };
-    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${s.bg};color:${s.cor};border:1px solid ${s.cor}33;border-radius:999px;padding:3px 10px;font-size:10px;font-weight:800;white-space:nowrap;">
-        <i class="ph ${s.icon}"></i>${status}</span>`;
+    const s = mapa[status] || { cor: '#94a3b8', icon: 'ph-clock' };
+    return `<span style="display:inline-flex;align-items:center;gap:5px;color:${s.cor};font-size:11px;font-weight:700;">
+        <span style="width:6px;height:6px;border-radius:50%;background:${s.cor};flex-shrink:0;"></span>${status}</span>`;
 }
 
 // --- OPME: carregar meus protocolos ---
@@ -4147,19 +4147,19 @@ async function carregarMeusProtocolos() {
 
         const renderLinha = (p, isPendente) => {
             const acoes = `
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <div style="display:flex;gap:2px;align-items:center;">
                     <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',false)"
-                        style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#06b6d4;display:flex;align-items:center;gap:5px;">
+                        title="Ver detalhes" class="btn-prot-acao">
                         <i class="ph ph-eye"></i> Ver
                     </button>
                     <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')"
-                        style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#818cf8;display:flex;align-items:center;gap:5px;">
+                        title="Exportar CSV" class="btn-prot-acao">
                         <i class="ph ph-file-csv"></i> CSV
                     </button>
                     ${p.status === 'DEVOLUÇÃO PARCIAL' ? `
                     <button onclick="confirmarDevolucao('${p.id}')"
-                        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#f87171;display:flex;align-items:center;gap:5px;">
-                        <i class="ph ph-check"></i> Confirmar Devolução
+                        title="Confirmar Devolução" class="btn-prot-acao danger">
+                        <i class="ph ph-check"></i> Confirmar devolução
                     </button>` : ''}
                 </div>`;
             return `<tr style="border-top:1px solid var(--border);">
@@ -4207,22 +4207,18 @@ async function carregarProtocolosSup() {
             const aguardando = p.status === 'ENVIADO';
             const podeDev    = p.status === 'ENVIADO' || p.status === 'RECEBIDO' || p.status === 'DEVOLUÇÃO PARCIAL';
             const btns = `
-                <div style="display:flex;gap:5px;flex-wrap:nowrap;align-items:center;">
-                    <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Ver notas"
-                        style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#06b6d4;white-space:nowrap;">
+                <div style="display:flex;gap:2px;align-items:center;">
+                    <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Ver notas" class="btn-prot-acao">
                         <i class="ph ph-eye"></i> Ver
                     </button>
-                    ${aguardando ? `<button onclick="confirmarRecebimentoProtocolo('${p.id}')" title="Confirmar recebimento"
-                        style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#10b981;white-space:nowrap;">
-                        <i class="ph ph-check-circle"></i> Confirmar
+                    ${aguardando ? `<button onclick="confirmarRecebimentoProtocolo('${p.id}')" title="Confirmar recebimento" class="btn-prot-acao success">
+                        <i class="ph ph-check"></i> Confirmar
                     </button>` : ''}
-                    ${podeDev ? `<button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Devolver nota com problema"
-                        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#f87171;white-space:nowrap;">
+                    ${podeDev ? `<button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Devolver" class="btn-prot-acao danger">
                         <i class="ph ph-arrow-u-up-left"></i> Devolver
                     </button>` : ''}
-                    <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')" title="Exportar CSV"
-                        style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#818cf8;white-space:nowrap;">
-                        <i class="ph ph-file-csv"></i>
+                    <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')" title="CSV" class="btn-prot-acao">
+                        <i class="ph ph-file-csv"></i> CSV
                     </button>
                 </div>`;
             return `<tr style="border-top:1px solid var(--border);">

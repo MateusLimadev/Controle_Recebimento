@@ -3,7 +3,35 @@ const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T
 
 let usuarioAtual = null;
 let loginAtual   = null;
-let sessaoAtual  = null; // { token, expira }
+let sessaoAtual  = null;
+
+// Logins que têm acesso a múltiplos módulos e precisam escolher ao entrar
+const LOGINS_ACESSO_MULTIPLO = ['supmateus'];
+let _dadosLoginPendente = null;
+let modoAtual = 'suprimentos'; // 'suprimentos' | 'opme'
+
+function entrarComoSuprimentos() {
+    modoAtual = 'suprimentos';
+    document.getElementById('seletorInterface').style.display = 'none';
+    document.getElementById('btnEntrar').style.display = 'block';
+    if (_dadosLoginPendente) {
+        entrarNoSistema(_dadosLoginPendente);
+        registrarLog('LOGIN', 'Acesso — Módulo Suprimentos');
+        _dadosLoginPendente = null;
+    }
+}
+
+function entrarComoOpme() {
+    modoAtual = 'opme';
+    document.getElementById('seletorInterface').style.display = 'none';
+    document.getElementById('btnEntrar').style.display = 'block';
+    if (_dadosLoginPendente) {
+        _dadosLoginPendente._modoOpme = true;
+        entrarNoSistema(_dadosLoginPendente);
+        registrarLog('LOGIN', 'Acesso — Módulo OPME');
+        _dadosLoginPendente = null;
+    }
+}
 
 // Flags de cache — evita recarregar ao trocar de aba
 // São zeradas apenas pelo botão ATUALIZAR ou F5
@@ -70,7 +98,7 @@ function toggleTheme() {
     if (loginAtual) localStorage.setItem('tema_' + loginAtual, novoTema);
 }
 
-function logout() { location.reload(); }
+function logout() { pararPolling(); location.reload(); }
 
 // --- BOTÃO DE REFRESH DINÂMICO ---
 async function refreshData() {
@@ -372,12 +400,10 @@ async function realizarLogin() {
 
         if (data.ok) {
             loginAtual = u;
-            // Armazena token de sessão em memória
             sessaoAtual = {
                 token:  data.token,
-                expira: Date.now() + (8 * 60 * 60 * 1000) // 8 horas
+                expira: Date.now() + (8 * 60 * 60 * 1000)
             };
-            // Timer de expiração automática
             setTimeout(() => {
                 mostrarToast('⏱️ Sua sessão expirou. Faça login novamente.', 'warning', 6000);
                 setTimeout(() => logout(), 3000);
@@ -387,6 +413,14 @@ async function realizarLogin() {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('primeiroAcessoScreen').style.display = 'flex';
                 document.getElementById('nomeBoasVindas').innerText = data.nome.split(' ')[0];
+            } else if (LOGINS_ACESSO_MULTIPLO.includes(u)) {
+                // Mostra seletor de interface
+                _dadosLoginPendente = data;
+                document.getElementById('btnEntrar').style.display = 'none';
+                document.getElementById('seletorInterface').style.display = 'flex';
+                btn.disabled = false;
+                btn.innerText = 'ENTRAR NO SISTEMA';
+                return;
             } else {
                 entrarNoSistema(data);
                 registrarLog('LOGIN', 'Acesso ao sistema');
@@ -1169,6 +1203,27 @@ function entrarNoSistema(data) {
     document.getElementById('mainHeader').style.display = 'flex';
     document.getElementById('app').style.display = 'block';
     document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+    document.getElementById('floatNav').style.display = 'block';
+
+    // Badge do setor
+    const badge = document.getElementById('setorBadge');
+    if (badge) {
+        if (modoAtual === 'opme') {
+            badge.textContent = 'ESPECIAIS';
+            badge.style.display = 'inline';
+            badge.style.background = 'rgba(99,102,241,0.2)';
+            badge.style.color = '#818cf8';
+            badge.style.border = '1px solid rgba(99,102,241,0.3)';
+        } else if (LOGINS_ACESSO_MULTIPLO.includes(loginAtual)) {
+            badge.textContent = 'SUPRIMENTOS';
+            badge.style.display = 'inline';
+            badge.style.background = 'rgba(6,182,212,0.15)';
+            badge.style.color = '#06b6d4';
+            badge.style.border = '1px solid rgba(6,182,212,0.25)';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
 
     // Aplica tema salvo do usuário
     const temaSalvo = localStorage.getItem('tema_' + loginAtual);
@@ -1188,9 +1243,14 @@ function entrarNoSistema(data) {
     }
     iniciarNavAnimacoes();
     configurarNavPorUsuario();
-
-    switchTab('Dashboard');
+    // Redireciona para o módulo escolhido
+    if (data._modoOpme) {
+        switchTab('ProtocolosOpme');
+    } else {
+        switchTab('Dashboard');
+    }
     carregarBlacklistCache();
+    iniciarPolling(); // Polling em tempo real — notificações e status de protocolos
     // Recheck de adiantamentos a cada 30 minutos
     setInterval(async () => {
         const res  = await fetch(URL_SCRIPT).catch(() => null);
@@ -1211,32 +1271,87 @@ function entrarNoSistema(data) {
 // CONFIGURAÇÃO DO NAV POR USUÁRIO (reutilizável)
 // =========================================================
 function configurarNavPorUsuario() {
-    // Limpa abas de diretor anteriores
     const dir = document.getElementById('navProjecoesDir');
     if (dir) dir.innerHTML = '';
+    const fnDir = document.getElementById('fnProjecoesDir');
+    if (fnDir) fnDir.innerHTML = '';
 
+    const isOpmeMode = modoAtual === 'opme';
+
+    // Reset geral — esconde tudo primeiro
+    ['btn-dashboard','btn-digitadas','btn-recebimento','btn-adiantamento',
+     'btn-projecao','btn-admin','btn-protocolos-sup','btn-protocolos-opme',
+     'fn-dashboard','fn-digitadas','fn-recebimento','fn-adiantamento',
+     'fn-projecao','fn-admin','fn-protocolos-sup','fn-protocolos-opme',
+     'fn-div-proj','fn-div-extra','fn-div-admin'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    if (isOpmeMode) {
+        // Modo OPME — só mostra protocolar notas
+        ['btn-protocolos-opme','fn-protocolos-opme'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = id.startsWith('fn') ? 'flex' : 'inline-flex';
+        });
+        document.getElementById('carrinhoHeaderBtn').style.display = 'none';
+        document.getElementById('notifHeaderBtn').style.display = 'flex';
+        document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+        return;
+    }
+
+    // Modo Suprimentos — restaura abas normais
+    ['btn-dashboard','btn-digitadas','btn-recebimento','btn-adiantamento',
+     'fn-dashboard','fn-digitadas','fn-recebimento','fn-adiantamento'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = id.startsWith('fn') ? 'flex' : 'inline-flex';
+    });
+
+    // Modo Suprimentos — comportamento normal
     const podeVerProjecao = temPermissao('comprador') || temPermissao('diretor') || temPermissao('administrador');
+
+    const _mostrarFnProj = (mostrar, label) => {
+        const fnProj = document.getElementById('fn-projecao');
+        const fnDivProj = document.getElementById('fn-div-proj');
+        if (fnProj) { fnProj.style.display = mostrar ? 'flex' : 'none'; if (label) fnProj.setAttribute('data-tip', label); }
+        if (fnDivProj) fnDivProj.style.display = mostrar ? 'block' : 'none';
+    };
 
     if (podeVerProjecao && !temPermissao('diretor')) {
         const primeiroNome = usuarioAtual.nome.split(' ')[0];
         document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
         document.getElementById('btn-projecao').style.display = 'inline-flex';
+        _mostrarFnProj(true, `Proj. ${primeiroNome}`);
     } else if (temPermissao('comprador') && temPermissao('diretor')) {
         const primeiroNome = usuarioAtual.nome.split(' ')[0];
         document.getElementById('btnProjecaoLabel').innerText = `PROJ. ${primeiroNome.toUpperCase()}`;
         document.getElementById('btn-projecao').style.display = 'inline-flex';
+        _mostrarFnProj(true, `Proj. ${primeiroNome}`);
         criarTabsDiretor();
     } else if (temPermissao('diretor')) {
         document.getElementById('btn-projecao').style.display = 'none';
+        _mostrarFnProj(false);
         criarTabsDiretor();
     } else {
         document.getElementById('btn-projecao').style.display = 'none';
+        _mostrarFnProj(false);
     }
+
+    document.getElementById('btn-dashboard').style.display   = 'inline-flex';
+    document.getElementById('btn-digitadas').style.display   = 'inline-flex';
+    document.getElementById('btn-recebimento').style.display = 'inline-flex';
+    document.getElementById('btn-adiantamento').style.display = 'inline-flex';
 
     document.getElementById('carrinhoHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
     document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
     document.getElementById('notifHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
     document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+    // Sincroniza float nav
+    const fnAdmin = document.getElementById('fn-admin');
+    const fnDivAdmin = document.getElementById('fn-div-admin');
+    if (fnAdmin) fnAdmin.style.display = temPermissao('administrador') ? 'flex' : 'none';
+    if (fnDivAdmin) fnDivAdmin.style.display = temPermissao('administrador') ? 'block' : 'none';
+    configurarNavProtocolos();
     setTimeout(atualizarNavIndicador, 50);
 }
 
@@ -1385,13 +1500,13 @@ async function carregarEstatisticas() {
         document.getElementById('dash-loading').style.display = 'none';
         document.getElementById('dash-content').style.display = 'block';
 
-        // Carrega dados de projeção em background
         await carregarProjecaoBackground();
-        // Carrega pizzas das projeções nos cards da dashboard
         carregarPizzasDashboard();
     } catch (e) {
-        document.getElementById('dash-loading').innerHTML =
-            "<p style='color:var(--danger)'>Erro ao carregar dados do Google Sheets.</p>";
+        document.getElementById('dash-loading').style.display = 'none';
+        document.getElementById('dash-content').style.display = 'block';
+        document.getElementById('dash-content').innerHTML =
+            `<p style='color:var(--danger);padding:24px;'><i class='ph ph-warning'></i> Erro ao carregar dados do Google Sheets.</p>`;
     }
 }
 
@@ -1407,21 +1522,32 @@ async function criarTabsDiretor() {
         container.innerHTML = '';
 
         lista.forEach(u => {
-            // Guarda os prefixos de cada comprador para usar ao trocar de aba
             if (u.prefixos) {
                 prefixosConfig[u.nomeUsuario] = u.prefixos.split('|').map(p => p.trim()).filter(Boolean);
             }
-
-            // Não duplica se o próprio diretor também for comprador
             if (u.nomeUsuario === usuarioAtual.nome.split(' ')[0].toUpperCase()) return;
 
             const abaId = `Projecao_${u.nomeUsuario}`;
+
+            // Nav oculto
             const btn   = document.createElement('button');
             btn.className = 'nav-btn nav-btn-proj-dir';
             btn.id        = `btn-proj-${u.nomeUsuario.toLowerCase()}`;
             btn.innerHTML = `<i class="ph ph-package"></i> PROJ. ${u.nomeUsuario}`;
             btn.onclick   = () => switchTab(abaId);
             container.appendChild(btn);
+
+            // Float nav
+            const fnContainer = document.getElementById('fnProjecoesDir');
+            if (fnContainer) {
+                const fnBtn = document.createElement('button');
+                fnBtn.className = 'fn-btn';
+                fnBtn.id = `fn-proj-${u.nomeUsuario.toLowerCase()}`;
+                fnBtn.setAttribute('data-tip', `Proj. ${u.nomeUsuario}`);
+                fnBtn.innerHTML = `<i class="ph ph-package"></i>`;
+                fnBtn.onclick = () => switchTab(abaId);
+                fnContainer.appendChild(fnBtn);
+            }
         });
     } catch (e) {
         console.warn('Erro ao criar abas de diretor:', e);
@@ -2067,6 +2193,34 @@ function mudarPaginaAlerta(pagina) {
 function switchTab(aba) {
     abaAtual = aba;
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.fn-btn').forEach(b => b.classList.remove('active'));
+    // Esconde views de protocolos sempre que trocar de aba
+    const vp  = document.getElementById('view-protocolos');
+    const vps = document.getElementById('view-protocolos-sup');
+    if (vp)  vp.style.display  = 'none';
+    if (vps) vps.style.display = 'none';
+
+    // Ativa botão no nav oculto E no float nav
+    const mapaFn = {
+        'Dashboard': 'fn-dashboard', 'Digitadas': 'fn-digitadas',
+        'Recebimento': 'fn-recebimento', 'Adiantamento': 'fn-adiantamento',
+        'Admin': 'fn-admin', 'ProtocolosOpme': 'fn-protocolos-opme',
+        'ProtocolosSup': 'fn-protocolos-sup'
+    };
+    if (aba.startsWith('Projecao_')) {
+        const nome = aba.replace('Projecao_', '').toLowerCase();
+        const btnDir = document.getElementById(`btn-proj-${nome}`);
+        const fnDir  = document.getElementById(`fn-proj-${nome}`);
+        if (btnDir) btnDir.classList.add('active');
+        if (fnDir)  fnDir.classList.add('active');
+        else { const fp = document.getElementById('fn-projecao'); if (fp) fp.classList.add('active'); }
+    } else {
+        const btnEl = document.getElementById('btn-' + aba.toLowerCase());
+        if (btnEl) btnEl.classList.add('active');
+        const fnId = mapaFn[aba];
+        if (fnId) { const fn = document.getElementById(fnId); if (fn) fn.classList.add('active'); }
+    }
+    setTimeout(atualizarNavIndicador, 10);
 
     if (aba.startsWith('Projecao_')) {
         const nomeUsuario = aba.replace('Projecao_', '').toLowerCase();
@@ -2083,6 +2237,12 @@ function switchTab(aba) {
     const monitorSec = document.getElementById('monitorAdiantamentosSection');
     if (monitorSec) monitorSec.style.display = 'none';
 
+    // Em modo OPME só permite ProtocolosOpme
+    if (modoAtual === 'opme' && aba !== 'ProtocolosOpme') {
+        switchTab('ProtocolosOpme');
+        return;
+    }
+
     if (aba === 'Dashboard') {
         document.getElementById('view-dashboard').style.display = 'block';
         document.getElementById('view-forms').style.display = 'none';
@@ -2091,6 +2251,22 @@ function switchTab(aba) {
         const isGestorOuAdmin = temPermissao('gestor') || temPermissao('administrador');
         document.getElementById('dash-gestor').style.display = isGestorOuAdmin ? 'block' : 'none';
         if (!_cache.dashboard) { carregarEstatisticas(); _cache.dashboard = true; }
+    } else if (aba === 'ProtocolosOpme') {
+        document.getElementById('view-dashboard').style.display  = 'none';
+        document.getElementById('view-forms').style.display      = 'none';
+        document.getElementById('view-projecao').style.display   = 'none';
+        document.getElementById('view-admin').style.display      = 'none';
+        const vp = document.getElementById('view-protocolos');
+        if (vp) vp.style.display = 'block';
+        if (!_cache.protocolosOpme) { carregarMeusProtocolos(); _cache.protocolosOpme = true; }
+    } else if (aba === 'ProtocolosSup') {
+        document.getElementById('view-dashboard').style.display  = 'none';
+        document.getElementById('view-forms').style.display      = 'none';
+        document.getElementById('view-projecao').style.display   = 'none';
+        document.getElementById('view-admin').style.display      = 'none';
+        const vps = document.getElementById('view-protocolos-sup');
+        if (vps) vps.style.display = 'block';
+        if (!_cache.protocolosSup) { carregarProtocolosSup(); _cache.protocolosSup = true; }
     } else if (aba === 'Projecao' || aba.startsWith('Projecao_')) {
         document.getElementById('view-dashboard').style.display = 'none';
         document.getElementById('view-forms').style.display = 'none';
@@ -2802,6 +2978,8 @@ async function carregarNotificacoes() {
         const resp = await fetch(url);
         const data = await resp.json();
         notificacoesPendentes = data.notificacoes || [];
+        // Marca todos como "já vistos" no primeiro load — evita toasts de notificações antigas
+        notificacoesPendentes.forEach(n => _ultimasNotifIds.add(n.linha));
         atualizarSinoNotificacoes();
     } catch(e) { console.warn("Erro ao carregar notificações:", e); }
 }
@@ -2821,10 +2999,17 @@ function atualizarSinoNotificacoes() {
     }
 }
 
-function abrirPainelNotificacoes() {
+async function abrirPainelNotificacoes() {
+    const drawer = document.getElementById('notifDrawer');
+    // Toggle — fecha se já estiver aberto
+    if (drawer.style.display === 'flex') {
+        fecharPainelNotificacoes();
+        return;
+    }
+
     const lista = document.getElementById('notifLista');
     document.getElementById('notifOverlay').style.display = 'block';
-    document.getElementById('notifDrawer').style.display  = 'flex';
+    drawer.style.display = 'flex';
 
     if (!notificacoesPendentes.length) {
         lista.innerHTML = '<div class="notif-vazia"><i class="ph ph-bell-slash"></i><span>Nenhuma notificação pendente</span></div>';
@@ -2846,11 +3031,24 @@ function abrirPainelNotificacoes() {
                 <button class="btn-notif-nao" onclick="responderEntrega(${n.linha}, '${n.codigo}', false, this)">
                     <i class="ph ph-x"></i> NÃO, AINDA NÃO
                 </button>
-            </div>` : `
-            <button class="btn-notif-lida" onclick="marcarNotifLida(${n.linha}, this)">
-                <i class="ph ph-check"></i> MARCAR COMO LIDA
-            </button>`}
+            </div>` : ''}
         </div>`).join('');
+
+    // Marca todas como lidas automaticamente ao abrir
+    const todasLinhas = [...notificacoesPendentes];
+    todasLinhas.forEach(n => {
+        fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'marcarNotificacaoLida', linha: n.linha })
+        });
+        _ultimasNotifIds.add(n.linha);
+    });
+
+    // Limpa localmente após um pequeno delay (deixa o usuário ver)
+    setTimeout(() => {
+        notificacoesPendentes = notificacoesPendentes.filter(n => n.tipo === 'ENTREGA_PERGUNTA');
+        atualizarSinoNotificacoes();
+    }, 1500);
 }
 
 function fecharPainelNotificacoes() {
@@ -3854,4 +4052,566 @@ function sairPreviewUsuario() {
 
     document.getElementById('verComoBanner').style.display = 'none';
     _adminSnapshot = null;
+}
+
+// =============================================================================
+// PROTOCOLOS OPME ↔ SUPRIMENTOS
+// =============================================================================
+
+let protocoloLinhasData = []; // notas do formulário em edição
+let protocoloAtualId = null;  // protocolo aberto no detalhe
+
+// --- Detecção de login e configuração do nav ---
+
+function isLoginOpme(login) {
+    return (login || '').toLowerCase().startsWith('esp');
+}
+
+function configurarNavProtocolos() {
+    const login = loginAtual || '';
+    const isOpmeMode = modoAtual === 'opme';
+    const isOpmeLogin = isLoginOpme(login);
+
+    // Aba de ENVIO: só aparece para login esp... ou supmateus em modo OPME
+    const mostrarEnvio = isOpmeLogin || (login === 'supmateus' && isOpmeMode);
+    // Aba de RECEBIMENTO: qualquer usuário sup (digitador ou acima) em modo suprimentos
+    const temAcessoSup = temPermissao('digitador') || temPermissao('gestor') || temPermissao('administrador');
+    const mostrarRecebimento = !isOpmeLogin && !isOpmeMode && temAcessoSup;
+
+    document.getElementById('btn-protocolos-opme').style.display = mostrarEnvio       ? 'inline-flex' : 'none';
+    document.getElementById('btn-protocolos-sup').style.display  = mostrarRecebimento ? 'inline-flex' : 'none';
+    // Float nav sync
+    const fnOpme = document.getElementById('fn-protocolos-opme');
+    const fnSup  = document.getElementById('fn-protocolos-sup');
+    const fnDivExtra = document.getElementById('fn-div-extra');
+    if (fnOpme) fnOpme.style.display = mostrarEnvio ? 'flex' : 'none';
+    if (fnSup)  fnSup.style.display  = mostrarRecebimento ? 'flex' : 'none';
+    if (fnDivExtra) fnDivExtra.style.display = (mostrarEnvio || mostrarRecebimento) ? 'block' : 'none';
+}
+
+// --- Integração com switchTab ---
+
+// Adiciona flags de cache para protocolos
+_cache.protocolosOpme = false;
+_cache.protocolosSup  = false;
+
+// --- Helpers de status ---
+
+function badgeStatusProtocolo(status) {
+    const mapa = {
+        'ENVIADO':              { cor: '#f59e0b', bg: 'rgba(245,158,11,0.12)', icon: 'ph-paper-plane-tilt' },
+        'RECEBIDO':             { cor: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: 'ph-check-circle' },
+        'DEVOLUÇÃO PARCIAL':    { cor: '#ef4444', bg: 'rgba(239,68,68,0.12)',  icon: 'ph-arrow-u-up-left' },
+        'DEVOLVIDO CONFIRMADO': { cor: '#6366f1', bg: 'rgba(99,102,241,0.12)', icon: 'ph-check-fat' },
+    };
+    const s = mapa[status] || { cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)', icon: 'ph-clock' };
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${s.bg};color:${s.cor};border:1px solid ${s.cor}33;border-radius:999px;padding:3px 10px;font-size:10px;font-weight:800;white-space:nowrap;">
+        <i class="ph ${s.icon}"></i>${status}</span>`;
+}
+
+// --- OPME: carregar meus protocolos ---
+
+async function carregarMeusProtocolos() {
+    const pendentes = document.getElementById('protocolosPendentesBody');
+    const historico  = document.getElementById('protocolosOpmeBody');
+    if (pendentes) pendentes.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>';
+    if (historico)  historico.innerHTML  = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>';
+
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getProtocolos&filtro=meus&t=${Date.now()}`));
+        const data = await res.json();
+        const lista = data.protocolos || [];
+
+        const emAberto = lista.filter(p => p.status === 'ENVIADO' || p.status === 'DEVOLUÇÃO PARCIAL');
+        const todos    = lista;
+
+        const renderLinha = (p, isPendente) => {
+            const acoes = `
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',false)"
+                        style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#06b6d4;display:flex;align-items:center;gap:5px;">
+                        <i class="ph ph-eye"></i> Ver
+                    </button>
+                    <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')"
+                        style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#818cf8;display:flex;align-items:center;gap:5px;">
+                        <i class="ph ph-file-csv"></i> CSV
+                    </button>
+                    ${p.status === 'DEVOLUÇÃO PARCIAL' ? `
+                    <button onclick="confirmarDevolucao('${p.id}')"
+                        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#f87171;display:flex;align-items:center;gap:5px;">
+                        <i class="ph ph-check"></i> Confirmar Devolução
+                    </button>` : ''}
+                </div>`;
+            return `<tr style="border-top:1px solid var(--border);">
+                <td style="padding:12px 20px;font-weight:900;font-family:monospace;font-size:12px;color:var(--accent);">${p.id}</td>
+                <td style="padding:12px 20px;font-size:12px;color:var(--text-muted);">${p.dataCriacao}</td>
+                <td style="padding:12px 20px;font-size:13px;font-weight:700;">${p.totalNotas} nota(s)</td>
+                <td style="padding:12px 20px;">${badgeStatusProtocolo(p.status)}</td>
+                <td style="padding:12px 20px;">${acoes}</td>
+            </tr>`;
+        };
+
+        if (pendentes) {
+            pendentes.innerHTML = emAberto.length
+                ? emAberto.map(p => renderLinha(p, true)).join('')
+                : '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">✅ Nenhum protocolo aguardando retorno.</td></tr>';
+        }
+        if (historico) {
+            historico.innerHTML = todos.length
+                ? todos.map(p => renderLinha(p, false)).join('')
+                : '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum protocolo enviado ainda.</td></tr>';
+        }
+    } catch(e) {
+        if (pendentes) pendentes.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--danger);">Erro ao carregar.</td></tr>';
+    }
+}
+
+// --- Suprimentos: carregar todos os protocolos ---
+
+async function carregarProtocolosSup() {
+    const tbody = document.getElementById('protocolosSupBody');
+    const tbodyHist = document.getElementById('protocolosSupHistBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>';
+    if (tbodyHist) tbodyHist.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>';
+    const filtro = document.getElementById('filtroStatusProt')?.value || '';
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getProtocolos&t=${Date.now()}`));
+        const data = await res.json();
+        let lista = data.protocolos || [];
+        if (filtro) lista = lista.filter(p => p.status === filtro);
+
+        const pendentes = lista.filter(p => p.status === 'ENVIADO' || p.status === 'DEVOLUÇÃO PARCIAL');
+        const historico = lista;
+
+        const renderLinha = (p) => {
+            const aguardando = p.status === 'ENVIADO';
+            const podeDev    = p.status === 'ENVIADO' || p.status === 'RECEBIDO' || p.status === 'DEVOLUÇÃO PARCIAL';
+            const btns = `
+                <div style="display:flex;gap:5px;flex-wrap:nowrap;align-items:center;">
+                    <button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Ver notas"
+                        style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#06b6d4;white-space:nowrap;">
+                        <i class="ph ph-eye"></i> Ver
+                    </button>
+                    ${aguardando ? `<button onclick="confirmarRecebimentoProtocolo('${p.id}')" title="Confirmar recebimento"
+                        style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#10b981;white-space:nowrap;">
+                        <i class="ph ph-check-circle"></i> Confirmar
+                    </button>` : ''}
+                    ${podeDev ? `<button onclick="verDetalheProtocolo('${p.id}','${p.status}','${p.responsavel}','${p.dataCriacao}',true)" title="Devolver nota com problema"
+                        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#f87171;white-space:nowrap;">
+                        <i class="ph ph-arrow-u-up-left"></i> Devolver
+                    </button>` : ''}
+                    <button onclick="exportarProtocoloCSVById('${p.id}','${p.responsavel}','${p.dataCriacao}')" title="Exportar CSV"
+                        style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#818cf8;white-space:nowrap;">
+                        <i class="ph ph-file-csv"></i>
+                    </button>
+                </div>`;
+            return `<tr style="border-top:1px solid var(--border);">
+                <td style="padding:11px 16px;font-weight:900;font-family:monospace;font-size:11px;color:var(--accent);">${p.id}</td>
+                <td style="padding:11px 16px;font-size:11px;color:var(--text-muted);">${p.dataCriacao}</td>
+                <td style="padding:11px 16px;font-size:12px;font-weight:700;">${p.responsavel}</td>
+                <td style="padding:11px 16px;font-size:12px;font-weight:800;">${p.totalNotas}</td>
+                <td style="padding:11px 16px;">${badgeStatusProtocolo(p.status)}</td>
+                <td style="padding:11px 16px;">${btns}</td>
+            </tr>`;
+        };
+
+        const vazio = (cols) => `<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum protocolo encontrado.</td></tr>`;
+
+        if (tbody)     tbody.innerHTML     = pendentes.length ? pendentes.map(renderLinha).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">✅ Nenhum protocolo aguardando conferência.</td></tr>';
+        if (tbodyHist) tbodyHist.innerHTML = historico.length ? historico.map(renderLinha).join('')  : vazio(6);
+
+    } catch(e) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--danger);">Erro ao carregar.</td></tr>';
+    }
+}
+
+// --- Modal novo protocolo ---
+
+function abrirNovoProtocolo() {
+    protocoloLinhasData = [];
+    document.getElementById('protResponsavel').value = usuarioAtual?.nome || '';
+    document.getElementById('protObs').value = '';
+    document.getElementById('protocoloErro').textContent = '';
+    document.getElementById('protocoloLinhas').innerHTML = '';
+    adicionarLinhaProtocolo();
+    document.getElementById('modalNovoProtocolo').style.display = 'flex';
+}
+
+function fecharModalNovoProtocolo() {
+    document.getElementById('modalNovoProtocolo').style.display = 'none';
+}
+
+function adicionarLinhaProtocolo() {
+    const idx = Date.now();
+    const tbody = document.getElementById('protocoloLinhas');
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-idx', idx);
+    tr.style.borderTop = '1px solid var(--border)';
+    tr.innerHTML = `
+        <td style="padding:6px 8px;"><input type="date" class="prot-input prot-data" value="${new Date().toISOString().split('T')[0]}" style="width:130px;"></td>
+        <td style="padding:6px 8px;"><input type="text" class="prot-input prot-empresa" placeholder="Ex: BOSTON" style="width:130px;text-transform:uppercase;"></td>
+        <td style="padding:6px 8px;"><input type="text" class="prot-input prot-numero" placeholder="Ex: 3427488" style="width:90px;"></td>
+        <td style="padding:6px 8px;"><input type="text" class="prot-input prot-chave" placeholder="44 dígitos" maxlength="44" style="width:200px;font-family:monospace;font-size:11px;"></td>
+        <td style="padding:6px 8px;">
+            <select class="prot-input prot-nat" style="width:110px;">
+                <option value="HC">HC</option>
+                <option value="REMESSA">REMESSA</option>
+                <option value="FZ">FZ</option>
+                <option value="OUTRO">OUTRO</option>
+            </select>
+        </td>
+        <td style="padding:6px 8px;text-align:center;">
+            <input type="checkbox" class="prot-lote" style="width:18px;height:18px;cursor:pointer;">
+        </td>
+        <td style="padding:6px 8px;text-align:center;">
+            <button onclick="removerLinhaProtocolo(this)" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;">
+                <i class="ph ph-trash"></i>
+            </button>
+        </td>`;
+    tbody.appendChild(tr);
+}
+
+function removerLinhaProtocolo(btn) {
+    btn.closest('tr').remove();
+}
+
+function coletarLinhasProtocolo() {
+    const linhas = document.querySelectorAll('#protocoloLinhas tr');
+    return Array.from(linhas).map(tr => ({
+        data:          tr.querySelector('.prot-data')?.value || '',
+        empresa:       (tr.querySelector('.prot-empresa')?.value || '').toUpperCase().trim(),
+        numero_nota:   tr.querySelector('.prot-numero')?.value?.trim() || '',
+        chave_acesso:  tr.querySelector('.prot-chave')?.value?.trim() || '',
+        nat_operacao:  tr.querySelector('.prot-nat')?.value || 'HC',
+        tem_lote:      tr.querySelector('.prot-lote')?.checked || false
+    })).filter(n => n.empresa || n.numero_nota);
+}
+
+async function enviarProtocolo() {
+    const notas = coletarLinhasProtocolo();
+    const erro  = document.getElementById('protocoloErro');
+    if (!notas.length) { erro.textContent = 'Adicione pelo menos uma nota.'; return; }
+    const semNota = notas.find(n => !n.numero_nota);
+    if (semNota) { erro.textContent = 'Preencha o número da nota em todas as linhas.'; return; }
+    erro.textContent = '';
+
+    try {
+        const res  = await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({
+                tipo: 'criarProtocolo',
+                responsavel: usuarioAtual?.nome || loginAtual,
+                login: loginAtual,
+                obs: document.getElementById('protObs').value,
+                notas
+            })
+        });
+        document.getElementById('modalNovoProtocolo').style.display = 'none';
+        _cache.protocolosOpme = false;
+        await carregarMeusProtocolos();
+        mostrarToast('✅ Protocolo enviado ao Suprimentos!', 'success', 4000);
+    } catch(e) {
+        erro.textContent = 'Erro ao enviar. Tente novamente.';
+    }
+}
+
+// --- CSV Export ---
+
+function exportarProtocoloCSV() {
+    const notas = coletarLinhasProtocolo();
+    if (!notas.length) { mostrarToast('Adicione notas antes de exportar.', 'error'); return; }
+    const responsavel = document.getElementById('protResponsavel').value;
+    gerarCSV(notas, responsavel, 'rascunho');
+}
+
+async function exportarProtocoloCSVById(id, responsavel, data) {
+    mostrarToast('⏳ Preparando CSV...', 'info', 2000);
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getProtocoloNotas&protocolo_id=${id}&t=${Date.now()}`));
+        const data2 = await res.json();
+        gerarCSV(data2.notas || [], responsavel, id);
+    } catch(e) { mostrarToast('Erro ao gerar CSV', 'error'); }
+}
+
+function gerarCSV(notas, responsavel, remessa) {
+    const XLSX = window.XLSX;
+    if (!XLSX) { mostrarToast('Biblioteca não carregada, recarregue a página.', 'error'); return; }
+
+    const borda = {
+        top:    { style: 'thin', color: { rgb: '000000' } },
+        bottom: { style: 'thin', color: { rgb: '000000' } },
+        left:   { style: 'thin', color: { rgb: '000000' } },
+        right:  { style: 'thin', color: { rgb: '000000' } }
+    };
+
+    const wsData = [['DATA','EMPRESA','Nº DA NOTA','CHAVE DE ACESSO','NAT. OPERAÇÃO','REMESSA']];
+    notas.forEach(n => wsData.push([
+        n.data || new Date().toLocaleDateString('pt-BR'),
+        (n.empresa||'').toUpperCase(),
+        n.numero_nota || '',
+        n.chave_acesso || '',
+        n.nat_operacao || '',
+        remessa
+    ]));
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:12},{wch:20},{wch:12},{wch:48},{wch:14},{wch:10}];
+
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; R++) {
+        for (let C = range.s.c; C <= range.e.c; C++) {
+            const addr = XLSX.utils.encode_cell({r:R,c:C});
+            if (!ws[addr]) ws[addr] = {v:'',t:'s'};
+            ws[addr].s = {
+                font:      R === 0 ? {bold:true, sz:10, name:'Calibri'} : {sz:10, name:'Calibri'},
+                alignment: {horizontal: C === 3 ? 'left' : 'center', vertical:'center'},
+                border:    borda
+            };
+        }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Remessa ${remessa}`);
+    XLSX.writeFile(wb, `remessa_${remessa}.xlsx`);
+    mostrarToast('✅ Planilha exportada!', 'success');
+}
+
+// --- Modal detalhe do protocolo ---
+
+async function verDetalheProtocolo(id, status, responsavel, dataCriacao, isSup) {
+    protocoloAtualId = id;
+    document.getElementById('detalheProtId').textContent  = id;
+    document.getElementById('detalheProtMeta').textContent = `${responsavel} · ${dataCriacao} · ${status}`;
+    document.getElementById('detalheNotasBody').innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>';
+    document.getElementById('detalheAcoes').innerHTML = '';
+    document.getElementById('colDevolver').style.display = 'none';
+    document.getElementById('modalDetalheProtocolo').style.display = 'flex';
+
+    try {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getProtocoloNotas&protocolo_id=${id}&t=${Date.now()}`));
+        const data = await res.json();
+        const notas = data.notas || [];
+
+        const podeDevolverLinha = isSup && (status === 'ENVIADO' || status === 'RECEBIDO' || status === 'DEVOLUÇÃO PARCIAL');
+        if (podeDevolverLinha) document.getElementById('colDevolver').style.display = 'table-cell';
+
+        document.getElementById('detalheNotasBody').innerHTML = notas.map(n => `
+            <tr style="border-top:1px solid var(--border);" data-linha="${n.linha}">
+                <td style="padding:10px 12px;font-size:12px;">${n.empresa}</td>
+                <td style="padding:10px 12px;font-family:monospace;font-size:12px;">${n.numero_nota}</td>
+                <td style="padding:10px 12px;font-family:monospace;font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${n.chave_acesso}">${n.chave_acesso}</td>
+                <td style="padding:10px 12px;font-size:12px;">${n.nat_operacao}</td>
+                <td style="padding:10px 12px;text-align:center;font-size:12px;">${n.tem_lote}</td>
+                <td style="padding:10px 12px;text-align:center;">
+                    ${n.status === 'DEVOLVIDA'
+                        ? `<span style="color:#ef4444;font-size:10px;font-weight:800;">DEVOLVIDA</span><br><small style="color:var(--text-muted);font-size:10px;">${n.obs_devolucao}</small>`
+                        : '<span style="color:#10b981;font-size:10px;font-weight:800;">NORMAL</span>'}
+                </td>
+                ${podeDevolverLinha ? `<td style="padding:10px 12px;text-align:center;">
+                    ${n.status !== 'DEVOLVIDA' ? `<input type="checkbox" class="chk-devolver" data-linha="${n.linha}" style="width:16px;height:16px;cursor:pointer;">` : '—'}
+                </td>` : ''}
+            </tr>`).join('');
+
+        // Botões de ação
+        const acoes = document.getElementById('detalheAcoes');
+        if (isSup && status === 'ENVIADO') {
+            acoes.innerHTML = `
+                <button onclick="confirmarRecebimentoProtocolo('${id}')" class="btn-novo-usuario" style="flex:1;justify-content:center;">
+                    <i class="ph ph-check-circle"></i> CONFIRMAR RECEBIMENTO
+                </button>
+                <button onclick="devolverNotasSelecionadas('${id}')"
+                    style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 18px;font-size:11px;font-weight:800;cursor:pointer;color:#f87171;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-arrow-u-up-left"></i> DEVOLVER NOTAS SELECIONADAS
+                </button>`;
+        } else if (isSup && (status === 'RECEBIDO' || status === 'DEVOLUÇÃO PARCIAL')) {
+            acoes.innerHTML = `
+                <button onclick="devolverNotasSelecionadas('${id}')"
+                    style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 18px;font-size:11px;font-weight:800;cursor:pointer;color:#f87171;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-arrow-u-up-left"></i> DEVOLVER NOTAS SELECIONADAS
+                </button>`;
+        }
+
+        // Botão CSV sempre disponível
+        acoes.innerHTML += `
+            <button onclick="exportarProtocoloCSVById('${id}','${responsavel}','${dataCriacao}')"
+                style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:12px 18px;font-size:11px;font-weight:800;cursor:pointer;color:#818cf8;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-file-csv"></i> EXPORTAR CSV
+            </button>`;
+
+    } catch(e) {
+        document.getElementById('detalheNotasBody').innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--danger);">Erro ao carregar notas.</td></tr>';
+    }
+}
+
+function fecharModalDetalhe() {
+    document.getElementById('modalDetalheProtocolo').style.display = 'none';
+}
+
+// --- Ações do Suprimentos ---
+
+async function confirmarRecebimentoProtocolo(id) {
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'confirmarRecebimentoProtocolo', protocolo_id: id, login: loginAtual, responsavel: usuarioAtual?.nome })
+        });
+        document.getElementById('modalDetalheProtocolo').style.display = 'none';
+        _cache.protocolosSup = false;
+        await carregarProtocolosSup();
+        mostrarToast('✅ Recebimento confirmado!', 'success');
+    } catch(e) { mostrarToast('Erro ao confirmar', 'error'); }
+}
+
+async function devolverNotasSelecionadas(id) {
+    const checks = document.querySelectorAll('.chk-devolver:checked');
+    if (!checks.length) { mostrarToast('Selecione pelo menos uma nota para devolver.', 'error'); return; }
+    const obs = prompt('Motivo da devolução (obrigatório):');
+    if (!obs) return;
+    const notas = Array.from(checks).map(c => ({ linha: parseInt(c.dataset.linha), obs_devolucao: obs }));
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'devolverNotas', protocolo_id: id, login: loginAtual, responsavel: usuarioAtual?.nome, notas })
+        });
+        document.getElementById('modalDetalheProtocolo').style.display = 'none';
+        _cache.protocolosSup = false;
+        await carregarProtocolosSup();
+        mostrarToast('✅ Devolução registrada — OPME será notificado.', 'success');
+    } catch(e) { mostrarToast('Erro ao registrar devolução', 'error'); }
+}
+
+async function confirmarDevolucao(id) {
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'confirmarDevolucao', protocolo_id: id, login: loginAtual, responsavel: usuarioAtual?.nome })
+        });
+        _cache.protocolosOpme = false;
+        await carregarMeusProtocolos();
+        mostrarToast('✅ Devolução confirmada.', 'success');
+    } catch(e) { mostrarToast('Erro ao confirmar devolução', 'error'); }
+}
+
+// Integra inputs CSS do protocolo
+const _initNavOrig = iniciarNavAnimacoes;
+
+// =============================================================================
+// POLLING EM TEMPO REAL — verifica notificações e protocolos a cada 30s
+// =============================================================================
+
+let _pollingInterval   = null;
+let _ultimasNotifIds   = new Set(); // IDs já vistos para detectar novas
+let _ultimoStatusProts = {};        // { id: status } para detectar mudanças
+
+async function iniciarPolling() {
+    if (_pollingInterval) return; // já está rodando
+    // Primeira rodada imediata
+    await _pollingTick();
+    // Repete a cada 30 segundos
+    _pollingInterval = setInterval(_pollingTick, 30000);
+}
+
+function pararPolling() {
+    if (_pollingInterval) { clearInterval(_pollingInterval); _pollingInterval = null; }
+}
+
+async function _pollingTick() {
+    if (!loginAtual || !sessaoAtual) return; // não logado
+    try {
+        await _verificarNotificacoes();
+        await _verificarStatusProtocolos();
+    } catch(e) { /* silencioso — não interrompe o usuário */ }
+}
+
+async function _verificarNotificacoes() {
+    const isAdmin   = temPermissao('administrador');
+    const comprador = isAdmin ? '' : (compradorProjecaoAtual || loginAtual.split(' ')[0].toUpperCase());
+    const url = comprador
+        ? addAuth(`${URL_SCRIPT}?action=getNotificacoes&comprador=${encodeURIComponent(comprador)}&t=${Date.now()}`)
+        : addAuth(`${URL_SCRIPT}?action=getNotificacoes&t=${Date.now()}`);
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const novas = (data.notificacoes || []).filter(n => !_ultimasNotifIds.has(n.linha));
+
+    if (novas.length > 0) {
+        // Atualiza lista global
+        notificacoesPendentes = data.notificacoes || [];
+        atualizarSinoNotificacoes();
+
+        // Marca IDs já vistos
+        notificacoesPendentes.forEach(n => _ultimasNotifIds.add(n.linha));
+
+        // Toast para cada notificação nova
+        novas.forEach(n => {
+            const icone = n.tipo === 'PROTOCOLO_NOVO'     ? '📋' :
+                          n.tipo === 'PROTOCOLO_RECEBIDO' ? '✅' :
+                          n.tipo === 'PROTOCOLO_DEVOLUCAO'? '↩️' : '🔔';
+            mostrarToast(`${icone} ${n.mensagem.substring(0, 80)}${n.mensagem.length > 80 ? '…' : ''}`, 'info', 6000);
+        });
+    } else {
+        // Sem novas, mas atualiza lista silenciosamente
+        notificacoesPendentes = data.notificacoes || [];
+        atualizarSinoNotificacoes();
+    }
+}
+
+async function _verificarStatusProtocolos() {
+    // Atualiza as tabelas de protocolo se a aba estiver aberta
+    if (abaAtual === 'ProtocolosOpme') {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getProtocolos&filtro=meus&t=${Date.now()}`));
+        const data = await res.json();
+        const lista = data.protocolos || [];
+
+        // Detecta mudanças de status
+        let houveAlteracao = false;
+        lista.forEach(p => {
+            if (_ultimoStatusProts[p.id] && _ultimoStatusProts[p.id] !== p.status) {
+                houveAlteracao = true;
+                const msg = p.status === 'RECEBIDO'
+                    ? `✅ Remessa ${p.id} confirmada pelo Suprimentos`
+                    : p.status === 'DEVOLUÇÃO PARCIAL'
+                    ? `↩️ Remessa ${p.id} tem notas devolvidas — verifique!`
+                    : `🔔 Remessa ${p.id}: status atualizado para ${p.status}`;
+                mostrarToast(msg, p.status === 'RECEBIDO' ? 'success' : 'warning', 7000);
+            }
+            _ultimoStatusProts[p.id] = p.status;
+        });
+
+        if (houveAlteracao) {
+            // Recarrega a tabela silenciosamente
+            _cache.protocolosOpme = false;
+            await carregarMeusProtocolos();
+        }
+    }
+
+    if (abaAtual === 'ProtocolosSup') {
+        const res  = await fetch(addAuth(`${URL_SCRIPT}?action=getProtocolos&t=${Date.now()}`));
+        const data = await res.json();
+        const lista = data.protocolos || [];
+
+        let houveAlteracao = false;
+        lista.forEach(p => {
+            if (_ultimoStatusProts['sup_' + p.id] === undefined) {
+                // Primeiro load — só registra
+                _ultimoStatusProts['sup_' + p.id] = p.status;
+            } else if (_ultimoStatusProts['sup_' + p.id] !== p.status) {
+                houveAlteracao = true;
+                _ultimoStatusProts['sup_' + p.id] = p.status;
+            }
+            // Novo protocolo ENVIADO que não estava antes
+            if (!_ultimoStatusProts['sup_' + p.id + '_visto']) {
+                _ultimoStatusProts['sup_' + p.id + '_visto'] = true;
+                if (p.status === 'ENVIADO') {
+                    mostrarToast(`📋 Nova remessa ${p.id} aguardando conferência`, 'info', 6000);
+                    houveAlteracao = true;
+                }
+            }
+        });
+
+        if (houveAlteracao) {
+            _cache.protocolosSup = false;
+            await carregarProtocolosSup();
+        }
+    }
 }

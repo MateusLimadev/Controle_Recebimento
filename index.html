@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="shortcut icon" href="favicon.png" type="image/x-icon">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
 
@@ -33,7 +34,27 @@
                 </div>
             </div>
             <div class="login-erro" id="loginErro"></div>
-            <button class="btn-login-final" onclick="realizarLogin()"><span>ENTRAR NO SISTEMA</span></button>
+
+            <!-- Seletor de interface — aparece após login para usuários com acesso múltiplo -->
+            <div id="seletorInterface" style="display:none;flex-direction:column;gap:10px;margin-top:8px;">
+                <p style="font-family:'Space Mono',monospace;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#06b6d4;text-align:center;margin:0 0 4px;">Selecione o módulo</p>
+                <button class="btn-interface-opcao" onclick="entrarComoSuprimentos()">
+                    <i class="ph ph-hospital" style="font-size:20px;"></i>
+                    <div>
+                        <span>Suprimentos</span>
+                        <small>Digitação, recebimento, projeções</small>
+                    </div>
+                </button>
+                <button class="btn-interface-opcao" onclick="entrarComoOpme()">
+                    <i class="ph ph-clipboard-text" style="font-size:20px;"></i>
+                    <div>
+                        <span>OPME / Especiais</span>
+                        <small>Protocolar notas fiscais</small>
+                    </div>
+                </button>
+            </div>
+
+            <button class="btn-login-final" id="btnEntrar" onclick="realizarLogin()"><span>ENTRAR NO SISTEMA</span></button>
             <button class="btn-esqueci-senha" onclick="abrirEsqueciSenha()">
                 <i class="ph ph-key"></i> Esqueci minha senha
             </button>
@@ -107,6 +128,7 @@
             <div class="user-info-header" onclick="abrirModalPerfil()" style="cursor:pointer;" title="Meu perfil">
                 <i class="ph ph-user-circle"></i>
                 <span id="userNameHeader">USUÁRIO</span>
+                <span id="setorBadge" style="display:none;font-family:'Space Mono',monospace;font-size:8px;font-weight:800;padding:2px 7px;border-radius:999px;letter-spacing:1px;"></span>
             </div>
             <div class="refresh-btn" onclick="refreshData()" title="Sincronizar base agora">
                 <i id="refreshIcon" class="ph ph-arrows-clockwise"></i>
@@ -508,6 +530,98 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         MODAL — NOVO PROTOCOLO OPME
+    ====================================================== -->
+    <div id="modalNovoProtocolo" class="modal" style="display:none">
+        <div class="modal-content" style="max-width:900px;width:96%;padding:32px;" onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+                <div>
+                    <h3 style="font-weight:900;font-size:18px;display:flex;align-items:center;gap:10px;"><i class="ph ph-clipboard-text" style="color:var(--accent);"></i> Novo Protocolo de Notas Fiscais</h3>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Preencha as notas e envie para o Suprimentos</p>
+                </div>
+                <button onclick="fecharModalNovoProtocolo()" class="btn-fechar-perfil"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                <div class="field-group">
+                    <label>Responsável</label>
+                    <input type="text" id="protResponsavel" readonly style="background:var(--bg-system);opacity:0.7;">
+                </div>
+                <div class="field-group">
+                    <label>Observações (opcional)</label>
+                    <input type="text" id="protObs" placeholder="Ex: urgente, conferir duplicatas...">
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">Notas Fiscais</span>
+                <button onclick="adicionarLinhaProtocolo()" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;color:#06b6d4;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-plus"></i> ADICIONAR LINHA
+                </button>
+            </div>
+
+            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:16px;">
+                <table style="width:100%;border-collapse:collapse;min-width:750px;">
+                    <thead>
+                        <tr style="background:var(--bg-system);">
+                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Data</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Empresa</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nº Nota</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Chave de Acesso</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nat. Operação</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);text-align:center;">Lote</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="protocoloLinhas"></tbody>
+                </table>
+            </div>
+
+            <div id="protocoloErro" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:8px;"></div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="enviarProtocolo()" class="btn-novo-usuario" style="flex:1;justify-content:center;padding:12px;">
+                    <i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA SUPRIMENTOS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL — DETALHE DO PROTOCOLO
+    ====================================================== -->
+    <div id="modalDetalheProtocolo" class="modal" style="display:none">
+        <div class="modal-content" style="max-width:900px;width:96%;padding:32px;" onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+                <div>
+                    <h3 style="font-weight:900;font-size:18px;" id="detalheProtId">Protocolo</h3>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px;" id="detalheProtMeta"></p>
+                </div>
+                <button onclick="fecharModalDetalhe()" class="btn-fechar-perfil"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:20px;">
+                <table style="width:100%;border-collapse:collapse;min-width:700px;">
+                    <thead>
+                        <tr style="background:var(--bg-system);">
+                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Empresa</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nº Nota</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Chave</th>
+                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nat. Op.</th>
+                            <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Lote</th>
+                            <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Status</th>
+                            <th id="colDevolver" style="padding:10px 12px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);display:none;">Devolver</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detalheNotasBody"></tbody>
+                </table>
+            </div>
+
+            <div id="detalheAcoes" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+        </div>
+    </div>
+
     <!-- MODAL DE PERFIL DO USUÁRIO (popover canto superior direito) -->
     <div id="modalPerfil" onclick="fecharModalPerfil(event)" style="display:none">
         <div class="perfil-modal" onclick="event.stopPropagation()">
@@ -584,7 +698,8 @@
 
     <!-- APP PRINCIPAL -->
     <div id="app" style="display:none">
-        <nav id="mainNav">
+        <!-- NAV ORIGINAL OCULTO (mantém IDs funcionando) -->
+        <nav id="mainNav" style="display:none">
             <div class="nav-container" id="navContainer">
                 <div class="nav-indicator" id="navIndicator"></div>
                 <button class="nav-btn" id="btn-dashboard" onclick="switchTab('Dashboard')">
@@ -607,8 +722,49 @@
                 <button class="nav-btn nav-btn-admin" id="btn-admin" onclick="switchTab('Admin')" style="display:none">
                     <i class="ph ph-shield-check"></i> <span class="nav-btn-text">ADMINISTRAÇÃO</span>
                 </button>
+                <button class="nav-btn" id="btn-protocolos-opme" onclick="switchTab('ProtocolosOpme')" style="display:none">
+                    <i class="ph ph-clipboard-text"></i> <span class="nav-btn-text">PROTOCOLAR NOTAS</span>
+                </button>
+                <button class="nav-btn" id="btn-protocolos-sup" onclick="switchTab('ProtocolosSup')" style="display:none">
+                    <i class="ph ph-clipboard-text"></i> <span class="nav-btn-text">PROTOCOLOS OPME</span>
+                </button>
             </div>
         </nav>
+
+        <!-- ── FLOATING PILL NAV ── -->
+        <div id="floatNav" class="float-nav">
+            <div class="float-nav-pill">
+                <button class="fn-btn active" id="fn-dashboard" onclick="switchTab('Dashboard')" data-tip="Dashboard">
+                    <i class="ph ph-chart-line"></i>
+                </button>
+                <button class="fn-btn" id="fn-digitadas" onclick="switchTab('Digitadas')" data-tip="Digitadas">
+                    <i class="ph ph-article"></i>
+                </button>
+                <button class="fn-btn" id="fn-recebimento" onclick="switchTab('Recebimento')" data-tip="Recebidas">
+                    <i class="ph ph-truck"></i>
+                </button>
+                <button class="fn-btn" id="fn-adiantamento" onclick="switchTab('Adiantamento')" data-tip="Adiantamento">
+                    <i class="ph ph-clock-counter-clockwise"></i>
+                    <span id="fn-badge-adi" class="fn-badge" style="display:none"></span>
+                </button>
+                <div class="fn-divider" id="fn-div-proj" style="display:none"></div>
+                <button class="fn-btn" id="fn-projecao" onclick="switchTab('Projecao')" data-tip="Projeção" style="display:none">
+                    <i class="ph ph-package"></i>
+                </button>
+                <span id="fnProjecoesDir"></span>
+                <div class="fn-divider" id="fn-div-extra" style="display:none"></div>
+                <button class="fn-btn" id="fn-protocolos-opme" onclick="switchTab('ProtocolosOpme')" data-tip="Protocolar Notas" style="display:none">
+                    <i class="ph ph-clipboard-text"></i>
+                </button>
+                <button class="fn-btn" id="fn-protocolos-sup" onclick="switchTab('ProtocolosSup')" data-tip="Protocolos OPME" style="display:none">
+                    <i class="ph ph-clipboard-text"></i>
+                </button>
+                <div class="fn-divider" id="fn-div-admin" style="display:none"></div>
+                <button class="fn-btn fn-admin" id="fn-admin" onclick="switchTab('Admin')" data-tip="Administração" style="display:none">
+                    <i class="ph ph-shield-check"></i>
+                </button>
+            </div>
+        </div>
 
         <main class="container">
 
@@ -1288,7 +1444,178 @@
 
             </div>
         </main>
-    </div>
+
+        <!-- =====================================================
+             VIEW — PROTOCOLOS OPME (envio de notas)
+        ====================================================== -->
+            <!-- VIEW — PROTOCOLOS OPME -->
+            <div id="view-protocolos" style="display:none; padding:32px 40px; max-width:1200px; margin:0 auto;">
+
+                <!-- Cabeçalho -->
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <h2 style="font-size:22px;font-weight:900;display:flex;align-items:center;gap:10px;">
+                            <i class="ph ph-clipboard-text" style="color:var(--accent);"></i> Envio de Notas Fiscais
+                        </h2>
+                        <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">Crie um protocolo com as notas a serem digitadas e envie para o Suprimentos</p>
+                    </div>
+                    <button class="btn-novo-usuario" onclick="abrirNovoProtocolo()" style="white-space:nowrap;">
+                        <i class="ph ph-plus"></i> NOVO PROTOCOLO
+                    </button>
+                </div>
+
+                <!-- Fluxo visual -->
+                <div style="display:flex;gap:0;margin-bottom:28px;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:8px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;color:#06b6d4;">
+                        <i class="ph ph-number-circle-one" style="font-size:16px;"></i> Você cria o protocolo
+                    </div>
+                    <i class="ph ph-arrow-right" style="color:var(--text-muted);font-size:16px;"></i>
+                    <div style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;color:#f59e0b;">
+                        <i class="ph ph-number-circle-two" style="font-size:16px;"></i> Suprimentos confere
+                    </div>
+                    <i class="ph ph-arrow-right" style="color:var(--text-muted);font-size:16px;"></i>
+                    <div style="display:flex;align-items:center;gap:8px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;color:#10b981;">
+                        <i class="ph ph-number-circle-three" style="font-size:16px;"></i> Recebimento confirmado
+                    </div>
+                    <i class="ph ph-arrow-right" style="color:var(--text-muted);font-size:16px;"></i>
+                    <div style="display:flex;align-items:center;gap:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;color:#f87171;">
+                        <i class="ph ph-arrow-u-up-left" style="font-size:16px;"></i> (ou) Devolução com problema
+                    </div>
+                </div>
+
+                <!-- Protocolos pendentes (aguardando resposta) -->
+                <div class="stat-card" style="padding:0;overflow:hidden;margin-bottom:20px;">
+                    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                        <i class="ph ph-clock" style="color:#f59e0b;font-size:16px;"></i>
+                        <span style="font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Aguardando Retorno do Suprimentos</span>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr style="background:var(--bg-system);">
+                                <th style="padding:10px 20px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">ID</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Enviado em</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Notas</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Status</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Ações</th>
+                            </tr></thead>
+                            <tbody id="protocolosPendentesBody">
+                                <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Histórico completo -->
+                <div class="stat-card" style="padding:0;overflow:hidden;">
+                    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <i class="ph ph-clock-counter-clockwise" style="color:var(--accent);font-size:16px;"></i>
+                            <span style="font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Histórico de Protocolos</span>
+                        </div>
+                        <button onclick="carregarMeusProtocolos()" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
+                        </button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr style="background:var(--bg-system);">
+                                <th style="padding:10px 20px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">ID</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Data</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Notas</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Status</th>
+                                <th style="padding:10px 20px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Ações</th>
+                            </tr></thead>
+                            <tbody id="protocolosOpmeBody">
+                                <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW — PROTOCOLOS SUPRIMENTOS -->
+            <div id="view-protocolos-sup" style="display:none; padding:32px 40px; max-width:1200px; margin:0 auto;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <h2 style="font-size:22px;font-weight:900;display:flex;align-items:center;gap:10px;">
+                            <i class="ph ph-clipboard-text" style="color:var(--accent);"></i> Protocolos OPME
+                        </h2>
+                        <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">Confira as notas, confirme o recebimento ou devolva com problema</p>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <select id="filtroStatusProt" onchange="carregarProtocolosSup()" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;background:var(--bg-system);color:var(--text-main);cursor:pointer;">
+                            <option value="">Todos os status</option>
+                            <option value="ENVIADO">Aguardando conferência</option>
+                            <option value="RECEBIDO">Recebidos</option>
+                            <option value="DEVOLUÇÃO PARCIAL">Devolução Parcial</option>
+                            <option value="DEVOLVIDO CONFIRMADO">Devolvido Confirmado</option>
+                        </select>
+                        <button onclick="carregarProtocolosSup()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Legenda do fluxo -->
+                <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;color:#f59e0b;">
+                        <i class="ph ph-paper-plane-tilt"></i> ENVIADO — aguardando sua conferência
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;color:#10b981;">
+                        <i class="ph ph-check-circle"></i> RECEBIDO — conferido e confirmado
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;color:#ef4444;">
+                        <i class="ph ph-arrow-u-up-left"></i> DEVOLUÇÃO — nota com problema devolvida ao OPME
+                    </div>
+                </div>
+
+                <div class="stat-card" style="padding:0;overflow:hidden;margin-bottom:20px;">
+                    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                        <i class="ph ph-clock" style="color:#f59e0b;font-size:16px;"></i>
+                        <span style="font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Aguardando Conferência</span>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr style="background:var(--bg-system);">
+                                <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">ID</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Data</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Responsável</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Notas</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Status</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Ações</th>
+                            </tr></thead>
+                            <tbody id="protocolosSupBody">
+                                <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="stat-card" style="padding:0;overflow:hidden;">
+                    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                        <i class="ph ph-clock-counter-clockwise" style="color:var(--accent);font-size:16px;"></i>
+                        <span style="font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Histórico de Protocolos</span>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr style="background:var(--bg-system);">
+                                <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">ID</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Data</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Responsável</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Notas</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Status</th>
+                                <th style="padding:10px 16px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Ações</th>
+                            </tr></thead>
+                            <tbody id="protocolosSupHistBody">
+                                <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div><!-- /#app -->
 
     <!-- =====================================================
          MODAL CRIAR / EDITAR USUÁRIO

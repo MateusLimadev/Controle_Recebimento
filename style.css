@@ -3960,3 +3960,25 @@ body[data-user="supvitoria"] .btn-tema-opcao.ativo {
     border-radius: 50%;
     border: 1px solid rgba(8,14,28,0.9);
 }
+
+/* =============================================================================
+   PROJEÇÃO OPME — Estilos para modo escuro (body[data-theme=dark])
+   ============================================================================= */
+[data-theme="dark"] .opme-card           { background: #1e293b; }
+[data-theme="dark"] .opme-card:hover     { background: #263548; }
+[data-theme="dark"] .opme-tbl th         { background: #1e293b; }
+[data-theme="dark"] .opme-tbl td         { border-bottom-color: #1e293b; }
+[data-theme="dark"] .opme-tbl tr:hover td{ background: rgba(255,255,255,.03); }
+[data-theme="dark"] .opme-tbl-wrap       { border-color: #1e293b; }
+[data-theme="dark"] .opme-tabs-bar       { border-bottom-color: #1e293b; }
+[data-theme="dark"] .opme-tab-btn:hover  { background: #1e293b; }
+[data-theme="dark"] .opme-tab-btn.opme-tab-active{ background: #1e293b; }
+[data-theme="dark"] .opme-hist-item      { background: #1e293b; border-color: #1e293b; }
+[data-theme="dark"] .opme-hist-hdr:hover { background: #263548; }
+[data-theme="dark"] .opme-hist-body      { border-top-color: #263548; }
+[data-theme="dark"] .bd-rp   { background:rgba(2,132,199,.2);  border-color:rgba(2,132,199,.3);  }
+[data-theme="dark"] .bd-norp { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.2);  }
+[data-theme="dark"] .bd-emp  { background:rgba(22,163,74,.15); border-color:rgba(22,163,74,.2);  }
+[data-theme="dark"] .bd-noemp{ background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.2); }
+[data-theme="dark"] #view-projecao-opme  { color: #e2e8f0; }
+[data-theme="dark"] .opme-spin           { border-color:#1e293b; border-top-color:var(--accent); }

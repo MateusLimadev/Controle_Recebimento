@@ -8,6 +8,67 @@
     <link rel="shortcut icon" href="favicon.png" type="image/x-icon">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+
+    <!-- ── ESTILOS PROJEÇÃO OPME ── -->
+    <style>
+    #view-projecao-opme{padding:24px 32px;max-width:1300px;margin:0 auto}
+    .opme-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+    .opme-hdr-title{font-size:20px;font-weight:900;color:var(--text-main)}
+    .opme-hdr-sub{font-size:12px;color:var(--text-muted);margin-top:3px}
+    .opme-btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .2s;white-space:nowrap}
+    .opme-btn-run{background:#0284c7;color:#fff}.opme-btn-run:hover{background:#0369a1}
+    .opme-btn-save{background:#16a34a;color:#fff}.opme-btn-save:hover{background:#15803d}
+    .opme-btn-save:disabled{background:var(--border);color:var(--text-muted);cursor:not-allowed}
+    .opme-btn-cop{background:#7c3aed;color:#fff}.opme-btn-cop:hover{background:#6d28d9}
+    .opme-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px}
+    .opme-card{background:var(--card-bg);border-radius:12px;padding:16px;border-left:4px solid;cursor:pointer;transition:all .2s;box-shadow:var(--shadow-sm,0 1px 4px rgba(0,0,0,.06))}
+    .opme-card:hover{transform:translateY(-2px)}
+    .opme-card.card-active{box-shadow:0 0 0 2px var(--opme-card-color,#0284c7)}
+    .opme-card-c2{border-color:#ef4444;--opme-card-color:#ef4444}
+    .opme-card-c4{border-color:#f59e0b;--opme-card-color:#f59e0b}
+    .opme-card-c5{border-color:#f97316;--opme-card-color:#f97316}
+    .opme-card-c6{border-color:#8b5cf6;--opme-card-color:#8b5cf6}
+    .opme-card-num{font-size:36px;font-weight:900;line-height:1;margin-bottom:4px}
+    .opme-card-c2 .opme-card-num{color:#ef4444}
+    .opme-card-c4 .opme-card-num{color:#f59e0b}
+    .opme-card-c5 .opme-card-num{color:#f97316}
+    .opme-card-c6 .opme-card-num{color:#8b5cf6}
+    .opme-card-lbl{font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+    .opme-card-desc{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5}
+    .opme-tabs-bar{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .opme-tab-btn{padding:8px 16px;border-radius:8px 8px 0 0;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:13px;transition:all .2s;position:relative;bottom:-1px;border-bottom:2px solid transparent}
+    .opme-tab-btn:hover{color:var(--text-main);background:var(--bg-system)}
+    .opme-tab-btn.opme-tab-active{color:var(--accent);border-bottom-color:var(--accent);background:var(--bg-system)}
+    .opme-tab-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--border);color:var(--text-muted);border-radius:999px;font-size:10px;font-weight:800;padding:1px 7px;margin-left:6px}
+    .opme-tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+    .opme-tbl{width:100%;border-collapse:collapse;font-size:12px}
+    .opme-tbl th{background:var(--bg-system);color:var(--text-muted);font-weight:800;padding:10px 12px;text-align:left;white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none}
+    .opme-tbl th:hover{color:var(--text-main)}
+    .opme-tbl td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text-main);vertical-align:middle}
+    .opme-tbl tr:last-child td{border-bottom:none}
+    .opme-tbl tr:hover td{background:rgba(2,132,199,.04)}
+    .cob-zero{color:#ef4444;font-weight:900;font-size:13px}
+    .cob-crit{color:#ef4444;font-weight:800}
+    .cob-warn{color:#f59e0b;font-weight:700}
+    .cob-ok{color:#16a34a}
+    .bd-rp{background:rgba(2,132,199,.12);color:#0284c7;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;border:1px solid rgba(2,132,199,.2)}
+    .bd-norp{background:rgba(239,68,68,.1);color:#ef4444;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;border:1px solid rgba(239,68,68,.2)}
+    .bd-emp{background:rgba(22,163,74,.1);color:#16a34a;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;border:1px solid rgba(22,163,74,.2)}
+    .bd-noemp{background:rgba(245,158,11,.1);color:#f59e0b;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;border:1px solid rgba(245,158,11,.2)}
+    .opme-empty-state{text-align:center;padding:48px 20px;color:var(--text-muted)}
+    .opme-empty-icon{font-size:40px;margin-bottom:12px}
+    .opme-spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:16px;color:var(--text-muted)}
+    .opme-spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:opme-rotate .8s linear infinite}
+    @keyframes opme-rotate{to{transform:rotate(360deg)}}
+    .opme-hist-item{background:var(--card-bg);border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid var(--border)}
+    .opme-hist-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer}
+    .opme-hist-hdr:hover{background:var(--bg-system)}
+    .opme-hist-date{font-weight:800;color:var(--text-main);font-size:13px}
+    .opme-hist-meta{font-size:11px;color:var(--text-muted);margin-top:3px}
+    .opme-hist-body{display:none;padding:12px;border-top:1px solid var(--border)}
+    .fn-btn-opme.active,.fn-btn-opme:hover{color:#8b5cf6;background:rgba(139,92,246,.1)}
+    .fn-btn-opme.active::before{background:#8b5cf6;box-shadow:0 0 8px #8b5cf6}
+    </style>
 </head>
 <body>
 
@@ -839,6 +900,11 @@
                 <button class="fn-btn fn-admin" id="fn-admin" onclick="switchTab('Admin')" data-tip="Administração" style="display:none">
                     <i class="ph ph-shield-check"></i>
                 </button>
+                <!-- Botão Projeção OPME — visível só para esp* -->
+                <div class="fn-divider" id="fn-div-proj-opme" style="display:none"></div>
+                <button class="fn-btn fn-btn-opme" id="fn-projecao-opme" onclick="switchTab('ProjecaoOPME')" data-tip="Projeção OPME" style="display:none">
+                    <i class="ph ph-chart-bar"></i>
+                </button>
                 <div class="fn-divider" id="fn-div-admin-opme" style="display:none"></div>
                 <button class="fn-btn fn-admin" id="fn-admin-opme" onclick="switchTab('AdminOpme')" data-tip="Admin OPME" style="display:none">
                     <i class="ph ph-shield-check"></i>
@@ -1536,6 +1602,95 @@
 
             </div>
         </main>
+
+
+        <!-- =====================================================
+             VIEW — PROJEÇÃO OPME (apenas para usuários esp*)
+        ====================================================== -->
+        <div id="view-projecao-opme" style="display:none">
+
+            <!-- Header -->
+            <div class="opme-hdr">
+                <div>
+                    <div class="opme-hdr-title">📦 Projeção de Compras OPME</div>
+                    <div class="opme-hdr-sub">Classificação automática por cobertura, RP e empenho — atualizado a cada COP</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <button class="opme-btn opme-btn-run" onclick="rodarProjecaoOPME()">🔄 Rodar Projeção</button>
+                    <button class="opme-btn opme-btn-save" id="btn-salvar-cop-opme" onclick="salvarCopOPME()" disabled>💾 Salvar COP</button>
+                    <button class="opme-btn opme-btn-cop" onclick="abrirCopOPME()">📋 Ver Alerta COP</button>
+                </div>
+            </div>
+
+            <!-- Cards de resumo -->
+            <div class="opme-cards-grid" id="opme-cards-wrap" style="display:none">
+                <div class="opme-card opme-card-c2" id="opme-card-c2" onclick="switchOPMETab('c2')">
+                    <div class="opme-card-num" id="opme-num-c2">—</div>
+                    <div class="opme-card-lbl">Critério 2</div>
+                    <div class="opme-card-desc">SEM RP · Cob. &lt; 45 dias<br>SEM empenho ativo</div>
+                </div>
+                <div class="opme-card opme-card-c4" id="opme-card-c4" onclick="switchOPMETab('c4')">
+                    <div class="opme-card-num" id="opme-num-c4">—</div>
+                    <div class="opme-card-lbl">Critério 4</div>
+                    <div class="opme-card-desc">COM RP · Cob. &lt; 20 dias<br>SEM empenho — verificar COP anterior</div>
+                </div>
+                <div class="opme-card opme-card-c5" id="opme-card-c5" onclick="switchOPMETab('c5')">
+                    <div class="opme-card-num" id="opme-num-c5">—</div>
+                    <div class="opme-card-lbl">Critério 5</div>
+                    <div class="opme-card-desc">COM RP · Cob. &lt; 20 dias<br>COM empenho ativo</div>
+                </div>
+                <div class="opme-card opme-card-c6" id="opme-card-c6" onclick="switchOPMETab('c6')">
+                    <div class="opme-card-num" id="opme-num-c6">—</div>
+                    <div class="opme-card-lbl">Critério 6</div>
+                    <div class="opme-card-desc">CMM &lt; 2 un/mês<br>Cob. &gt; 45 dias (baixo consumo)</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="opme-tabs-bar" id="opme-tabs-bar" style="display:none">
+                <button class="opme-tab-btn opme-tab-active" id="opme-tbtn-c2" onclick="switchOPMETab('c2')">
+                    Crit. 2 <span class="opme-tab-badge" id="opme-badge-c2">0</span>
+                </button>
+                <button class="opme-tab-btn" id="opme-tbtn-c4" onclick="switchOPMETab('c4')">
+                    Crit. 4 <span class="opme-tab-badge" id="opme-badge-c4">0</span>
+                </button>
+                <button class="opme-tab-btn" id="opme-tbtn-c5" onclick="switchOPMETab('c5')">
+                    Crit. 5 <span class="opme-tab-badge" id="opme-badge-c5">0</span>
+                </button>
+                <button class="opme-tab-btn" id="opme-tbtn-c6" onclick="switchOPMETab('c6')">
+                    Crit. 6 <span class="opme-tab-badge" id="opme-badge-c6">0</span>
+                </button>
+                <button class="opme-tab-btn" id="opme-tbtn-hist" onclick="switchOPMETab('hist')">
+                    🗂️ Histórico COPs
+                </button>
+                <button class="opme-tab-btn" id="opme-tbtn-cop" onclick="switchOPMETab('cop')" style="display:none">
+                    📋 Alerta COP
+                </button>
+            </div>
+
+            <!-- Conteúdo -->
+            <div id="opme-content-area">
+                <!-- Estado inicial -->
+                <div class="opme-empty-state" id="opme-initial-state">
+                    <div class="opme-empty-icon">🔍</div>
+                    <p style="font-weight:700;color:var(--text-muted);font-size:15px;">Clique em "Rodar Projeção" para iniciar a análise</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">Os itens OPME serão classificados automaticamente pelos critérios de cobertura e empenho</p>
+                </div>
+                <!-- Loading -->
+                <div class="opme-spinner-wrap" id="opme-loading-state" style="display:none">
+                    <div class="opme-spin"></div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text-muted)">Carregando dados OPME...</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Verificando cobertura, empenhos e RP de todos os itens</div>
+                </div>
+                <!-- Painéis de critério -->
+                <div id="opme-panel-c2" style="display:none"></div>
+                <div id="opme-panel-c4" style="display:none"></div>
+                <div id="opme-panel-c5" style="display:none"></div>
+                <div id="opme-panel-c6" style="display:none"></div>
+                <div id="opme-panel-hist" style="display:none"><div id="opme-hist-content"></div></div>
+                <div id="opme-panel-cop" style="display:none"><div id="opme-cop-content"></div></div>
+            </div>
+        </div>
 
         <!-- =====================================================
              VIEW — PROTOCOLOS OPME (envio de notas)

@@ -1,5 +1,5 @@
 // --- CONFIGURAÇÃO ---
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzrbc6xqFhpqRw2U9_1T4_rhscRJWTWlQPsCFH_5JM5Kedlq-DJj5IPpTkG3m9zcaHB2Q/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbypMUlQb26vVFPwVemydCzcG-0nWkjC9EQvTEWGxpqPuIXnyjz0D427ZAXldtjCLjnFoA/exec";
 
 let usuarioAtual = null;
 let loginAtual   = null;
@@ -141,6 +141,7 @@ function _atualizarMobileNavLinks() {
         { id: 'fn-protocolos-opme', tab: 'ProtocolosOpme', label: 'Protocolar Notas', icon: 'ph-clipboard-text' },
         { id: 'fn-protocolos-sup',  tab: 'ProtocolosSup',  label: 'Protocolos OPME',  icon: 'ph-clipboard-text' },
         { id: 'fn-admin',           tab: 'Admin',          label: 'Administração',    icon: 'ph-shield-check', admin: true },
+        { id: 'fn-projecao-opme', tab: 'ProjecaoOPME',   label: 'Projeção OPME',    icon: 'ph-chart-bar' },
         { id: 'fn-admin-opme',      tab: 'AdminOpme',      label: 'Admin OPME',       icon: 'ph-shield-check', admin: true },
     ];
 
@@ -1306,7 +1307,7 @@ function entrarNoSistema(data) {
     if (mobileRole) mobileRole.textContent = (usuarioAtual.role || '').toUpperCase();
     // Redireciona para o módulo escolhido
     if (data._modoOpme) {
-        switchTab('ProtocolosOpme');
+        switchTab('ProjecaoOPME');
     } else {
         switchTab('Dashboard');
     }
@@ -1355,6 +1356,11 @@ function configurarNavPorUsuario() {
             const el = document.getElementById(id);
             if (el) el.style.display = id.startsWith('fn') ? 'flex' : 'inline-flex';
         });
+        // Projeção OPME — disponível para todos os esp*
+        const _fnProjOpme = document.getElementById('fn-projecao-opme');
+        const _fnDivProjOpme = document.getElementById('fn-div-proj-opme');
+        if (_fnProjOpme) _fnProjOpme.style.display = 'flex';
+        if (_fnDivProjOpme) _fnDivProjOpme.style.display = 'block';
         // Admin OPME — só para supmateus
         if (loginAtual === 'supmateus') {
             const d = document.getElementById('fn-div-admin-opme');
@@ -2268,9 +2274,11 @@ function switchTab(aba) {
     const vp  = document.getElementById('view-protocolos');
     const vps = document.getElementById('view-protocolos-sup');
     const vao = document.getElementById('view-admin-opme');
-    if (vp)  vp.style.display  = 'none';
-    if (vps) vps.style.display = 'none';
-    if (vao) vao.style.display = 'none';
+    const vpro = document.getElementById('view-projecao-opme');
+    if (vp)   vp.style.display   = 'none';
+    if (vps)  vps.style.display  = 'none';
+    if (vao)  vao.style.display  = 'none';
+    if (vpro) vpro.style.display = 'none';
 
     // Ativa botão no nav oculto E no float nav
     const mapaFn = {
@@ -2278,7 +2286,8 @@ function switchTab(aba) {
         'Recebimento': 'fn-recebimento', 'Adiantamento': 'fn-adiantamento',
         'Admin': 'fn-admin', 'AdminOpme': 'fn-admin-opme',
         'ProtocolosOpme': 'fn-protocolos-opme',
-        'ProtocolosSup': 'fn-protocolos-sup'
+        'ProtocolosSup': 'fn-protocolos-sup',
+        'ProjecaoOPME':  'fn-projecao-opme'
     };
     if (aba.startsWith('Projecao_')) {
         const nome = aba.replace('Projecao_', '').toLowerCase();
@@ -2311,7 +2320,7 @@ function switchTab(aba) {
     if (monitorSec) monitorSec.style.display = 'none';
 
     // Em modo OPME só permite ProtocolosOpme
-    if (modoAtual === 'opme' && aba !== 'ProtocolosOpme' && aba !== 'AdminOpme') {
+    if (modoAtual === 'opme' && aba !== 'ProtocolosOpme' && aba !== 'AdminOpme' && aba !== 'ProjecaoOPME') {
         switchTab('ProtocolosOpme');
         return;
     }
@@ -2357,6 +2366,15 @@ function switchTab(aba) {
             prefixosAtivos = new Set(usuarioAtual.prefixos || []);
             carregarProjecao();
         }
+    } else if (aba === 'ProjecaoOPME') {
+        document.getElementById('view-dashboard').style.display   = 'none';
+        document.getElementById('view-forms').style.display       = 'none';
+        document.getElementById('view-projecao').style.display    = 'none';
+        document.getElementById('view-admin').style.display       = 'none';
+        const _vpo = document.getElementById('view-projecao-opme');
+        if (_vpo) _vpo.style.display = 'block';
+        // Se ainda não rodou a projeção nesta sessão, mostra estado inicial
+        // (nada a carregar automaticamente — usuário clica em "Rodar Projeção")
     } else if (aba === 'AdminOpme') {
         document.getElementById('view-dashboard').style.display   = 'none';
         document.getElementById('view-forms').style.display       = 'none';
@@ -4805,4 +4823,341 @@ async function migrarModulos() {
     } catch(e) {
         mostrarToast('Erro ao executar migração', 'error');
     }
+}
+
+// =============================================================================
+// PROJEÇÃO OPME — Funções Frontend
+// Visível apenas para usuários esp* (modo OPME)
+// =============================================================================
+
+var opmeData     = null;
+var opmeTabAtiva = 'c2';
+var opmeDescs    = {
+    c2: 'SEM RP · Cobertura &lt; 45 dias · SEM empenho ativo',
+    c4: 'COM RP · Cobertura &lt; 20 dias · SEM empenho — verificar o que a última COP trouxe',
+    c5: 'COM RP · Cobertura &lt; 20 dias · COM empenho ativo',
+    c6: 'Consumo médio mensal &lt; 2 unidades · Cobertura &gt; 45 dias (atenção especial)'
+};
+
+async function rodarProjecaoOPME() {
+    // Oculta estado inicial, mostra loading
+    document.getElementById('opme-initial-state').style.display  = 'none';
+    document.getElementById('opme-loading-state').style.display  = 'flex';
+    document.getElementById('opme-cards-wrap').style.display     = 'none';
+    document.getElementById('opme-tabs-bar').style.display       = 'none';
+    ['c2','c4','c5','c6','hist','cop'].forEach(t =>
+        document.getElementById('opme-panel-' + t).style.display = 'none'
+    );
+
+    try {
+        const res = await fetch(addAuth(URL_SCRIPT + '?action=projecaoOPME'));
+
+        // Garante que a resposta é JSON antes de parsear
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
+            throw new Error('O servidor retornou uma resposta inesperada (possível redirect ou erro de autenticação). Verifique se o backend foi republicado.');
+        }
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (parseErr) {
+            throw new Error('Falha ao interpretar resposta do servidor. O backend pode não estar publicado ou houve um erro interno no Apps Script.');
+        }
+
+        // Erros explícitos vindos do backend
+        if (data.erro) throw new Error('Erro no servidor: ' + data.erro);
+
+        // Guarda contra resposta incompleta (backend antigo ou não republicado)
+        if (!data.totais || !data.criterio2) {
+            throw new Error('Resposta incompleta do servidor. Certifique-se de que o arquivo opme_projecao.gs foi adicionado ao projeto e o backend foi republicado (Nova versão).');
+        }
+
+        opmeData = data;
+
+        // Atualiza cards
+        ['c2','c4','c5','c6'].forEach(k => {
+            const numEl   = document.getElementById('opme-num-'   + k);
+            const badgeEl = document.getElementById('opme-badge-' + k);
+            if (numEl)   numEl.textContent   = data.totais[k] ?? 0;
+            if (badgeEl) badgeEl.textContent = data.totais[k] ?? 0;
+        });
+
+        // Renderiza tabelas
+        _renderTblOPME('c2', data.criterio2 || []);
+        _renderTblOPME('c4', data.criterio4 || []);
+        _renderTblOPME('c5', data.criterio5 || []);
+        _renderTblOPME('c6', data.criterio6 || []);
+
+        document.getElementById('opme-loading-state').style.display = 'none';
+        document.getElementById('opme-cards-wrap').style.display    = 'grid';
+        document.getElementById('opme-tabs-bar').style.display      = 'flex';
+        document.getElementById('btn-salvar-cop-opme').disabled     = false;
+        switchOPMETab('c2');
+
+    } catch(err) {
+        document.getElementById('opme-loading-state').style.display = 'none';
+        document.getElementById('opme-initial-state').style.display = 'block';
+        document.getElementById('opme-initial-state').innerHTML =
+            '<div class="opme-empty-icon">❌</div>' +
+            '<p style="font-weight:700;color:var(--danger);">' + err.message + '</p>' +
+            '<button class="opme-btn opme-btn-run" style="margin-top:16px" onclick="rodarProjecaoOPME()">Tentar novamente</button>';
+    }
+}
+
+function _renderTblOPME(criterio, itens) {
+    var panel = document.getElementById('opme-panel-' + criterio);
+    var desc  = opmeDescs[criterio] || '';
+    var isc5  = criterio === 'c5';
+
+    if (!itens || !itens.length) {
+        panel.innerHTML =
+            '<div class="opme-empty-state">' +
+            '<div class="opme-empty-icon">✅</div>' +
+            '<p style="font-weight:700;color:var(--text-muted);">Nenhum item neste critério</p>' +
+            '<p style="font-size:11px;color:var(--text-muted);margin-top:6px;">' + desc + '</p></div>';
+        return;
+    }
+
+    var html =
+        '<div style="padding:0 0 10px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + desc + '</div>' +
+        '<input id="opme-filt-' + criterio + '" type="text" placeholder="🔍 Filtrar código ou descrição..." ' +
+        'oninput="_filtrarOPME(\'' + criterio + '\')" ' +
+        'style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:6px 12px;' +
+        'color:var(--text-main);font-size:12px;outline:none;min-width:220px;">' +
+        '</div>' +
+        '<div class="opme-tbl-wrap">' +
+        '<table class="opme-tbl" id="opme-tbl-' + criterio + '">' +
+        '<thead><tr>' +
+        '<th onclick="_sortOPME(\'' + criterio + '\',\'codigo\')">Código ↕</th>' +
+        '<th onclick="_sortOPME(\'' + criterio + '\',\'descricao\')">Descrição ↕</th>' +
+        '<th onclick="_sortOPME(\'' + criterio + '\',\'cobertura\')">Cob. (dias) ↕</th>' +
+        '<th onclick="_sortOPME(\'' + criterio + '\',\'cmmMensal\')">CMM/mês ↕</th>' +
+        '<th>CMD/dia</th><th>RP</th><th>Empenho</th>' +
+        (isc5 ? '<th onclick="_sortOPME(\'' + criterio + '\',\'entregaPendente\')">Entrega Pend. ↕</th><th>Nº Empenho(s)</th>' : '') +
+        '</tr></thead>' +
+        '<tbody id="opme-tbody-' + criterio + '">' +
+        itens.map(function(it){ return _linhaOPME(it, isc5); }).join('') +
+        '</tbody></table></div>' +
+        '<div style="text-align:right;padding:6px 4px;font-size:11px;color:var(--text-muted);">' +
+        '<span id="opme-count-' + criterio + '">' + itens.length + '</span> item(s)' +
+        '</div></div>';
+    panel.innerHTML = html;
+    panel.dataset.itens = JSON.stringify(itens);
+}
+
+function _linhaOPME(it, mostrarEmp) {
+    var cob = it.cobertura || 0;
+    var cobCls = cob === 0 ? 'cob-zero' : cob < 10 ? 'cob-crit' : cob < 30 ? 'cob-warn' : 'cob-ok';
+    var cobTxt = cob === 0 ? '⚠ ZERO' : cob + ' d';
+    var rpB  = it.temRP
+        ? '<span class="bd-rp">COM RP</span>'
+        : '<span class="bd-norp">SEM RP</span>';
+    var empB = it.temEmpenho
+        ? '<span class="bd-emp">ATIVO</span>'
+        : '<span class="bd-noemp">NENHUM</span>';
+    return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '">' +
+        '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
+        '<td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (it.descricao||'') + '">' + (it.descricao||'') + '</td>' +
+        '<td class="' + cobCls + '">' + cobTxt + '</td>' +
+        '<td style="color:var(--text-muted)">' + (it.cmmMensal > 0 ? it.cmmMensal.toFixed(2) : '—') + '</td>' +
+        '<td style="color:var(--text-muted);font-size:11px">' + (it.cmdDiario > 0 ? it.cmdDiario.toFixed(4) : '—') + '</td>' +
+        '<td>' + rpB + '</td>' +
+        '<td>' + empB + '</td>' +
+        (mostrarEmp
+            ? '<td style="color:#f59e0b;font-weight:700">' + (it.entregaPendente||0) + '</td>' +
+              '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
+            : '') +
+        '</tr>';
+}
+
+function _filtrarOPME(criterio) {
+    var q   = document.getElementById('opme-filt-' + criterio).value.toLowerCase();
+    var rows = document.querySelectorAll('#opme-tbody-' + criterio + ' tr');
+    var n   = 0;
+    rows.forEach(function(tr){
+        var ok = !q || tr.dataset.cod.toLowerCase().includes(q) || tr.dataset.desc.includes(q);
+        tr.style.display = ok ? '' : 'none';
+        if (ok) n++;
+    });
+    var el = document.getElementById('opme-count-' + criterio);
+    if (el) el.textContent = n;
+}
+
+var _opme_sort_dir = {};
+function _sortOPME(criterio, campo) {
+    var key = criterio + '_' + campo;
+    var asc = _opme_sort_dir[key] !== true;
+    _opme_sort_dir[key] = asc;
+    var panel = document.getElementById('opme-panel-' + criterio);
+    var itens = JSON.parse(panel.dataset.itens || '[]');
+    itens.sort(function(a,b){
+        var va = a[campo], vb = b[campo];
+        if (typeof va === 'number') return asc ? va-vb : vb-va;
+        return asc
+            ? (va||'').toString().localeCompare((vb||'').toString())
+            : (vb||'').toString().localeCompare((va||'').toString());
+    });
+    var isc5 = criterio === 'c5';
+    document.getElementById('opme-tbody-' + criterio).innerHTML =
+        itens.map(function(it){ return _linhaOPME(it, isc5); }).join('');
+}
+
+function switchOPMETab(tab) {
+    opmeTabAtiva = tab;
+    ['c2','c4','c5','c6','hist','cop'].forEach(function(t){
+        var btn = document.getElementById('opme-tbtn-' + t);
+        var pnl = document.getElementById('opme-panel-' + t);
+        if (btn) btn.classList.toggle('opme-tab-active', t === tab);
+        if (pnl) pnl.style.display = t === tab ? 'block' : 'none';
+    });
+    ['c2','c4','c5','c6'].forEach(function(t){
+        var c = document.getElementById('opme-card-' + t);
+        if (c) c.classList.toggle('card-active', t === tab);
+    });
+    if (tab === 'hist') carregarHistoricoCOP();
+}
+
+async function salvarCopOPME() {
+    if (!opmeData) return;
+    var btn = document.getElementById('btn-salvar-cop-opme');
+    btn.disabled = true;
+    btn.textContent = '⏳ Salvando...';
+    try {
+        var todos = [].concat(opmeData.criterio2, opmeData.criterio4, opmeData.criterio5, opmeData.criterio6);
+        var res  = await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'salvarCopOPME', login: loginAtual, itens: todos })
+        });
+        btn.textContent = '✅ Salvo!';
+        btn.style.background = '#16a34a';
+        mostrarToast('COP salva com sucesso — ' + todos.length + ' item(s).', 'success');
+        setTimeout(function(){
+            btn.textContent = '💾 Salvar COP';
+            btn.style.background = '';
+            btn.disabled = false;
+        }, 4000);
+    } catch(err) {
+        btn.textContent = '❌ Erro';
+        btn.style.background = 'var(--danger)';
+        setTimeout(function(){
+            btn.textContent = '💾 Salvar COP';
+            btn.style.background = '';
+            btn.disabled = false;
+        }, 3000);
+        mostrarToast('Erro ao salvar COP.', 'error');
+    }
+}
+
+async function carregarHistoricoCOP() {
+    var cont = document.getElementById('opme-hist-content');
+    cont.innerHTML = '<div class="opme-spinner-wrap"><div class="opme-spin"></div></div>';
+    try {
+        var res  = await fetch(addAuth(URL_SCRIPT + '?action=getHistoricoCOP'));
+        var data = await res.json();
+        if (!data.historico || !data.historico.length) {
+            cont.innerHTML =
+                '<div class="opme-empty-state">' +
+                '<div class="opme-empty-icon">📭</div>' +
+                '<p style="font-weight:700;color:var(--text-muted)">Nenhuma COP salva ainda</p>' +
+                '<p style="font-size:11px;color:var(--text-muted);margin-top:6px">Rode uma projeção e clique em "Salvar COP"</p></div>';
+            return;
+        }
+        var cores = { C2:'#ef4444', C4:'#f59e0b', C5:'#f97316', C6:'#8b5cf6' };
+        var html  = '';
+        data.historico.forEach(function(cop, idx){
+            var byC = {};
+            cop.itens.forEach(function(it){ byC[it.criterio] = (byC[it.criterio]||0)+1; });
+            var tags = Object.keys(byC).map(function(k){
+                return '<span style="background:' + (cores[k]||'#94a3b8') + ';color:#fff;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;margin-right:4px">' + k + ': ' + byC[k] + '</span>';
+            }).join('');
+            html +=
+                '<div class="opme-hist-item">' +
+                '<div class="opme-hist-hdr" onclick="_toggleHistOPME(' + idx + ')">' +
+                '<div>' +
+                '<div class="opme-hist-date">📋 COP — ' + cop.data + '</div>' +
+                '<div class="opme-hist-meta">Por: ' + (cop.login||'—') + ' &nbsp;·&nbsp; ' + cop.itens.length + ' item(s) &nbsp;·&nbsp; ' + tags + '</div>' +
+                '</div>' +
+                '<div style="color:var(--text-muted);font-size:18px" id="opme-harrow-' + idx + '">▸</div>' +
+                '</div>' +
+                '<div class="opme-hist-body" id="opme-hbody-' + idx + '">' +
+                '<div class="opme-tbl-wrap">' +
+                '<table class="opme-tbl"><thead><tr>' +
+                '<th>Critério</th><th>Código</th><th>Descrição</th><th>Cobertura</th><th>CMM</th><th>RP</th><th>Empenho</th>' +
+                '</tr></thead><tbody>' +
+                cop.itens.map(function(it){
+                    var c = it.cobertura||0;
+                    var cor = c<10?'var(--danger)':c<30?'var(--warning)':'var(--text-muted)';
+                    return '<tr>' +
+                        '<td><span style="background:' + (cores[it.criterio]||'#94a3b8') + ';color:#fff;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800">' + it.criterio + '</span></td>' +
+                        '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
+                        '<td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (it.descricao||'') + '</td>' +
+                        '<td style="color:' + cor + ';font-weight:700">' + c + ' d</td>' +
+                        '<td style="color:var(--text-muted)">' + (it.cmmMensal||'—') + '</td>' +
+                        '<td>' + (it.temRP==='SIM'?'<span class="bd-rp">SIM</span>':'<span class="bd-norp">NÃO</span>') + '</td>' +
+                        '<td>' + (it.temEmpenho==='SIM'?'<span class="bd-emp">SIM</span>':'<span class="bd-noemp">NÃO</span>') + '</td>' +
+                        '</tr>';
+                }).join('') +
+                '</tbody></table></div></div></div>';
+        });
+        cont.innerHTML = html;
+    } catch(err) {
+        cont.innerHTML = '<div class="opme-empty-state" style="color:var(--danger)">Erro: ' + err.message + '</div>';
+    }
+}
+
+function _toggleHistOPME(idx) {
+    var body  = document.getElementById('opme-hbody-'  + idx);
+    var arrow = document.getElementById('opme-harrow-' + idx);
+    var open  = body.style.display === 'block';
+    body.style.display = open ? 'none' : 'block';
+    if (arrow) arrow.textContent = open ? '▸' : '▾';
+}
+
+async function abrirCopOPME() {
+    var btn = document.getElementById('opme-tbtn-cop');
+    if (btn) btn.style.display = 'inline-flex';
+    switchOPMETab('cop');
+    var cont = document.getElementById('opme-cop-content');
+    cont.innerHTML = '<div class="opme-spinner-wrap"><div class="opme-spin"></div><div style="font-size:13px;color:var(--text-muted)">Carregando Alerta COP...</div></div>';
+    try {
+        var res  = await fetch(addAuth(URL_SCRIPT + '?action=getCopOPME'));
+        var data = await res.json();
+        if (data.erro) throw new Error(data.erro);
+        if (!data.itens || !data.itens.length) {
+            cont.innerHTML = '<div class="opme-empty-state">Nenhum item OPME encontrado na planilha COP.</div>';
+            return;
+        }
+        var cols = Object.keys(data.itens[0]);
+        var sel  = '';
+        if (data.abas && data.abas.length > 1) {
+            sel = '<select onchange="_trocarAbaCOP(this.value)" style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text-main);font-size:12px;outline:none">' +
+                data.abas.map(function(a){ return '<option value="' + a + '"' + (a===data.abaAtual?' selected':'') + '>' + a + '</option>'; }).join('') +
+                '</select>';
+        }
+        var html =
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
+            '<div style="font-size:11px;color:var(--text-muted)">' + data.total + ' item(s) OPME na COP atual</div>' + sel +
+            '</div>' +
+            '<div class="opme-tbl-wrap"><table class="opme-tbl">' +
+            '<thead><tr>' + cols.map(function(c){ return '<th>' + c + '</th>'; }).join('') + '</tr></thead>' +
+            '<tbody>' + data.itens.map(function(it){
+                return '<tr>' + cols.map(function(c){
+                    var v = it[c]||'';
+                    return '<td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + v + '">' + v + '</td>';
+                }).join('') + '</tr>';
+            }).join('') + '</tbody></table></div>';
+        cont.innerHTML = html;
+    } catch(err) {
+        cont.innerHTML = '<div class="opme-empty-state" style="color:var(--danger)">Erro ao carregar COP: ' + err.message + '</div>';
+    }
+}
+
+async function _trocarAbaCOP(aba) {
+    var res  = await fetch(addAuth(URL_SCRIPT + '?action=getCopOPME&aba=' + encodeURIComponent(aba)));
+    var data = await res.json();
+    // re-renderiza
+    abrirCopOPME();
 }

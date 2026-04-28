@@ -985,7 +985,14 @@
                         </div>
                         <div class="field-group fg-2">
                             <label>Fornecedor</label>
-                            <input type="text" id="f_fornecedor" required>
+                            <div class="ac-wrap" style="position:relative">
+                                <input type="text" id="f_fornecedor" required
+                                    autocomplete="off"
+                                    oninput="acFornecedor(this.value)"
+                                    onkeydown="acNavegar(event)"
+                                    placeholder="Digite para buscar...">
+                                <ul id="ac-list" class="ac-dropdown" style="display:none"></ul>
+                            </div>
                         </div>
                         <div class="field-group">
                             <label>Razão Social</label>
@@ -1009,7 +1016,12 @@
                         </div>
                         <div class="field-group">
                             <label>Setor Destino</label>
-                            <input type="text" id="f_setor">
+                            <select id="f_setor">
+                                <option value="">Selecione...</option>
+                                <option value="ESPECIAIS">ESPECIAIS</option>
+                                <option value="ALX GERAL">ALX GERAL</option>
+                                <option value="ÁREAS">ÁREAS</option>
+                            </select>
                         </div>
                         <div class="field-group" id="fieldLote">
                             <label>Possui Lote?</label>

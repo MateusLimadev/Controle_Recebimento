@@ -4852,33 +4852,35 @@ async function rodarProjecaoOPME() {
     try {
         const res = await fetch(addAuth(URL_SCRIPT + '?action=projecaoOPME'));
 
-        // Garante que a resposta é JSON antes de parsear
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
-            throw new Error('O servidor retornou uma resposta inesperada (possível redirect ou erro de autenticação). Verifique se o backend foi republicado.');
+        // Detecta resposta não-JSON (redirect, erro de autenticação, etc.)
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('json') && !ct.includes('plain')) {
+            throw new Error('O servidor não retornou JSON. Verifique se o backend foi republicado com nova versão.');
         }
 
         let data;
-        try {
-            data = await res.json();
-        } catch (parseErr) {
-            throw new Error('Falha ao interpretar resposta do servidor. O backend pode não estar publicado ou houve um erro interno no Apps Script.');
-        }
+        try { data = await res.json(); }
+        catch (pe) { throw new Error('Resposta inválida do servidor. Publique uma nova versão no Apps Script.'); }
 
-        // Erros explícitos vindos do backend
-        if (data.erro) throw new Error('Erro no servidor: ' + data.erro);
+        // Erros explícitos do backend
+        if (data && data.erro) throw new Error('Erro no backend: ' + data.erro);
 
-        // Guarda contra resposta incompleta (backend antigo ou não republicado)
-        if (!data.totais || !data.criterio2) {
-            throw new Error('Resposta incompleta do servidor. Certifique-se de que o arquivo opme_projecao.gs foi adicionado ao projeto e o backend foi republicado (Nova versão).');
+        // Estrutura incompleta — backend antigo ou não republicado
+        if (!data || !data.totais || !data.criterio2) {
+            throw new Error(
+                'Resposta incompleta. Causas comuns:\n' +
+                '• Backend não foi republicado após adicionar opme_projecao.gs\n' +
+                '• Aba "Alerta_Coop" não encontrada na planilha COP\n' +
+                '• ID da planilha incorreto no opme_projecao.gs'
+            );
         }
 
         opmeData = data;
 
         // Atualiza cards
         ['c2','c4','c5','c6'].forEach(k => {
-            const numEl   = document.getElementById('opme-num-'   + k);
-            const badgeEl = document.getElementById('opme-badge-' + k);
+            var numEl   = document.getElementById('opme-num-'   + k);
+            var badgeEl = document.getElementById('opme-badge-' + k);
             if (numEl)   numEl.textContent   = data.totais[k] ?? 0;
             if (badgeEl) badgeEl.textContent = data.totais[k] ?? 0;
         });
@@ -4935,7 +4937,7 @@ function _renderTblOPME(criterio, itens) {
         '<th onclick="_sortOPME(\'' + criterio + '\',\'descricao\')">Descrição ↕</th>' +
         '<th onclick="_sortOPME(\'' + criterio + '\',\'cobertura\')">Cob. (dias) ↕</th>' +
         '<th onclick="_sortOPME(\'' + criterio + '\',\'cmmMensal\')">CMM/mês ↕</th>' +
-        '<th>CMD/dia</th><th>RP</th><th>Empenho</th>' +
+        '<th>CMD/dia</th><th>RP</th><th>Empenho</th><th>COP</th>' +
         (isc5 ? '<th onclick="_sortOPME(\'' + criterio + '\',\'entregaPendente\')">Entrega Pend. ↕</th><th>Nº Empenho(s)</th>' : '') +
         '</tr></thead>' +
         '<tbody id="opme-tbody-' + criterio + '">' +
@@ -4958,7 +4960,18 @@ function _linhaOPME(it, mostrarEmp) {
     var empB = it.temEmpenho
         ? '<span class="bd-emp">ATIVO</span>'
         : '<span class="bd-noemp">NENHUM</span>';
-    return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '">' +
+
+    // Badge COP: bloqueioCompra = true → NÃO compra via COP (valor "N" no Alerta_Coop)
+    var copB = it.bloqueioCompra
+        ? '<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px;">FORA COP</span>'
+        : '<span style="background:#16a34a;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px;">VIA COP</span>';
+
+    // Linha inteira destacada em vermelho claro quando fora da COP
+    var rowStyle = it.bloqueioCompra
+        ? ' style="background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;"'
+        : '';
+
+    return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '"' + rowStyle + '>' +
         '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
         '<td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (it.descricao||'') + '">' + (it.descricao||'') + '</td>' +
         '<td class="' + cobCls + '">' + cobTxt + '</td>' +
@@ -4966,6 +4979,7 @@ function _linhaOPME(it, mostrarEmp) {
         '<td style="color:var(--text-muted);font-size:11px">' + (it.cmdDiario > 0 ? it.cmdDiario.toFixed(4) : '—') + '</td>' +
         '<td>' + rpB + '</td>' +
         '<td>' + empB + '</td>' +
+        '<td>' + copB + '</td>' +
         (mostrarEmp
             ? '<td style="color:#f59e0b;font-weight:700">' + (it.entregaPendente||0) + '</td>' +
               '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'

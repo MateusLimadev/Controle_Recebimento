@@ -599,32 +599,6 @@ async function carregarHistoricoNotas() {
     }
 }
 
-const _origRenderHistorico = typeof renderizarHistoricoNotas === 'function'
-    ? renderizarHistoricoNotas : null;
-
-// Hook: sempre que _histNotas for atualizado, atualiza o cache de fornecedores
-// (disparado por carregarHistoricoNotas que já popula _histNotas antes de renderizar)
-const _origCarregarHistorico = carregarHistoricoNotas;
-carregarHistoricoNotas = async function() {
-    await _origCarregarHistorico.apply(this, arguments);
-    acPopularCache();
-};
-
-// Também salva o fornecedor no cache quando uma nova nota é adicionada ao lote
-const _origAdicionarNota = adicionarNota;
-adicionarNota = function() {
-    const forn = document.getElementById('f_fornecedor');
-    if (forn && forn.value.trim()) {
-        const v = forn.value.trim().toUpperCase();
-        if (!_acCache.includes(v)) {
-            _acCache.push(v);
-            _acCache.sort();
-            try { sessionStorage.setItem('core_fornecedores', JSON.stringify(_acCache)); } catch(e) {}
-        }
-    }
-    return _origAdicionarNota.apply(this, arguments);
-};
-
 function filtrarHistoricoNotas() {
     const q = document.getElementById('histBuscaInput').value.trim().toLowerCase();
     _histNotasFiltrado = q
@@ -4910,12 +4884,19 @@ async function rodarProjecaoOPME() {
             if (numEl)   numEl.textContent   = data.totais[k] ?? 0;
             if (badgeEl) badgeEl.textContent = data.totais[k] ?? 0;
         });
+        // card FORA COP
+        var _bloqTotal = (data.bloqueados || []).length;
+        var _nb1 = document.getElementById('opme-num-bloq');
+        var _nb2 = document.getElementById('opme-badge-bloq');
+        if (_nb1) _nb1.textContent = _bloqTotal;
+        if (_nb2) _nb2.textContent = _bloqTotal;
 
         // Renderiza tabelas
         _renderTblOPME('c2', data.criterio2 || []);
         _renderTblOPME('c4', data.criterio4 || []);
         _renderTblOPME('c5', data.criterio5 || []);
         _renderTblOPME('c6', data.criterio6 || []);
+        _renderTblOPME('bloq', data.bloqueados || []);
 
         document.getElementById('opme-loading-state').style.display = 'none';
         document.getElementById('opme-cards-wrap').style.display    = 'grid';
@@ -5047,13 +5028,13 @@ function _sortOPME(criterio, campo) {
 
 function switchOPMETab(tab) {
     opmeTabAtiva = tab;
-    ['c2','c4','c5','c6','hist','cop'].forEach(function(t){
+    ['c2','c4','c5','c6','bloq','hist','cop'].forEach(function(t){
         var btn = document.getElementById('opme-tbtn-' + t);
         var pnl = document.getElementById('opme-panel-' + t);
         if (btn) btn.classList.toggle('opme-tab-active', t === tab);
         if (pnl) pnl.style.display = t === tab ? 'block' : 'none';
     });
-    ['c2','c4','c5','c6'].forEach(function(t){
+    ['c2','c4','c5','c6','bloq'].forEach(function(t){
         var c = document.getElementById('opme-card-' + t);
         if (c) c.classList.toggle('card-active', t === tab);
     });
@@ -5201,137 +5182,3 @@ async function _trocarAbaCOP(aba) {
     // re-renderiza
     abrirCopOPME();
 }
-
-// =============================================================================
-// AUTOCOMPLETE DE FORNECEDOR — aba Digitadas
-// Fonte: _histNotas (já carregado ao entrar na aba) + sessionStorage para cache
-// =============================================================================
-var _acCache       = [];   // lista deduplicada de fornecedores
-var _acIdx         = -1;   // índice de seleção por teclado
-
-// Popula o cache a partir do histórico de notas já carregado
-function acPopularCache() {
-    const set = new Set();
-    // Prioridade 1: histórico já em memória
-    if (_histNotas && _histNotas.length) {
-        _histNotas.forEach(n => {
-            if (n.fornecedor && n.fornecedor.trim()) set.add(n.fornecedor.trim().toUpperCase());
-        });
-    }
-    // Prioridade 2: cache salvo em sessionStorage (persiste entre abas da sessão)
-    try {
-        const salvo = JSON.parse(sessionStorage.getItem('core_fornecedores') || '[]');
-        salvo.forEach(f => set.add(f));
-    } catch(e) {}
-    _acCache = Array.from(set).sort();
-    // Persiste no sessionStorage para uso futuro
-    try { sessionStorage.setItem('core_fornecedores', JSON.stringify(_acCache)); } catch(e) {}
-}
-
-// Chamada a cada keystroke no campo fornecedor
-function acFornecedor(q) {
-    const list = document.getElementById('ac-list');
-    if (!list) return;
-    if (!q || q.length < 2) { list.style.display = 'none'; _acIdx = -1; return; }
-
-    // Garante que o cache está populado
-    if (!_acCache.length) acPopularCache();
-
-    const upper   = q.toUpperCase();
-    // Começa com a query primeiro, depois contém
-    const starts  = _acCache.filter(f => f.startsWith(upper));
-    const contains= _acCache.filter(f => !f.startsWith(upper) && f.includes(upper));
-    const matches = [...starts, ...contains].slice(0, 8);
-
-    if (!matches.length) { list.style.display = 'none'; _acIdx = -1; return; }
-
-    list.innerHTML = matches.map((f, i) => {
-        // Destaca a parte digitada
-        const idx = f.toUpperCase().indexOf(upper);
-        const highlighted = f.slice(0, idx)
-            + '<strong>' + f.slice(idx, idx + q.length) + '</strong>'
-            + f.slice(idx + q.length);
-        return `<li data-val="${f}" onmousedown="acSelecionar('${f.replace(/'/g,"\'")}')">
-            ${highlighted}
-        </li>`;
-    }).join('');
-
-    _acIdx = -1;
-    list.style.display = 'block';
-}
-
-// Seleciona um item da lista
-function acSelecionar(valor) {
-    const input = document.getElementById('f_fornecedor');
-    const list  = document.getElementById('ac-list');
-    if (input) input.value = valor;
-    if (list)  list.style.display = 'none';
-    _acIdx = -1;
-    // Foca no próximo campo
-    const next = document.getElementById('f_razao');
-    if (next) next.focus();
-}
-
-// Navegação por teclado: ↑ ↓ Enter Esc
-function acNavegar(e) {
-    const list  = document.getElementById('ac-list');
-    if (!list || list.style.display === 'none') return;
-    const items = list.querySelectorAll('li');
-    if (!items.length) return;
-
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        _acIdx = Math.min(_acIdx + 1, items.length - 1);
-    } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        _acIdx = Math.max(_acIdx - 1, 0);
-    } else if (e.key === 'Enter' && _acIdx >= 0) {
-        e.preventDefault();
-        acSelecionar(items[_acIdx].dataset.val);
-        return;
-    } else if (e.key === 'Escape') {
-        list.style.display = 'none';
-        _acIdx = -1;
-        return;
-    } else { return; }
-
-    items.forEach((li, i) => li.classList.toggle('ac-active', i === _acIdx));
-    items[_acIdx].scrollIntoView({ block: 'nearest' });
-}
-
-// Fecha dropdown ao clicar fora
-document.addEventListener('click', e => {
-    const input = document.getElementById('f_fornecedor');
-    const list  = document.getElementById('ac-list');
-    if (list && input && !input.contains(e.target) && !list.contains(e.target)) {
-        list.style.display = 'none';
-        _acIdx = -1;
-    }
-});
-
-// Quando o histórico de notas termina de carregar, popula o cache automaticamente
-const _origRenderHistorico = typeof renderizarHistoricoNotas === 'function'
-    ? renderizarHistoricoNotas : null;
-
-// Hook: sempre que _histNotas for atualizado, atualiza o cache de fornecedores
-// (disparado por carregarHistoricoNotas que já popula _histNotas antes de renderizar)
-const _origCarregarHistorico = carregarHistoricoNotas;
-carregarHistoricoNotas = async function() {
-    await _origCarregarHistorico.apply(this, arguments);
-    acPopularCache();
-};
-
-// Também salva o fornecedor no cache quando uma nova nota é adicionada ao lote
-const _origAdicionarNota = adicionarNota;
-adicionarNota = function() {
-    const forn = document.getElementById('f_fornecedor');
-    if (forn && forn.value.trim()) {
-        const v = forn.value.trim().toUpperCase();
-        if (!_acCache.includes(v)) {
-            _acCache.push(v);
-            _acCache.sort();
-            try { sessionStorage.setItem('core_fornecedores', JSON.stringify(_acCache)); } catch(e) {}
-        }
-    }
-    return _origAdicionarNota.apply(this, arguments);
-};

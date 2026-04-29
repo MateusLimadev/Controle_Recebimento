@@ -986,14 +986,6 @@
                         <div class="field-group fg-2">
                             <label>Fornecedor</label>
                             <input type="text" id="f_fornecedor" required>
-                            <div class="ac-wrap" style="position:relative">
-                                <input type="text" id="f_fornecedor" required
-                                    autocomplete="off"
-                                    oninput="acFornecedor(this.value)"
-                                    onkeydown="acNavegar(event)"
-                                    placeholder="Digite para buscar...">
-                                <ul id="ac-list" class="ac-dropdown" style="display:none"></ul>
-                            </div>
                         </div>
                         <div class="field-group">
                             <label>Razão Social</label>
@@ -1018,12 +1010,6 @@
                         <div class="field-group">
                             <label>Setor Destino</label>
                             <input type="text" id="f_setor">
-                            <select id="f_setor">
-                                <option value="">Selecione...</option>
-                                <option value="ESPECIAIS">ESPECIAIS</option>
-                                <option value="ALX GERAL">ALX GERAL</option>
-                                <option value="ÁREAS">ÁREAS</option>
-                            </select>
                         </div>
                         <div class="field-group" id="fieldLote">
                             <label>Possui Lote?</label>
@@ -1658,6 +1644,11 @@
                     <div class="opme-card-lbl">Critério 6</div>
                     <div class="opme-card-desc">CMM &lt; 2 un/mês<br>Cob. &gt; 45 dias (baixo consumo)</div>
                 </div>
+                <div class="opme-card opme-card-bloq" id="opme-card-bloq" onclick="switchOPMETab('bloq')">
+                    <div class="opme-card-num" id="opme-num-bloq">—</div>
+                    <div class="opme-card-lbl">Fora COP</div>
+                    <div class="opme-card-desc">COP não vai comprar<br>mas precisa de atenção</div>
+                </div>
             </div>
 
             <!-- Tabs -->
@@ -1673,6 +1664,9 @@
                 </button>
                 <button class="opme-tab-btn" id="opme-tbtn-c6" onclick="switchOPMETab('c6')">
                     Crit. 6 <span class="opme-tab-badge" id="opme-badge-c6">0</span>
+                </button>
+                <button class="opme-tab-btn" id="opme-tbtn-bloq" onclick="switchOPMETab('bloq')">
+                    🚫 Fora COP <span class="opme-tab-badge" id="opme-badge-bloq">0</span>
                 </button>
                 <button class="opme-tab-btn" id="opme-tbtn-hist" onclick="switchOPMETab('hist')">
                     🗂️ Histórico COPs
@@ -1701,6 +1695,7 @@
                 <div id="opme-panel-c4" style="display:none"></div>
                 <div id="opme-panel-c5" style="display:none"></div>
                 <div id="opme-panel-c6" style="display:none"></div>
+                <div id="opme-panel-bloq" style="display:none"></div>
                 <div id="opme-panel-hist" style="display:none"><div id="opme-hist-content"></div></div>
                 <div id="opme-panel-cop" style="display:none"><div id="opme-cop-content"></div></div>
             </div>

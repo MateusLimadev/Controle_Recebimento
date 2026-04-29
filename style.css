@@ -829,32 +829,6 @@ tr:hover td { background: rgba(2, 132, 199, 0.02); }
     outline: none;
 }
 
-.ac-dropdown li.ac-active {
-    background: rgba(2, 132, 199, .12);
-    color: var(--accent);
-}
-
-.ac-dropdown li strong {
-    color: var(--accent);
-    font-weight: 900;
-}
-
-/* Scrollbar fina dentro do dropdown */
-.ac-dropdown::-webkit-scrollbar { width: 4px; }
-.ac-dropdown::-webkit-scrollbar-track  { background: transparent; }
-.ac-dropdown::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 999px; }
-
-/* Dark mode */
-[data-theme="dark"] .ac-dropdown {
-    background: #1e293b;
-    border-color: var(--accent);
-    box-shadow: 0 8px 24px rgba(0,0,0,.4);
-}
-[data-theme="dark"] .ac-dropdown li:hover,
-[data-theme="dark"] .ac-dropdown li.ac-active {
-    background: rgba(2, 132, 199, .18);
-}
-
 /* --- 10. BUSCA GLOBAL (CENTRALIZADA E INTERATIVA) --- */
 
 .search-section {

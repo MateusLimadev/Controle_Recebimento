@@ -985,7 +985,14 @@
                         </div>
                         <div class="field-group fg-2">
                             <label>Fornecedor</label>
-                            <input type="text" id="f_fornecedor" required>
+                            <div style="position:relative">
+                                <input type="text" id="f_fornecedor" required
+                                    autocomplete="off"
+                                    oninput="acFornecedor(this.value)"
+                                    onkeydown="acNavegar(event)"
+                                    placeholder="Digite para buscar...">
+                                <ul id="ac-list" class="ac-dropdown" style="display:none"></ul>
+                            </div>
                         </div>
                         <div class="field-group">
                             <label>Razão Social</label>
@@ -995,18 +1002,12 @@
                                 <option value="OUTROS">OUTROS</option>
                             </select>
                         </div>
-                        <div class="field-group">
-                            <label>Emissão</label>
-                            <input type="date" id="f_data" required>
-                        </div>
+                        
                         <div class="field-group">
                             <label>Vencimento</label>
                             <input type="date" id="f_vencimento" required>
                         </div>
-                        <div class="field-group">
-                            <label>Valor (R$)</label>
-                            <input type="number" step="0.01" id="f_valor" required>
-                        </div>
+                        
                         <div class="field-group">
                             <label>Setor Destino</label>
                             <input type="text" id="f_setor">

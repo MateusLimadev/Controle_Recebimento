@@ -2456,15 +2456,21 @@ function adicionarNota() {
     const nf = document.getElementById('f_nf').value;
     if (!nf) return alert("Número da NF é obrigatório!");
 
+    // Data de inclusão = hoje (não mais digitada pelo usuário)
+    const _hoje = new Date();
+    const _dataHoje = _hoje.getFullYear() + '-' +
+        String(_hoje.getMonth()+1).padStart(2,'0') + '-' +
+        String(_hoje.getDate()).padStart(2,'0');
+
     const nota = {
         destino:         abaAtual,
         responsavel:     usuarioAtual.nome,
-        data:            document.getElementById('f_data').value,
+        data:            _dataHoje,
         nf:              nf,
         fornecedor:      document.getElementById('f_fornecedor').value,
         razaoSocial:     document.getElementById('f_razao').value,
         vencimento:      document.getElementById('f_vencimento').value,
-        valor:           document.getElementById('f_valor').value,
+        valor:           0,
         setor:           document.getElementById('f_setor').value || "GERAL",
         possuiLote:      document.getElementById('f_lote').value,
         numAdiantamento: document.getElementById('f_num_adi').value,
@@ -5182,3 +5188,69 @@ async function _trocarAbaCOP(aba) {
     // re-renderiza
     abrirCopOPME();
 }
+// ── AUTOCOMPLETE FORNECEDOR ──────────────────────────────
+var _acCache = [];
+var _acIdx   = -1;
+
+function acPopularCache() {
+    const set = new Set();
+    if (_histNotas && _histNotas.length) {
+        _histNotas.forEach(n => { if (n.fornecedor && n.fornecedor.trim()) set.add(n.fornecedor.trim().toUpperCase()); });
+    }
+    try {
+        const salvo = JSON.parse(sessionStorage.getItem('core_fornecedores') || '[]');
+        salvo.forEach(f => set.add(f));
+    } catch(e) {}
+    _acCache = Array.from(set).sort();
+    try { sessionStorage.setItem('core_fornecedores', JSON.stringify(_acCache)); } catch(e) {}
+}
+
+function acFornecedor(q) {
+    const list = document.getElementById('ac-list');
+    if (!list) return;
+    if (!q || q.length < 2) { list.style.display = 'none'; _acIdx = -1; return; }
+    if (!_acCache.length) acPopularCache();
+    const upper    = q.toUpperCase();
+    const starts   = _acCache.filter(f => f.startsWith(upper));
+    const contains = _acCache.filter(f => !f.startsWith(upper) && f.includes(upper));
+    const matches  = [...starts, ...contains].slice(0, 8);
+    if (!matches.length) { list.style.display = 'none'; _acIdx = -1; return; }
+    list.innerHTML = matches.map((f, i) => {
+        const idx2 = f.toUpperCase().indexOf(upper);
+        const hl = f.slice(0,idx2) + '<strong>' + f.slice(idx2, idx2+q.length) + '</strong>' + f.slice(idx2+q.length);
+        return `<li data-val="${f}" onmousedown="acSelecionar('${f.replace(/'/g,"\\'")}')"> ${hl} </li>`;
+    }).join('');
+    _acIdx = -1;
+    list.style.display = 'block';
+}
+
+function acSelecionar(valor) {
+    const input = document.getElementById('f_fornecedor');
+    const list  = document.getElementById('ac-list');
+    if (input) input.value = valor;
+    if (list)  list.style.display = 'none';
+    _acIdx = -1;
+    const next = document.getElementById('f_razao');
+    if (next) next.focus();
+}
+
+function acNavegar(e) {
+    const list  = document.getElementById('ac-list');
+    if (!list || list.style.display === 'none') return;
+    const items = list.querySelectorAll('li');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); _acIdx = Math.min(_acIdx+1, items.length-1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); _acIdx = Math.max(_acIdx-1, 0); }
+    else if (e.key === 'Enter' && _acIdx >= 0) { e.preventDefault(); acSelecionar(items[_acIdx].dataset.val); return; }
+    else if (e.key === 'Escape') { list.style.display = 'none'; _acIdx = -1; return; }
+    else return;
+    items.forEach((li, i) => li.classList.toggle('ac-active', i === _acIdx));
+    items[_acIdx].scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('click', e => {
+    const input = document.getElementById('f_fornecedor');
+    const list  = document.getElementById('ac-list');
+    if (list && input && !input.contains(e.target) && !list.contains(e.target))
+        list.style.display = 'none';
+});

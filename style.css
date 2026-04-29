@@ -3982,62 +3982,8 @@ body[data-user="supvitoria"] .btn-tema-opcao.ativo {
 [data-theme="dark"] .bd-noemp{ background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.2); }
 [data-theme="dark"] #view-projecao-opme  { color: #e2e8f0; }
 [data-theme="dark"] .opme-spin           { border-color:#1e293b; border-top-color:var(--accent); }
-
-/* =============================================================================
-   AUTOCOMPLETE DE FORNECEDOR
-   ============================================================================= */
-.ac-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: var(--card-bg);
-    border: 1.5px solid var(--accent);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.18);
-    list-style: none;
-    margin: 0;
-    padding: 4px;
-    z-index: 999;
-    max-height: 260px;
-    overflow-y: auto;
-}
-
-.ac-dropdown li {
-    padding: 9px 14px;
-    font-size: 13px;
-    color: var(--text-main);
-    border-radius: 7px;
-    cursor: pointer;
-    transition: background .12s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ac-dropdown li:hover,
-.ac-dropdown li.ac-active {
-    background: rgba(2, 132, 199, .12);
-    color: var(--accent);
-}
-
-.ac-dropdown li strong {
-    color: var(--accent);
-    font-weight: 900;
-}
-
-/* Scrollbar fina dentro do dropdown */
-.ac-dropdown::-webkit-scrollbar { width: 4px; }
-.ac-dropdown::-webkit-scrollbar-track  { background: transparent; }
-.ac-dropdown::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 999px; }
-
-/* Dark mode */
-[data-theme="dark"] .ac-dropdown {
-    background: #1e293b;
-    border-color: var(--accent);
-    box-shadow: 0 8px 24px rgba(0,0,0,.4);
-}
-[data-theme="dark"] .ac-dropdown li:hover,
-[data-theme="dark"] .ac-dropdown li.ac-active {
-    background: rgba(2, 132, 199, .18);
-}
+/* Card FORA COP */
+.opme-card-bloq { border-color: #64748b; --opme-color:#64748b; }
+.opme-card-bloq .opme-card-num { color:#64748b; }
+.opme-card-bloq:hover { background:var(--card-bg); }
+[data-theme="dark"] .opme-card-bloq { background:#1e293b; }

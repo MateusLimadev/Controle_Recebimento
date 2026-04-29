@@ -4007,9 +4007,13 @@ body[data-user="supvitoria"] .btn-tema-opcao.ativo {
 [data-theme="dark"] .bd-emp  { background:rgba(22,163,74,.15); border-color:rgba(22,163,74,.2);  }
 [data-theme="dark"] .bd-noemp{ background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.2); }
 [data-theme="dark"] #view-projecao-opme  { color: #e2e8f0; }
+<<<<<<< HEAD
 [data-theme="dark"] .opme-spin           { border-color:#1e293b; border-top-color:var(--accent); }
 /* Card FORA COP */
 .opme-card-bloq { border-color: #64748b; --opme-color:#64748b; }
 .opme-card-bloq .opme-card-num { color:#64748b; }
 .opme-card-bloq:hover { background:var(--card-bg); }
 [data-theme="dark"] .opme-card-bloq { background:#1e293b; }
+=======
+[data-theme="dark"] .opme-spin           { border-color:#1e293b; border-top-color:var(--accent); }
+>>>>>>> parent of 30fbb2f (ADD AUTO COMPLETE)

@@ -599,6 +599,32 @@ async function carregarHistoricoNotas() {
     }
 }
 
+const _origRenderHistorico = typeof renderizarHistoricoNotas === 'function'
+    ? renderizarHistoricoNotas : null;
+
+// Hook: sempre que _histNotas for atualizado, atualiza o cache de fornecedores
+// (disparado por carregarHistoricoNotas que já popula _histNotas antes de renderizar)
+const _origCarregarHistorico = carregarHistoricoNotas;
+carregarHistoricoNotas = async function() {
+    await _origCarregarHistorico.apply(this, arguments);
+    acPopularCache();
+};
+
+// Também salva o fornecedor no cache quando uma nova nota é adicionada ao lote
+const _origAdicionarNota = adicionarNota;
+adicionarNota = function() {
+    const forn = document.getElementById('f_fornecedor');
+    if (forn && forn.value.trim()) {
+        const v = forn.value.trim().toUpperCase();
+        if (!_acCache.includes(v)) {
+            _acCache.push(v);
+            _acCache.sort();
+            try { sessionStorage.setItem('core_fornecedores', JSON.stringify(_acCache)); } catch(e) {}
+        }
+    }
+    return _origAdicionarNota.apply(this, arguments);
+};
+
 function filtrarHistoricoNotas() {
     const q = document.getElementById('histBuscaInput').value.trim().toLowerCase();
     _histNotasFiltrado = q

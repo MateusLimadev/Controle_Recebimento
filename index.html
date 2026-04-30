@@ -28,11 +28,13 @@
     .opme-card-c4{border-color:#f59e0b;--opme-card-color:#f59e0b}
     .opme-card-c5{border-color:#f97316;--opme-card-color:#f97316}
     .opme-card-c6{border-color:#8b5cf6;--opme-card-color:#8b5cf6}
+    .opme-card-viaCop{border-color:#16a34a;--opme-card-color:#16a34a}
     .opme-card-num{font-size:36px;font-weight:900;line-height:1;margin-bottom:4px}
     .opme-card-c2 .opme-card-num{color:#ef4444}
     .opme-card-c4 .opme-card-num{color:#f59e0b}
     .opme-card-c5 .opme-card-num{color:#f97316}
     .opme-card-c6 .opme-card-num{color:#8b5cf6}
+    .opme-card-viaCop .opme-card-num{color:#16a34a}
     .opme-card-lbl{font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
     .opme-card-desc{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5}
     .opme-tabs-bar{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
@@ -60,6 +62,7 @@
     .opme-spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:16px;color:var(--text-muted)}
     .opme-spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:opme-rotate .8s linear infinite}
     @keyframes opme-rotate{to{transform:rotate(360deg)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
     .opme-hist-item{background:var(--card-bg);border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid var(--border)}
     .opme-hist-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer}
     .opme-hist-hdr:hover{background:var(--bg-system)}
@@ -111,6 +114,13 @@
                     <div>
                         <span>OPME / Especiais</span>
                         <small>Protocolar notas fiscais</small>
+                    </div>
+                </button>
+                <button class="btn-interface-opcao" onclick="entrarComoCompras()">
+                    <i class="ph ph-shopping-bag" style="font-size:20px;"></i>
+                    <div>
+                        <span>Compras</span>
+                        <small>Controle de vigência de documentos</small>
                     </div>
                 </button>
             </div>
@@ -630,55 +640,42 @@
          MODAL — NOVO PROTOCOLO OPME
     ====================================================== -->
     <div id="modalNovoProtocolo" class="modal" style="display:none">
-        <div class="modal-content" style="max-width:900px;width:96%;padding:32px;" onclick="event.stopPropagation()">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div class="modal-content" style="max-width:860px;width:96%;padding:32px;" onclick="event.stopPropagation()">
+
+            <!-- Cabeçalho fixo -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
                 <div>
-                    <h3 style="font-weight:900;font-size:18px;display:flex;align-items:center;gap:10px;"><i class="ph ph-clipboard-text" style="color:var(--accent);"></i> Novo Protocolo de Notas Fiscais</h3>
-                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Preencha as notas e envie para o Suprimentos</p>
+                    <h3 style="font-weight:900;font-size:18px;display:flex;align-items:center;gap:10px;">
+                        <i class="ph ph-clipboard-text" style="color:var(--accent);"></i> Novo Protocolo de Notas Fiscais
+                    </h3>
+                    <p id="prot-step-label" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></p>
                 </div>
                 <button onclick="fecharModalNovoProtocolo()" class="btn-fechar-perfil"><i class="ph ph-x"></i></button>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-                <div class="field-group">
-                    <label>Responsável</label>
-                    <input type="text" id="protResponsavel" readonly style="background:var(--bg-system);opacity:0.7;">
-                </div>
-                <div class="field-group">
-                    <label>Observações (opcional)</label>
-                    <input type="text" id="protObs" placeholder="Ex: urgente, conferir duplicatas...">
-                </div>
+            <!-- Barra de etapas -->
+            <div style="display:flex;gap:0;margin-bottom:24px;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+                <div id="prot-step-bar-1" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:800;background:var(--accent);color:#fff;">1 · EMPRESAS</div>
+                <div id="prot-step-bar-2" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:800;background:var(--bg-system);color:var(--text-muted);border-left:1px solid var(--border);">2 · Nº NOTAS</div>
+                <div id="prot-step-bar-3" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:800;background:var(--bg-system);color:var(--text-muted);border-left:1px solid var(--border);">3 · CHAVES XML</div>
+                <div id="prot-step-bar-4" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:800;background:var(--bg-system);color:var(--text-muted);border-left:1px solid var(--border);">4 · DETALHES</div>
             </div>
 
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                <span style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">Notas Fiscais</span>
-                <button onclick="adicionarLinhaProtocolo()" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;color:#06b6d4;display:flex;align-items:center;gap:6px;">
-                    <i class="ph ph-plus"></i> ADICIONAR LINHA
+            <!-- Conteúdo da etapa atual -->
+            <div id="prot-step-content" style="min-height:260px;"></div>
+
+            <!-- Erro -->
+            <div id="protocoloErro" style="color:var(--danger);font-size:12px;min-height:18px;margin:8px 0;"></div>
+
+            <!-- Botões de navegação -->
+            <div style="display:flex;gap:10px;margin-top:8px;">
+                <button id="prot-btn-voltar" onclick="protStep(-1)"
+                    style="padding:12px 24px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:800;font-size:13px;cursor:pointer;display:none;">
+                    <i class="ph ph-arrow-left"></i> VOLTAR
                 </button>
-            </div>
-
-            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:16px;">
-                <table style="width:100%;border-collapse:collapse;min-width:750px;">
-                    <thead>
-                        <tr style="background:var(--bg-system);">
-                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Data</th>
-                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Empresa</th>
-                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nº Nota</th>
-                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Chave de Acesso</th>
-                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nat. Operação</th>
-                            <th style="padding:10px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);text-align:center;">Lote</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="protocoloLinhas"></tbody>
-                </table>
-            </div>
-
-            <div id="protocoloErro" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:8px;"></div>
-
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button onclick="enviarProtocolo()" class="btn-novo-usuario" style="flex:1;justify-content:center;padding:12px;">
-                    <i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA SUPRIMENTOS
+                <button id="prot-btn-avancar" onclick="protStep(1)"
+                    style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:13px;cursor:pointer;">
+                    PRÓXIMO <i class="ph ph-arrow-right"></i>
                 </button>
             </div>
         </div>
@@ -899,6 +896,11 @@
                 <div class="fn-divider" id="fn-div-admin" style="display:none"></div>
                 <button class="fn-btn fn-admin" id="fn-admin" onclick="switchTab('Admin')" data-tip="Administração" style="display:none">
                     <i class="ph ph-shield-check"></i>
+                </button>
+                <!-- Botão Compras — visível só para módulo compras -->
+                <div class="fn-divider" id="fn-div-compras" style="display:none"></div>
+                <button class="fn-btn" id="fn-compras" onclick="switchTab('Compras')" data-tip="Compras" style="display:none">
+                    <i class="ph ph-shopping-bag"></i>
                 </button>
                 <!-- Botão Projeção OPME — visível só para esp* -->
                 <div class="fn-divider" id="fn-div-proj-opme" style="display:none"></div>
@@ -1672,6 +1674,11 @@
                     <div class="opme-card-lbl">Fora COP</div>
                     <div class="opme-card-desc">COP não vai comprar<br>mas precisa de atenção</div>
                 </div>
+                <div class="opme-card opme-card-viaCop" id="opme-card-viaCop" onclick="switchOPMETab('viaCop')" style="position:relative;">
+                    <div class="opme-card-num" id="opme-num-viaCop">—</div>
+                    <div class="opme-card-lbl">VIA COP</div>
+                    <div class="opme-card-desc">Itens que serão<br>comprados pela COP</div>
+                </div>
             </div>
 
             <!-- Tabs -->
@@ -1691,8 +1698,11 @@
                 <button class="opme-tab-btn" id="opme-tbtn-bloq" onclick="switchOPMETab('bloq')">
                     🚫 Fora COP <span class="opme-tab-badge" id="opme-badge-bloq">0</span>
                 </button>
+                <button class="opme-tab-btn" id="opme-tbtn-viaCop" onclick="switchOPMETab('viaCop')" style="color:#16a34a;border-bottom-color:transparent;">
+                    ✅ Via COP <span class="opme-tab-badge" id="opme-badge-viaCop" style="background:rgba(22,163,74,0.2);color:#16a34a;">0</span>
+                </button>
                 <button class="opme-tab-btn" id="opme-tbtn-hist" onclick="switchOPMETab('hist')">
-                    🗂️ Histórico COPs
+                    🗂️ Última COP
                 </button>
                 <button class="opme-tab-btn" id="opme-tbtn-cop" onclick="switchOPMETab('cop')" style="display:none">
                     📋 Alerta COP
@@ -1719,6 +1729,7 @@
                 <div id="opme-panel-c5" style="display:none"></div>
                 <div id="opme-panel-c6" style="display:none"></div>
                 <div id="opme-panel-bloq" style="display:none"></div>
+                <div id="opme-panel-viaCop" style="display:none"></div>
                 <div id="opme-panel-hist" style="display:none"><div id="opme-hist-content"></div></div>
                 <div id="opme-panel-cop" style="display:none"><div id="opme-cop-content"></div></div>
             </div>
@@ -1989,11 +2000,173 @@
             </div>
 
         </main>
+
+        <!-- VIEW COMPRAS -->
+        <div id="view-compras" style="display:none;padding:24px 32px;max-width:1200px;margin:0 auto;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <div>
+                <h2 style="font-size:20px;font-weight:900;color:var(--text-main);display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-file-text" style="color:#0284c7;"></i> Controle de Vigência de Documentos
+                </h2>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:3px;">Acompanhe os documentos de fornecedores e seus vencimentos</p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <input type="text" id="compras-busca" placeholder="🔍 Buscar fornecedor..." oninput="filtrarCompras()"
+                    style="padding:8px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--card-bg);color:var(--text-main);font-size:13px;outline:none;min-width:200px;">
+                <button onclick="abrirModalAddEmpresa()"
+                    style="padding:9px 18px;border-radius:10px;border:none;background:#0284c7;color:#fff;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;">
+                    <i class="ph ph-plus"></i> ADICIONAR FORNECEDOR
+                </button>
+                <button onclick="carregarCompras(true)"
+                    style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
+                    <i class="ph ph-arrows-clockwise"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cards de resumo -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;" id="compras-cards"></div>
+
+        <!-- Tabela de fornecedores -->
+        <div id="compras-loading" style="display:none;text-align:center;padding:40px;color:var(--text-muted);">
+            <div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:#0284c7;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;"></div>
+            Carregando fornecedores...
+        </div>
+        <div id="compras-tabela-wrap" style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;" id="compras-tabela">
+                <thead>
+                    <tr style="background:var(--bg-system);">
+                        <th style="padding:11px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">FORNECEDOR</th>
+                        <th style="padding:11px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">E-MAIL</th>
+                        <th style="padding:11px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">DOCS</th>
+                        <th style="padding:11px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">STATUS</th>
+                        <th style="padding:11px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">AÇÕES</th>
+                    </tr>
+                </thead>
+                <tbody id="compras-tbody"></tbody>
+            </table>
+        </div>
+        <div id="compras-vazio" style="display:none;text-align:center;padding:48px 20px;color:var(--text-muted);">
+            <div style="font-size:40px;margin-bottom:12px;">📂</div>
+            <p style="font-weight:700;">Nenhum fornecedor cadastrado ainda</p>
+            <p style="font-size:12px;margin-top:6px;">Clique em "Adicionar Fornecedor" para começar</p>
+        </div>
+    </div>
+
     </div><!-- /#app -->
 
+
     <!-- =====================================================
-         MODAL CRIAR / EDITAR USUÁRIO
+         MODAL ADICIONAR FORNECEDOR — COMPRAS
     ====================================================== -->
+    <div id="modalAddEmpresa" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:680px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3><i class="ph ph-buildings" style="color:#0284c7;"></i> NOVO FORNECEDOR</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalAddEmpresa')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 20px;">
+                <div class="field-group">
+                    <label>Nome do Fornecedor</label>
+                    <input type="text" id="add-emp-nome" placeholder="Ex: BOSTON SCIENTIFIC" style="text-transform:uppercase;">
+                </div>
+                <div class="field-group">
+                    <label>E-mail</label>
+                    <input type="email" id="add-emp-email" placeholder="contato@empresa.com.br">
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Documentos</p>
+                <button onclick="addLinhaDoc()"
+                    style="padding:5px 12px;border-radius:7px;border:1.5px solid #0284c7;background:transparent;color:#0284c7;font-weight:800;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                    <i class="ph ph-plus"></i> ADD DOCUMENTO
+                </button>
+            </div>
+            <div id="add-docs-lista" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;"></div>
+            <div id="add-emp-erro" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:8px;"></div>
+            <div class="saida-confirm-btns" style="margin-top:16px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalAddEmpresa')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button onclick="salvarEmpresa()" class="btn-salvar-usuario">
+                    <i class="ph ph-floppy-disk"></i> SALVAR FORNECEDOR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL DOCUMENTOS DO FORNECEDOR — COMPRAS
+    ====================================================== -->
+    <div id="modalDocsEmpresa" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:700px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3><i class="ph ph-file-text" style="color:#0284c7;"></i> <span id="docs-emp-nome">—</span></h3>
+                <i class="ph ph-x" onclick="fecharModal('modalDocsEmpresa')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <p id="docs-emp-email" style="font-size:12px;color:var(--text-muted);margin:6px 0 18px;"></p>
+
+            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
+                <table style="width:100%;border-collapse:collapse;" id="docs-emp-tabela">
+                    <thead>
+                        <tr style="background:var(--bg-system);">
+                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">DOCUMENTO</th>
+                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">NÚMERO</th>
+                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">VIGÊNCIA</th>
+                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">VENCIMENTO</th>
+                            <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">STATUS</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="docs-emp-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Adicionar novo documento inline -->
+            <div style="margin-top:16px;padding:14px;border-radius:10px;border:1.5px dashed var(--border);background:var(--bg-system);">
+                <p style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Adicionar novo documento</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;">
+                    <div class="field-group" style="margin:0;">
+                        <label>Nome</label>
+                        <input type="text" id="new-doc-nome" placeholder="Ex: Certidão">
+                    </div>
+                    <div class="field-group" style="margin:0;">
+                        <label>Número</label>
+                        <input type="text" id="new-doc-numero" placeholder="Nº do doc">
+                    </div>
+                    <div class="field-group" style="margin:0;">
+                        <label>Vigência</label>
+                        <input type="date" id="new-doc-vigencia">
+                    </div>
+                    <div class="field-group" style="margin:0;">
+                        <label>Vencimento</label>
+                        <input type="date" id="new-doc-vencimento">
+                    </div>
+                    <button onclick="salvarNovoDocumento()"
+                        style="padding:9px 14px;border-radius:9px;border:none;background:#0284c7;color:#fff;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;">
+                        <i class="ph ph-plus"></i>
+                    </button>
+                </div>
+                <div id="new-doc-erro" style="color:var(--danger);font-size:12px;min-height:14px;margin-top:6px;"></div>
+            </div>
+
+            <!-- Botão remover empresa -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+                <button onclick="confirmarDeleteEmpresa()"
+                    style="padding:9px 14px;border-radius:9px;border:1.5px solid var(--danger);background:transparent;color:var(--danger);font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-trash"></i> REMOVER FORNECEDOR
+                </button>
+                <button onclick="fecharModal('modalDocsEmpresa')"
+                    style="padding:9px 18px;border-radius:9px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
+                    FECHAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!--====================================================== -->
     <div id="modalUsuario" class="modal" style="display:none;">
         <div class="modal-content usuario-modal-content">
             <div class="modal-header">
@@ -2348,6 +2521,67 @@
                     <i class="ph ph-trash"></i> SIM, REMOVER
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL DETALHE VIA COP — OPME
+    ====================================================== -->
+    <div id="modalDetalheViaCopOPME" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:460px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3><i class="ph ph-magnifying-glass" style="color:#16a34a;"></i> POR QUE ESTÁ NA COP?</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalDetalheViaCopOPME')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <div style="margin:14px 0 6px;padding:12px 14px;border-radius:10px;background:var(--bg-system);border:1px solid var(--border);">
+                <p style="font-family:monospace;font-weight:900;font-size:13px;color:#16a34a;margin:0 0 3px;" id="motivoViaCopCodigo">—</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:0;" id="motivoViaCopDescricao">—</p>
+            </div>
+            <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:16px 0 8px;">Todos os critérios atendidos</p>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.25);">
+                    <span style="font-size:18px;">📋</span>
+                    <span style="font-size:13px;color:var(--text-main);font-weight:600;">Processo SIAFEM cadastrado e válido</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.25);">
+                    <span style="font-size:18px;">📅</span>
+                    <span style="font-size:13px;color:var(--text-main);font-weight:600;">RP vigente — dentro do prazo de validade</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.25);">
+                    <span style="font-size:18px;">✅</span>
+                    <span style="font-size:13px;color:var(--text-main);font-weight:600;">COMPRAR? = Planejado-Comprar</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.25);">
+                    <span style="font-size:18px;">📦</span>
+                    <span style="font-size:13px;color:var(--text-main);font-weight:600;">Quantidade a comprar positiva — estoque dentro do necessário</span>
+                </div>
+            </div>
+            <button onclick="fecharModal('modalDetalheViaCopOPME')"
+                style="margin-top:20px;width:100%;padding:11px;border-radius:10px;border:1.5px solid #16a34a;background:transparent;color:#16a34a;font-weight:700;font-size:13px;cursor:pointer;">
+                FECHAR
+            </button>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL MOTIVO BLOQUEIO COP — OPME
+    ====================================================== -->
+    <div id="modalMotivoBloqueioOPME" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:460px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3><i class="ph ph-magnifying-glass" style="color:#f59e0b;"></i> POR QUE ESTÁ FORA COP?</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalMotivoBloqueioOPME')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <div style="margin:14px 0 6px;padding:12px 14px;border-radius:10px;background:var(--bg-system);border:1px solid var(--border);">
+                <p style="font-family:monospace;font-weight:900;font-size:13px;color:var(--accent);margin:0 0 3px;" id="motivoBloqCodigo">—</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:0;" id="motivoBloqDescricao">—</p>
+            </div>
+            <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:16px 0 8px;">Motivo(s) do bloqueio</p>
+            <ul id="motivoBloqLista" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;"></ul>
+            <button onclick="fecharModal('modalMotivoBloqueioOPME')"
+                style="margin-top:20px;width:100%;padding:11px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
+                FECHAR
+            </button>
         </div>
     </div>
 

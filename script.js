@@ -21,6 +21,19 @@ function entrarComoSuprimentos() {
     }
 }
 
+function entrarComoCompras() {
+    modoAtual = 'compras';
+    document.getElementById('seletorInterface').style.display = 'none';
+    document.getElementById('btnEntrar').style.display = 'block';
+    if (_dadosLoginPendente) {
+        _dadosLoginPendente._modoCompras = true;
+        entrarNoSistema(_dadosLoginPendente);
+        registrarLog('LOGIN', 'Acesso — Módulo Compras');
+        _dadosLoginPendente = null;
+    }
+}
+
+
 function entrarComoOpme() {
     modoAtual = 'opme';
     document.getElementById('seletorInterface').style.display = 'none';
@@ -1271,6 +1284,12 @@ function entrarNoSistema(data) {
             badge.style.background = 'rgba(99,102,241,0.2)';
             badge.style.color = '#818cf8';
             badge.style.border = '1px solid rgba(99,102,241,0.3)';
+        } else if (modoAtual === 'compras') {
+            badge.textContent = 'COMPRAS';
+            badge.style.display = 'inline';
+            badge.style.background = 'rgba(2,132,199,0.15)';
+            badge.style.color = '#0284c7';
+            badge.style.border = '1px solid rgba(2,132,199,0.25)';
         } else if (LOGINS_ACESSO_MULTIPLO.includes(loginAtual)) {
             badge.textContent = 'SUPRIMENTOS';
             badge.style.display = 'inline';
@@ -1308,6 +1327,8 @@ function entrarNoSistema(data) {
     // Redireciona para o módulo escolhido
     if (data._modoOpme) {
         switchTab('ProjecaoOPME');
+    } else if (data._modoCompras) {
+        switchTab('Compras');
     } else {
         switchTab('Dashboard');
     }
@@ -2323,6 +2344,30 @@ function switchTab(aba) {
     if (modoAtual === 'opme' && aba !== 'ProtocolosOpme' && aba !== 'AdminOpme' && aba !== 'ProjecaoOPME') {
         switchTab('ProtocolosOpme');
         return;
+    }
+
+    // Em modo Compras só permite Compras
+    if (modoAtual === 'compras' && aba !== 'Compras') {
+        switchTab('Compras');
+        return;
+    }
+
+    if (aba === 'Compras') {
+        document.getElementById('view-dashboard').style.display  = 'none';
+        document.getElementById('view-forms').style.display      = 'none';
+        document.getElementById('view-projecao').style.display   = 'none';
+        document.getElementById('view-admin').style.display      = 'none';
+        var vc = document.getElementById('view-compras');
+        if (vc) vc.style.display = 'block';
+        var fnC = document.getElementById('fn-compras');
+        if (fnC) { fnC.style.display = 'flex'; fnC.classList.add('active'); }
+        var divC = document.getElementById('fn-div-compras');
+        if (divC) divC.style.display = 'block';
+        carregarCompras();
+        return;
+    } else {
+        var vc = document.getElementById('view-compras');
+        if (vc) vc.style.display = 'none';
     }
 
     if (aba === 'Dashboard') {
@@ -4524,93 +4569,322 @@ async function carregarProtocolosSup() {
     }
 }
 
-// --- Modal novo protocolo ---
+// --- Modal novo protocolo — fluxo por etapas ---
+
+var _prot = { step: 1, notas: [], obs: '' };
+
+var _protStepLabels = [
+    '', // índice 0 não usado
+    'Etapa 1 de 4 — Informe as empresas das notas',
+    'Etapa 2 de 4 — Digite os números das notas',
+    'Etapa 3 de 4 — Bipe as chaves de acesso (XML)',
+    'Etapa 4 de 4 — Detalhes finais e envio'
+];
 
 function abrirNovoProtocolo() {
-    protocoloLinhasData = [];
-    document.getElementById('protResponsavel').value = usuarioAtual?.nome || '';
-    document.getElementById('protObs').value = '';
+    _prot = { step: 1, notas: [], obs: '' };
     document.getElementById('protocoloErro').textContent = '';
-    document.getElementById('protocoloLinhas').innerHTML = '';
-    adicionarLinhaProtocolo();
     document.getElementById('modalNovoProtocolo').style.display = 'flex';
+    _protRenderStep();
 }
 
 function fecharModalNovoProtocolo() {
     document.getElementById('modalNovoProtocolo').style.display = 'none';
 }
 
-function adicionarLinhaProtocolo() {
-    const idx = Date.now();
-    const tbody = document.getElementById('protocoloLinhas');
-    const tr = document.createElement('tr');
-    tr.setAttribute('data-idx', idx);
-    tr.style.borderTop = '1px solid var(--border)';
-    tr.innerHTML = `
-        <td style="padding:6px 8px;"><input type="date" class="prot-input prot-data" value="${new Date().toISOString().split('T')[0]}" style="width:130px;"></td>
-        <td style="padding:6px 8px;"><input type="text" class="prot-input prot-empresa" placeholder="Ex: BOSTON" style="width:130px;text-transform:uppercase;"></td>
-        <td style="padding:6px 8px;"><input type="text" class="prot-input prot-numero" placeholder="Ex: 3427488" style="width:90px;"></td>
-        <td style="padding:6px 8px;"><input type="text" class="prot-input prot-chave" placeholder="44 dígitos" maxlength="44" style="width:200px;font-family:monospace;font-size:11px;"></td>
-        <td style="padding:6px 8px;">
-            <select class="prot-input prot-nat" style="width:110px;">
-                <option value="HC">HC</option>
-                <option value="REMESSA">REMESSA</option>
-                <option value="FZ">FZ</option>
-                <option value="OUTRO">OUTRO</option>
-            </select>
-        </td>
-        <td style="padding:6px 8px;text-align:center;">
-            <input type="checkbox" class="prot-lote" style="width:18px;height:18px;cursor:pointer;">
-        </td>
-        <td style="padding:6px 8px;text-align:center;">
-            <button onclick="removerLinhaProtocolo(this)" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;">
-                <i class="ph ph-trash"></i>
-            </button>
-        </td>`;
-    tbody.appendChild(tr);
+function _protAtualizarBarra() {
+    [1,2,3,4].forEach(function(n) {
+        var el = document.getElementById('prot-step-bar-' + n);
+        if (!el) return;
+        el.style.background  = n === _prot.step ? 'var(--accent)' : n < _prot.step ? 'rgba(6,182,212,0.2)' : 'var(--bg-system)';
+        el.style.color       = n <= _prot.step ? (n === _prot.step ? '#fff' : 'var(--accent)') : 'var(--text-muted)';
+    });
+    document.getElementById('prot-step-label').textContent = _protStepLabels[_prot.step];
+    document.getElementById('prot-btn-voltar').style.display = _prot.step > 1 ? 'block' : 'none';
+    var btnAv = document.getElementById('prot-btn-avancar');
+    if (_prot.step === 4) {
+        btnAv.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA SUPRIMENTOS';
+        btnAv.style.background = '#16a34a';
+    } else {
+        btnAv.innerHTML = 'PRÓXIMO <i class="ph ph-arrow-right"></i>';
+        btnAv.style.background = 'var(--accent)';
+    }
 }
 
-function removerLinhaProtocolo(btn) {
-    btn.closest('tr').remove();
+function _protRenderStep() {
+    _protAtualizarBarra();
+    var cont = document.getElementById('prot-step-content');
+    document.getElementById('protocoloErro').textContent = '';
+
+    if (_prot.step === 1) {
+        var hoje = new Date().toISOString().split('T')[0];
+        cont.innerHTML =
+            '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use o formato <b>NxEMPRESA</b> para adicionar várias de uma vez. Ex: <code style="background:var(--bg-system);padding:2px 6px;border-radius:4px;">10x BOSTON</code></p>' +
+            '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
+            '<input id="prot-emp-input" type="text" placeholder="Ex: 10x BOSTON ou apenas BOSTON" ' +
+            'style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg-system);color:var(--text-main);font-size:13px;text-transform:uppercase;" ' +
+            'onkeydown="if(event.key===\'Enter\')_protAdicionarEmpresa()">' +
+            '<button onclick="_protAdicionarEmpresa()" style="padding:10px 18px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:13px;cursor:pointer;">' +
+            '<i class="ph ph-plus"></i> ADICIONAR</button>' +
+            '</div>' +
+            '<div id="prot-emp-lista" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;"></div>' +
+            '<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<p style="font-size:12px;color:var(--text-muted);">Total: <b id="prot-emp-total">0</b> nota(s)</p>' +
+            '<div class="field-group" style="margin:0;display:flex;align-items:center;gap:8px;">' +
+            '<label style="font-size:11px;white-space:nowrap;">Obs. (opcional)</label>' +
+            '<input id="prot-obs-input" type="text" placeholder="Ex: urgente..." value="' + (_prot.obs||'') + '" ' +
+            'style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg-system);color:var(--text-main);font-size:12px;width:220px;">' +
+            '</div></div>';
+        _protRenderEmpLista();
+        setTimeout(function(){ document.getElementById('prot-emp-input')?.focus(); }, 50);
+
+    } else if (_prot.step === 2) {
+        var rows = _prot.notas.map(function(n, i){
+            return '<tr style="border-bottom:1px solid var(--border);">' +
+                '<td style="padding:8px 10px;font-weight:800;font-size:12px;color:var(--accent);white-space:nowrap;">' + (n.empresa||'—') + '</td>' +
+                '<td style="padding:8px 10px;">' +
+                '<input type="text" class="prot-num-input" data-i="' + i + '" value="' + (n.numero_nota||'') + '" ' +
+                'placeholder="Nº da nota" ' +
+                'onkeydown="if(event.key===\'Enter\'||event.key===\'Tab\'){event.preventDefault();_protFocusNext(this,\'prot-num-input\');}" ' +
+                'style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg-system);color:var(--text-main);font-size:13px;font-family:monospace;">' +
+                '</td></tr>';
+        }).join('');
+        cont.innerHTML =
+            '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;max-height:360px;overflow-y:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead><tr style="background:var(--bg-system);position:sticky;top:0;">' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:160px;">EMPRESA</th>' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nº DA NOTA</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+        setTimeout(function(){ document.querySelector('.prot-num-input')?.focus(); }, 50);
+
+    } else if (_prot.step === 3) {
+        var rows = _prot.notas.map(function(n, i){
+            return '<tr style="border-bottom:1px solid var(--border);">' +
+                '<td style="padding:8px 10px;font-weight:800;font-size:12px;color:var(--accent);white-space:nowrap;">' + (n.empresa||'—') + '</td>' +
+                '<td style="padding:8px 10px;font-size:12px;color:var(--text-muted);font-family:monospace;">' + (n.numero_nota||'—') + '</td>' +
+                '<td style="padding:8px 10px;">' +
+                '<input type="text" class="prot-chave-input" data-i="' + i + '" value="' + (n.chave_acesso||'') + '" ' +
+                'placeholder="44 dígitos — bipe o XML" maxlength="44" ' +
+                'onkeydown="if(event.key===\'Enter\'||event.key===\'Tab\'){event.preventDefault();_protFocusNext(this,\'prot-chave-input\');}" ' +
+                'oninput="this.value=this.value.replace(/\\D/g,\'\')" ' +
+                'style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg-system);color:var(--text-main);font-size:12px;font-family:monospace;">' +
+                '</td></tr>';
+        }).join('');
+        cont.innerHTML =
+            '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Campo opcional — bipe ou cole a chave de acesso do XML. Pressione Enter para ir para a próxima.</p>' +
+            '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;max-height:340px;overflow-y:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead><tr style="background:var(--bg-system);position:sticky;top:0;">' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:140px;">EMPRESA</th>' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:100px;">Nº NOTA</th>' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">CHAVE DE ACESSO (XML)</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+        setTimeout(function(){ document.querySelector('.prot-chave-input')?.focus(); }, 50);
+
+    } else if (_prot.step === 4) {
+        var rows = _prot.notas.map(function(n, i){
+            var natOpts = ['HC','REMESSA','FZ','OUTRO'].map(function(v){
+                return '<option value="' + v + '"' + (n.nat_operacao===v?' selected':'') + '>' + v + '</option>';
+            }).join('');
+            return '<tr style="border-bottom:1px solid var(--border);">' +
+                '<td style="padding:8px 10px;font-weight:800;font-size:12px;color:var(--accent);white-space:nowrap;">' + (n.empresa||'—') + '</td>' +
+                '<td style="padding:8px 10px;font-size:12px;font-family:monospace;color:var(--text-muted);">' + (n.numero_nota||'—') + '</td>' +
+                '<td style="padding:8px 10px;font-size:11px;font-family:monospace;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (n.chave_acesso||'') + '">' + (n.chave_acesso ? n.chave_acesso.slice(0,16)+'…' : '—') + '</td>' +
+                '<td style="padding:8px 10px;">' +
+                '<select class="prot-nat-input" data-i="' + i + '" ' +
+                'onkeydown="if(event.key===\'Enter\'){event.preventDefault();_protFocusNext(this,\'prot-nat-input\');}" ' +
+                'style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg-system);color:var(--text-main);font-size:12px;">' +
+                natOpts + '</select></td>' +
+                '<td style="padding:8px 10px;text-align:center;">' +
+                '<input type="checkbox" class="prot-lote-input" data-i="' + i + '" ' + (n.tem_lote?'checked':'') + ' style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent);">' +
+                '</td>' +
+                '<td style="padding:8px 10px;text-align:center;">' +
+                '<button onclick="_protRemoverNota(' + i + ')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;">' +
+                '<i class="ph ph-trash"></i></button></td>' +
+                '</tr>';
+        }).join('');
+        cont.innerHTML =
+            '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;max-height:340px;overflow-y:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead><tr style="background:var(--bg-system);position:sticky;top:0;">' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">EMPRESA</th>' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Nº NOTA</th>' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">CHAVE</th>' +
+            '<th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">NAT. OP.</th>' +
+            '<th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">LOTE</th>' +
+            '<th></th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
 }
 
-function coletarLinhasProtocolo() {
-    const linhas = document.querySelectorAll('#protocoloLinhas tr');
-    return Array.from(linhas).map(tr => ({
-        data:          tr.querySelector('.prot-data')?.value || '',
-        empresa:       (tr.querySelector('.prot-empresa')?.value || '').toUpperCase().trim(),
-        numero_nota:   tr.querySelector('.prot-numero')?.value?.trim() || '',
-        chave_acesso:  tr.querySelector('.prot-chave')?.value?.trim() || '',
-        nat_operacao:  tr.querySelector('.prot-nat')?.value || 'HC',
-        tem_lote:      tr.querySelector('.prot-lote')?.checked || false
-    })).filter(n => n.empresa || n.numero_nota);
+function _protAdicionarEmpresa() {
+    var inp = document.getElementById('prot-emp-input');
+    if (!inp) return;
+    var val = inp.value.trim().toUpperCase();
+    if (!val) return;
+    inp.value = '';
+
+    // Detecta multiplicador: "10x BOSTON", "BOSTON x10", "10 BOSTON"
+    var qtd = 1, nome = val;
+    var m1 = val.match(/^(\d+)\s*[xX]\s*(.+)$/);
+    var m2 = val.match(/^(.+?)\s*[xX]\s*(\d+)$/);
+    if (m1)      { qtd = parseInt(m1[1]); nome = m1[2].trim(); }
+    else if (m2) { qtd = parseInt(m2[2]); nome = m2[1].trim(); }
+    qtd = Math.max(1, Math.min(qtd, 200));
+
+    var hoje = new Date().toISOString().split('T')[0];
+    for (var i = 0; i < qtd; i++) {
+        _prot.notas.push({ empresa: nome, data: hoje, numero_nota: '', chave_acesso: '', nat_operacao: 'HC', tem_lote: false });
+    }
+    _protRenderEmpLista();
+    inp.focus();
 }
 
-async function enviarProtocolo() {
-    const notas = coletarLinhasProtocolo();
-    const erro  = document.getElementById('protocoloErro');
-    if (!notas.length) { erro.textContent = 'Adicione pelo menos uma nota.'; return; }
-    const semNota = notas.find(n => !n.numero_nota);
-    if (semNota) { erro.textContent = 'Preencha o número da nota em todas as linhas.'; return; }
+function _protRenderEmpLista() {
+    var lista = document.getElementById('prot-emp-lista');
+    if (!lista) return;
+
+    // Agrupa para exibição
+    var grupos = [];
+    _prot.notas.forEach(function(n, i){
+        var ultimo = grupos[grupos.length-1];
+        if (ultimo && ultimo.nome === n.empresa) { ultimo.count++; ultimo.ate = i; }
+        else grupos.push({ nome: n.empresa, count: 1, de: i, ate: i });
+    });
+
+    lista.innerHTML = grupos.map(function(g){
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-radius:8px;background:var(--bg-system);border:1px solid var(--border);">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span style="font-weight:900;font-size:13px;">' + g.nome + '</span>' +
+            '<span style="background:var(--accent);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;">' + g.count + 'x</span>' +
+            '</div>' +
+            '<button onclick="_protRemoverGrupo(' + g.de + ',' + g.ate + ')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;" title="Remover">×</button>' +
+            '</div>';
+    }).join('');
+
+    var total = document.getElementById('prot-emp-total');
+    if (total) total.textContent = _prot.notas.length;
+}
+
+function _protRemoverGrupo(de, ate) {
+    _prot.notas.splice(de, ate - de + 1);
+    _protRenderEmpLista();
+}
+
+function _protRemoverNota(i) {
+    _prot.notas.splice(i, 1);
+    _protRenderStep();
+}
+
+function _protFocusNext(el, cls) {
+    var todos = Array.from(document.querySelectorAll('.' + cls));
+    var idx   = todos.indexOf(el);
+    if (idx >= 0 && idx < todos.length - 1) todos[idx + 1].focus();
+}
+
+function _protSalvarStep() {
+    if (_prot.step === 1) {
+        _prot.obs = document.getElementById('prot-obs-input')?.value || '';
+    } else if (_prot.step === 2) {
+        document.querySelectorAll('.prot-num-input').forEach(function(el){
+            var i = parseInt(el.dataset.i);
+            if (_prot.notas[i]) _prot.notas[i].numero_nota = el.value.trim();
+        });
+    } else if (_prot.step === 3) {
+        document.querySelectorAll('.prot-chave-input').forEach(function(el){
+            var i = parseInt(el.dataset.i);
+            if (_prot.notas[i]) _prot.notas[i].chave_acesso = el.value.trim();
+        });
+    } else if (_prot.step === 4) {
+        document.querySelectorAll('.prot-nat-input').forEach(function(el){
+            var i = parseInt(el.dataset.i);
+            if (_prot.notas[i]) _prot.notas[i].nat_operacao = el.value;
+        });
+        document.querySelectorAll('.prot-lote-input').forEach(function(el){
+            var i = parseInt(el.dataset.i);
+            if (_prot.notas[i]) _prot.notas[i].tem_lote = el.checked;
+        });
+    }
+}
+
+var _protEnviando = false;
+
+function protStep(dir) {
+    _protSalvarStep();
+    var erro = document.getElementById('protocoloErro');
     erro.textContent = '';
 
+    if (dir === 1) {
+        if (_prot.step === 1 && !_prot.notas.length) { erro.textContent = 'Adicione pelo menos uma empresa.'; return; }
+        if (_prot.step === 2) {
+            var semNota = _prot.notas.find(function(n){ return !n.numero_nota; });
+            if (semNota) { erro.textContent = 'Preencha o número da nota em todas as linhas.'; return; }
+        }
+        if (_prot.step === 4) {
+            if (_protEnviando) return; // guard contra duplo clique
+            _protEnviando = true;
+            // Bloqueia o botão IMEDIATAMENTE, antes de qualquer async
+            var btn = document.getElementById('prot-btn-avancar');
+            var btnV = document.getElementById('prot-btn-voltar');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin .8s linear infinite;display:inline-block;"></i> ENVIANDO...'; btn.style.background = '#0284c7'; }
+            if (btnV) btnV.disabled = true;
+            enviarProtocolo();
+            return;
+        }
+    }
+
+    _prot.step = Math.max(1, Math.min(4, _prot.step + dir));
+    _protRenderStep();
+}
+
+function removerLinhaProtocolo(btn) { btn.closest('tr').remove(); }
+function adicionarLinhaProtocolo() {}
+function coletarLinhasProtocolo() { return _prot.notas; }
+
+async function enviarProtocolo() {
+    var notas = _prot.notas;
+    var erro  = document.getElementById('protocoloErro');
+
     try {
-        const res  = await fetch(URL_SCRIPT, {
+        await fetch(URL_SCRIPT, {
             method: 'POST', mode: 'no-cors',
             body: JSON.stringify({
                 tipo: 'criarProtocolo',
                 responsavel: usuarioAtual?.nome || loginAtual,
                 login: loginAtual,
-                obs: document.getElementById('protObs').value,
+                obs: _prot.obs,
                 notas
             })
         });
-        document.getElementById('modalNovoProtocolo').style.display = 'none';
+
+        var btn = document.getElementById('prot-btn-avancar');
+        if (btn) { btn.innerHTML = '✅ ENVIADO!'; btn.style.background = '#16a34a'; }
+
+        document.getElementById('prot-step-content').innerHTML =
+            '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:16px;text-align:center;">' +
+            '<div style="width:64px;height:64px;border-radius:50%;background:rgba(22,163,74,0.15);display:flex;align-items:center;justify-content:center;">' +
+            '<i class="ph ph-check-circle" style="font-size:36px;color:#16a34a;"></i></div>' +
+            '<p style="font-size:18px;font-weight:900;color:var(--text-main);">Protocolo enviado!</p>' +
+            '<p style="font-size:13px;color:var(--text-muted);">' + notas.length + ' nota(s) encaminhadas para o Suprimentos.<br>A tela fechará em instantes...</p>' +
+            '</div>';
+
         _cache.protocolosOpme = false;
-        await carregarMeusProtocolos();
-        mostrarToast('✅ Protocolo enviado ao Suprimentos!', 'success', 4000);
+        carregarMeusProtocolos();
+
+        setTimeout(function() {
+            _protEnviando = false;
+            fecharModalNovoProtocolo();
+            mostrarToast('✅ Protocolo enviado ao Suprimentos!', 'success', 4000);
+        }, 2500);
+
     } catch(e) {
+        _protEnviando = false;
         erro.textContent = 'Erro ao enviar. Tente novamente.';
+        var btn = document.getElementById('prot-btn-avancar');
+        var btnV = document.getElementById('prot-btn-voltar');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR PARA SUPRIMENTOS'; btn.style.background = '#16a34a'; }
+        if (btnV) btnV.disabled = false;
     }
 }
 
@@ -5043,7 +5317,7 @@ async function rodarProjecaoOPME() {
     document.getElementById('opme-loading-state').style.display  = 'flex';
     document.getElementById('opme-cards-wrap').style.display     = 'none';
     document.getElementById('opme-tabs-bar').style.display       = 'none';
-    ['c2','c4','c5','c6','hist','cop'].forEach(t =>
+    ['c2','c4','c5','c6','bloq','viaCop','hist','cop'].forEach(t =>
         document.getElementById('opme-panel-' + t).style.display = 'none'
     );
 
@@ -5089,6 +5363,16 @@ async function rodarProjecaoOPME() {
         if (_nb1) _nb1.textContent = _bloqTotal;
         if (_nb2) _nb2.textContent = _bloqTotal;
 
+        // card VIA COP — conta e renderiza aba dedicada
+        var _todosItens = (data.criterio2||[]).concat(data.criterio4||[]).concat(data.criterio5||[]).concat(data.criterio6||[]);
+        var _viaCopItens = _todosItens.filter(function(it){ return !it.bloqueioCompra; });
+        var _viaCopTotal = _viaCopItens.length;
+        var _nvc = document.getElementById('opme-num-viaCop');
+        var _bvc = document.getElementById('opme-badge-viaCop');
+        if (_nvc) _nvc.textContent = _viaCopTotal;
+        if (_bvc) _bvc.textContent = _viaCopTotal;
+        _renderTblOPME('viaCop', _viaCopItens);
+
         // Renderiza tabelas
         _renderTblOPME('c2', data.criterio2 || []);
         _renderTblOPME('c4', data.criterio4 || []);
@@ -5130,10 +5414,20 @@ function _renderTblOPME(criterio, itens) {
         '<div style="padding:0 0 10px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
         '<div style="font-size:11px;color:var(--text-muted);">' + desc + '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+        (false ?
+            '<button id="opme-btn-viaCop-' + criterio + '" onclick="_toggleFiltroViaCop(\'' + criterio + '\')" ' +
+            'style="padding:5px 12px;border-radius:8px;border:1.5px solid #16a34a;background:transparent;color:#16a34a;' +
+            'font-weight:800;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s;" ' +
+            'title="Mostrar apenas itens VIA COP">' +
+            '<span id="opme-viaCop-icon-' + criterio + '">○</span> SÓ VIA COP' +
+            '</button>'
+        : '') +
         '<input id="opme-filt-' + criterio + '" type="text" placeholder="🔍 Filtrar código ou descrição..." ' +
         'oninput="_filtrarOPME(\'' + criterio + '\')" ' +
         'style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:6px 12px;' +
         'color:var(--text-main);font-size:12px;outline:none;min-width:220px;">' +
+        '</div>' +
         '</div>' +
         '<div class="opme-tbl-wrap">' +
         '<table class="opme-tbl" id="opme-tbl-' + criterio + '">' +
@@ -5166,17 +5460,27 @@ function _linhaOPME(it, mostrarEmp) {
         ? '<span class="bd-emp">ATIVO</span>'
         : '<span class="bd-noemp">NENHUM</span>';
 
-    // Badge COP: bloqueioCompra = true → NÃO compra via COP (valor "N" no Alerta_Coop)
+    // Badge COP: bloqueioCompra = true → NÃO compra via COP
     var copB = it.bloqueioCompra
-        ? '<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px;">FORA COP</span>'
-        : '<span style="background:#16a34a;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px;">VIA COP</span>';
+        ? '<span style="display:flex;align-items:center;gap:4px;">' +
+          '<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px;">FORA COP</span>' +
+          '<button class="opme-lupa-btn" data-cod="' + it.codigo + '" data-motivo="' + (it.motivoBloqueio||'') + '" ' +
+          'onclick="abrirMotivoBloqueioOPME(this)" ' +
+          'title="Ver motivo" style="background:transparent;border:none;cursor:pointer;color:#f59e0b;font-size:15px;padding:0 2px;line-height:1;">🔍</button>' +
+          '</span>'
+        : '<span style="display:flex;align-items:center;gap:4px;">' +
+          '<span style="background:#16a34a;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px;">VIA COP</span>' +
+          '<button class="opme-lupa-btn" data-cod="' + it.codigo + '" data-via="true" ' +
+          'onclick="abrirDetalheViaCopOPME(this)" ' +
+          'title="Ver por que está na COP" style="background:transparent;border:none;cursor:pointer;color:#16a34a;font-size:15px;padding:0 2px;line-height:1;">🔍</button>' +
+          '</span>';
 
     // Linha inteira destacada em vermelho claro quando fora da COP
     var rowStyle = it.bloqueioCompra
         ? ' style="background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;"'
         : '';
 
-    return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '"' + rowStyle + '>' +
+    return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '" data-viaCop="' + (!it.bloqueioCompra) + '"' + rowStyle + '>' +
         '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
         '<td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (it.descricao||'') + '">' + (it.descricao||'') + '</td>' +
         '<td class="' + cobCls + '">' + cobTxt + '</td>' +
@@ -5192,17 +5496,110 @@ function _linhaOPME(it, mostrarEmp) {
         '</tr>';
 }
 
+function abrirDetalheViaCopOPME(btn) {
+    var codigo    = btn.dataset.cod;
+    var tr        = btn.closest('tr');
+    var descricao = tr ? tr.dataset.desc : codigo;
+    document.getElementById('motivoViaCopCodigo').textContent   = codigo;
+    document.getElementById('motivoViaCopDescricao').textContent = descricao;
+    document.getElementById('modalDetalheViaCopOPME').style.display = 'flex';
+}
+
+var _motivosLegivel = {
+    'sem_siafem':       { icon: '📋', texto: 'Sem Processo SIAFEM cadastrado' },
+    'rp_vencido':       { icon: '📅', texto: 'RP vencido ou sem data de vigência' },
+    'nao_planejado':    { icon: '🚫', texto: 'Planejado-não comprar (coluna COMPRAR?)' },
+    'qtd_negativa':     { icon: '📦', texto: 'Quantidade a comprar negativa — estoque acima do necessário' },
+    'qtd_zero':         { icon: '📦', texto: 'Quantidade a comprar igual a zero' }
+};
+
+function abrirMotivoBloqueioOPME(btn) {
+    var codigo     = btn.dataset.cod;
+    var motivoRaw  = btn.dataset.motivo;
+    // Busca descrição na linha pai
+    var tr = btn.closest('tr');
+    var descricao  = tr ? (tr.dataset.desc || codigo) : codigo;
+    var modal = document.getElementById('modalMotivoBloqueioOPME');
+    document.getElementById('motivoBloqCodigo').textContent  = codigo;
+    document.getElementById('motivoBloqDescricao').textContent = descricao;
+
+    var lista = document.getElementById('motivoBloqLista');
+    lista.innerHTML = '';
+
+    var motivos = motivoRaw ? motivoRaw.split('|').map(function(m){ return m.trim(); }).filter(Boolean) : [];
+
+    if (!motivos.length) {
+        lista.innerHTML = '<li style="color:var(--text-muted);font-size:13px;">Motivo não disponível — rode a projeção novamente.</li>';
+    } else {
+        motivos.forEach(function(m) {
+            var info = _motivosLegivel[m] || { icon: '⚠️', texto: m };
+            lista.innerHTML +=
+                '<li style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:var(--bg-system);border:1px solid var(--border);">' +
+                '<span style="font-size:20px;line-height:1;">' + info.icon + '</span>' +
+                '<span style="font-size:13px;color:var(--text-main);font-weight:600;">' + info.texto + '</span>' +
+                '</li>';
+        });
+    }
+
+    modal.style.display = 'flex';
+}
+
+var _viaCopGlobalAtivo = false;
+
+function toggleFiltroViaCopGlobal() {
+    _viaCopGlobalAtivo = !_viaCopGlobalAtivo;
+    var card = document.getElementById('opme-card-viaCop');
+    if (_viaCopGlobalAtivo) {
+        card.style.boxShadow = '0 0 0 2px #16a34a';
+        card.style.background = 'rgba(22,163,74,0.08)';
+    } else {
+        card.style.boxShadow = '';
+        card.style.background = '';
+    }
+    // Ativa/desativa o botão SÓ VIA COP da aba atual
+    var abaAtiva = document.querySelector('.opme-tab-btn.opme-tab-active');
+    if (!abaAtiva) return;
+    var criterio = abaAtiva.id.replace('opme-tbtn-', '');
+    var btn = document.getElementById('opme-btn-viaCop-' + criterio);
+    if (btn) {
+        var jaAtivo = btn.dataset.ativo === 'true';
+        if (jaAtivo !== _viaCopGlobalAtivo) _toggleFiltroViaCop(criterio);
+    }
+}
+
+function _toggleFiltroViaCop(criterio) {
+    var btn  = document.getElementById('opme-btn-viaCop-' + criterio);
+    var icon = document.getElementById('opme-viaCop-icon-' + criterio);
+    var ativo = btn.dataset.ativo === 'true';
+    ativo = !ativo;
+    btn.dataset.ativo = ativo ? 'true' : 'false';
+    if (ativo) {
+        btn.style.background = '#16a34a';
+        btn.style.color = '#fff';
+        icon.textContent = '●';
+    } else {
+        btn.style.background = 'transparent';
+        btn.style.color = '#16a34a';
+        icon.textContent = '○';
+    }
+    _filtrarOPME(criterio);
+}
+
 function _filtrarOPME(criterio) {
-    var q   = document.getElementById('opme-filt-' + criterio).value.toLowerCase();
-    var rows = document.querySelectorAll('#opme-tbody-' + criterio + ' tr');
-    var n   = 0;
+    var q      = (document.getElementById('opme-filt-' + criterio)?.value || '').toLowerCase();
+    var btn    = document.getElementById('opme-btn-viaCop-' + criterio);
+    var soCop  = btn && btn.dataset.ativo === 'true';
+    var rows   = document.querySelectorAll('#opme-tbody-' + criterio + ' tr');
+    var n      = 0;
     rows.forEach(function(tr){
-        var ok = !q || tr.dataset.cod.toLowerCase().includes(q) || tr.dataset.desc.includes(q);
+        var textoOk = !q || tr.dataset.cod.toLowerCase().includes(q) || tr.dataset.desc.includes(q);
+        var copOk   = !soCop || tr.dataset.viaCop === 'true';
+        var ok = textoOk && copOk;
         tr.style.display = ok ? '' : 'none';
         if (ok) n++;
     });
-    var el = document.getElementById('opme-count-' + criterio);
-    if (el) el.textContent = n;
+    var cnt = document.getElementById('opme-count-' + criterio);
+    if (cnt) cnt.textContent = n;
 }
 
 var _opme_sort_dir = {};
@@ -5226,13 +5623,13 @@ function _sortOPME(criterio, campo) {
 
 function switchOPMETab(tab) {
     opmeTabAtiva = tab;
-    ['c2','c4','c5','c6','bloq','hist','cop'].forEach(function(t){
+    ['c2','c4','c5','c6','bloq','viaCop','hist','cop'].forEach(function(t){
         var btn = document.getElementById('opme-tbtn-' + t);
         var pnl = document.getElementById('opme-panel-' + t);
         if (btn) btn.classList.toggle('opme-tab-active', t === tab);
         if (pnl) pnl.style.display = t === tab ? 'block' : 'none';
     });
-    ['c2','c4','c5','c6','bloq'].forEach(function(t){
+    ['c2','c4','c5','c6','bloq','viaCop'].forEach(function(t){
         var c = document.getElementById('opme-card-' + t);
         if (c) c.classList.toggle('card-active', t === tab);
     });
@@ -5245,14 +5642,15 @@ async function salvarCopOPME() {
     btn.disabled = true;
     btn.textContent = '⏳ Salvando...';
     try {
-        var todos = [].concat(opmeData.criterio2, opmeData.criterio4, opmeData.criterio5, opmeData.criterio6);
+        var todos   = [].concat(opmeData.criterio2, opmeData.criterio4, opmeData.criterio5, opmeData.criterio6);
+        var viaCop  = todos.filter(function(it){ return !it.bloqueioCompra; });
         var res  = await fetch(URL_SCRIPT, {
             method: 'POST', mode: 'no-cors',
-            body: JSON.stringify({ tipo: 'salvarCopOPME', login: loginAtual, itens: todos })
+            body: JSON.stringify({ tipo: 'salvarCopOPME', login: loginAtual, itens: viaCop })
         });
         btn.textContent = '✅ Salvo!';
         btn.style.background = '#16a34a';
-        mostrarToast('COP salva com sucesso — ' + todos.length + ' item(s).', 'success');
+        mostrarToast('COP salva — ' + viaCop.length + ' item(s) VIA COP.', 'success');
         setTimeout(function(){
             btn.textContent = '💾 Salvar COP';
             btn.style.background = '';
@@ -5276,6 +5674,7 @@ async function carregarHistoricoCOP() {
     try {
         var res  = await fetch(addAuth(URL_SCRIPT + '?action=getHistoricoCOP'));
         var data = await res.json();
+
         if (!data.historico || !data.historico.length) {
             cont.innerHTML =
                 '<div class="opme-empty-state">' +
@@ -5284,55 +5683,75 @@ async function carregarHistoricoCOP() {
                 '<p style="font-size:11px;color:var(--text-muted);margin-top:6px">Rode uma projeção e clique em "Salvar COP"</p></div>';
             return;
         }
+
+        // Pega apenas a mais recente (já vem ordenada decrescente)
+        var cop   = data.historico[0];
         var cores = { C2:'#ef4444', C4:'#f59e0b', C5:'#f97316', C6:'#8b5cf6' };
-        var html  = '';
-        data.historico.forEach(function(cop, idx){
-            var byC = {};
-            cop.itens.forEach(function(it){ byC[it.criterio] = (byC[it.criterio]||0)+1; });
-            var tags = Object.keys(byC).map(function(k){
-                return '<span style="background:' + (cores[k]||'#94a3b8') + ';color:#fff;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;margin-right:4px">' + k + ': ' + byC[k] + '</span>';
-            }).join('');
-            html +=
-                '<div class="opme-hist-item">' +
-                '<div class="opme-hist-hdr" onclick="_toggleHistOPME(' + idx + ')">' +
-                '<div>' +
-                '<div class="opme-hist-date">📋 COP — ' + cop.data + '</div>' +
-                '<div class="opme-hist-meta">Por: ' + (cop.login||'—') + ' &nbsp;·&nbsp; ' + cop.itens.length + ' item(s) &nbsp;·&nbsp; ' + tags + '</div>' +
-                '</div>' +
-                '<div style="color:var(--text-muted);font-size:18px" id="opme-harrow-' + idx + '">▸</div>' +
-                '</div>' +
-                '<div class="opme-hist-body" id="opme-hbody-' + idx + '">' +
-                '<div class="opme-tbl-wrap">' +
-                '<table class="opme-tbl"><thead><tr>' +
-                '<th>Critério</th><th>Código</th><th>Descrição</th><th>Cobertura</th><th>CMM</th><th>RP</th><th>Empenho</th>' +
-                '</tr></thead><tbody>' +
-                cop.itens.map(function(it){
-                    var c = it.cobertura||0;
-                    var cor = c<10?'var(--danger)':c<30?'var(--warning)':'var(--text-muted)';
-                    return '<tr>' +
-                        '<td><span style="background:' + (cores[it.criterio]||'#94a3b8') + ';color:#fff;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800">' + it.criterio + '</span></td>' +
-                        '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
-                        '<td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (it.descricao||'') + '</td>' +
-                        '<td style="color:' + cor + ';font-weight:700">' + c + ' d</td>' +
-                        '<td style="color:var(--text-muted)">' + (it.cmmMensal||'—') + '</td>' +
-                        '<td>' + (it.temRP==='SIM'?'<span class="bd-rp">SIM</span>':'<span class="bd-norp">NÃO</span>') + '</td>' +
-                        '<td>' + (it.temEmpenho==='SIM'?'<span class="bd-emp">SIM</span>':'<span class="bd-noemp">NÃO</span>') + '</td>' +
-                        '</tr>';
-                }).join('') +
-                '</tbody></table></div></div></div>';
-        });
+
+        var byC = {};
+        cop.itens.forEach(function(it){ byC[it.criterio] = (byC[it.criterio]||0)+1; });
+        var tags = Object.keys(byC).map(function(k){
+            return '<span style="background:' + (cores[k]||'#94a3b8') + ';color:#fff;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:800;">' + k + ': ' + byC[k] + '</span>';
+        }).join('');
+
+        var html =
+            '<div style="padding:0 0 12px;">' +
+            // Cabeçalho da COP
+            '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:14px 16px;border-radius:10px;background:var(--bg-system);border:1px solid var(--border);">' +
+            '<div>' +
+            '<p style="font-weight:900;font-size:14px;margin:0;color:var(--text-main);">📋 COP salva em ' + cop.data + '</p>' +
+            '<p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Por: <strong>' + (cop.login||'—') + '</strong> &nbsp;·&nbsp; ' + cop.itens.length + ' item(s)</p>' +
+            '</div>' +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + tags + '</div>' +
+            '</div>' +
+            // Busca
+            '<input type="text" id="opme-filt-hist" placeholder="🔍 Filtrar código ou descrição..." ' +
+            'oninput="_filtrarHistCOP()" ' +
+            'style="width:100%;box-sizing:border-box;margin-bottom:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text-main);font-size:12px;outline:none;">' +
+            // Tabela
+            '<div class="opme-tbl-wrap">' +
+            '<table class="opme-tbl" id="opme-tbl-hist"><thead><tr>' +
+            '<th>Critério</th><th>Código</th><th>Descrição</th><th>Cobertura</th><th>CMM/mês</th><th>RP</th><th>Empenho</th><th>COP</th>' +
+            '</tr></thead><tbody id="opme-tbody-hist">' +
+            cop.itens.map(function(it){
+                var c   = it.cobertura || 0;
+                var cor = c < 10 ? 'var(--danger)' : c < 30 ? 'var(--warning)' : 'var(--text-muted)';
+                var copBadge = it.bloqueioCompra
+                    ? '<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;">FORA COP</span>'
+                    : '<span style="background:#16a34a;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;">VIA COP</span>';
+                return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '">' +
+                    '<td><span style="background:' + (cores[it.criterio]||'#94a3b8') + ';color:#fff;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800">' + (it.criterio||'—') + '</span></td>' +
+                    '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
+                    '<td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (it.descricao||'') + '">' + (it.descricao||'') + '</td>' +
+                    '<td style="color:' + cor + ';font-weight:700">' + c + ' d</td>' +
+                    '<td style="color:var(--text-muted)">' + (it.cmmMensal||'—') + '</td>' +
+                    '<td>' + (it.temRP==='SIM'?'<span class="bd-rp">SIM</span>':'<span class="bd-norp">NÃO</span>') + '</td>' +
+                    '<td>' + (it.temEmpenho==='SIM'?'<span class="bd-emp">SIM</span>':'<span class="bd-noemp">NÃO</span>') + '</td>' +
+                    '<td>' + copBadge + '</td>' +
+                    '</tr>';
+            }).join('') +
+            '</tbody></table></div>' +
+            '<div style="text-align:right;padding:6px 4px;font-size:11px;color:var(--text-muted);">' +
+            '<span id="opme-count-hist">' + cop.itens.length + '</span> item(s)</div>' +
+            '</div>';
+
         cont.innerHTML = html;
     } catch(err) {
         cont.innerHTML = '<div class="opme-empty-state" style="color:var(--danger)">Erro: ' + err.message + '</div>';
     }
 }
 
-function _toggleHistOPME(idx) {
-    var body  = document.getElementById('opme-hbody-'  + idx);
-    var arrow = document.getElementById('opme-harrow-' + idx);
-    var open  = body.style.display === 'block';
-    body.style.display = open ? 'none' : 'block';
-    if (arrow) arrow.textContent = open ? '▸' : '▾';
+function _filtrarHistCOP() {
+    var q    = (document.getElementById('opme-filt-hist')?.value || '').toLowerCase();
+    var rows = document.querySelectorAll('#opme-tbody-hist tr');
+    var n    = 0;
+    rows.forEach(function(tr){
+        var ok = !q || tr.dataset.cod.toLowerCase().includes(q) || tr.dataset.desc.includes(q);
+        tr.style.display = ok ? '' : 'none';
+        if (ok) n++;
+    });
+    var cnt = document.getElementById('opme-count-hist');
+    if (cnt) cnt.textContent = n;
 }
 
 async function abrirCopOPME() {
@@ -5446,3 +5865,238 @@ document.addEventListener('click', e => {
     if (list && input && !input.contains(e.target) && !list.contains(e.target))
         list.style.display = 'none';
 });
+// ============================================================
+// MÓDULO COMPRAS — Controle de Vigência de Documentos
+// ============================================================
+
+var _comprasData    = [];   // cache local
+var _comprasEmpAtiva = null; // empresa aberta no modal
+
+var _comprasStatusCfg = {
+    'VENCIDO':  { bg:'rgba(239,68,68,0.12)',  cor:'#ef4444', label:'VENCIDO'   },
+    'A VENCER': { bg:'rgba(245,158,11,0.12)', cor:'#f59e0b', label:'A VENCER'  },
+    'OK':       { bg:'rgba(22,163,74,0.1)',   cor:'#16a34a', label:'OK'        },
+    'SEM DATA': { bg:'rgba(100,116,139,0.1)', cor:'#64748b', label:'SEM DATA'  },
+    'SEM DOCS': { bg:'rgba(100,116,139,0.1)', cor:'#64748b', label:'SEM DOCS'  },
+};
+
+function _comprasStatusBadge(status) {
+    var cfg = _comprasStatusCfg[status] || _comprasStatusCfg['SEM DOCS'];
+    return '<span style="background:' + cfg.bg + ';color:' + cfg.cor + ';font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid ' + cfg.cor + '33;">' + cfg.label + '</span>';
+}
+
+async function carregarCompras(forcar) {
+    if (_comprasData.length && !forcar) { _renderCompras(_comprasData); return; }
+    document.getElementById('compras-loading').style.display = 'block';
+    document.getElementById('compras-tabela-wrap').style.display = 'none';
+    document.getElementById('compras-vazio').style.display = 'none';
+    try {
+        var res  = await fetch(addAuth(URL_SCRIPT + '?action=comprasGetEmpresas'));
+        var data = await res.json();
+        if (data.erro) throw new Error(data.erro);
+        _comprasData = data.empresas || [];
+        _renderCompras(_comprasData);
+    } catch(err) {
+        document.getElementById('compras-loading').style.display = 'none';
+        // Se o GAS ainda não tem o endpoint, mostra vazio sem travar
+        _comprasData = [];
+        _renderCompras([]);
+        if (!err.message.includes('JSON')) {
+            mostrarToast('Erro ao carregar: ' + err.message, 'error');
+        }
+    }
+}
+
+function _renderCompras(lista) {
+    document.getElementById('compras-loading').style.display = 'none';
+
+    // Cards de resumo
+    var total    = lista.length;
+    var vencidos = lista.filter(function(e){ return e.status === 'VENCIDO'; }).length;
+    var aVencer  = lista.filter(function(e){ return e.status === 'A VENCER'; }).length;
+    var ok       = lista.filter(function(e){ return e.status === 'OK'; }).length;
+    document.getElementById('compras-cards').innerHTML =
+        _cardCompras(total,   '#0284c7', 'ph-buildings',       'Total')    +
+        _cardCompras(vencidos,'#ef4444', 'ph-warning',         'Vencidos') +
+        _cardCompras(aVencer, '#f59e0b', 'ph-clock-countdown', 'A Vencer') +
+        _cardCompras(ok,      '#16a34a', 'ph-check-circle',    'OK');
+
+    if (!lista.length) {
+        document.getElementById('compras-tabela-wrap').style.display = 'none';
+        document.getElementById('compras-vazio').style.display = 'block';
+        return;
+    }
+    document.getElementById('compras-vazio').style.display = 'none';
+    document.getElementById('compras-tabela-wrap').style.display = 'block';
+
+    var tbody = document.getElementById('compras-tbody');
+    tbody.innerHTML = lista.map(function(emp) {
+        return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="abrirDocsEmpresa(\'' + emp.id + '\')" onmouseover="this.style.background=\'var(--bg-system)\'" onmouseout="this.style.background=\'\'">' +
+            '<td style="padding:12px 14px;font-weight:800;font-size:13px;">' + (emp.nome||'—') + '</td>' +
+            '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted);">' + (emp.email||'—') + '</td>' +
+            '<td style="padding:12px 14px;text-align:center;font-size:12px;color:var(--text-muted);">' + (emp.documentos||[]).length + '</td>' +
+            '<td style="padding:12px 14px;text-align:center;">' + _comprasStatusBadge(emp.status) + '</td>' +
+            '<td style="padding:12px 14px;text-align:center;">' +
+            '<button onclick="event.stopPropagation();abrirDocsEmpresa(\'' + emp.id + '\')" style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.25);border-radius:7px;padding:5px 10px;cursor:pointer;color:#0284c7;font-size:12px;font-weight:700;">Ver docs</button>' +
+            '</td></tr>';
+    }).join('');
+}
+
+function _cardCompras(num, cor, icon, label) {
+    return '<div style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border-left:4px solid ' + cor + ';box-shadow:var(--shadow-sm,0 1px 4px rgba(0,0,0,.06));">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<i class="ph ' + icon + '" style="font-size:18px;color:' + cor + ';"></i>' +
+        '<span style="font-size:26px;font-weight:900;color:' + cor + ';">' + num + '</span></div>' +
+        '<p style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-top:4px;">' + label + '</p>' +
+        '</div>';
+}
+
+function filtrarCompras() {
+    var q = (document.getElementById('compras-busca')?.value || '').toLowerCase();
+    var filtrado = q ? _comprasData.filter(function(e){ return e.nome.toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q); }) : _comprasData;
+    _renderCompras(filtrado);
+}
+
+// --- Add Empresa ---
+function abrirModalAddEmpresa() {
+    document.getElementById('add-emp-nome').value  = '';
+    document.getElementById('add-emp-email').value = '';
+    document.getElementById('add-emp-erro').textContent = '';
+    document.getElementById('add-docs-lista').innerHTML = '';
+    addLinhaDoc(); // começa com uma linha
+    document.getElementById('modalAddEmpresa').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('add-emp-nome').focus(); }, 50);
+}
+
+function addLinhaDoc() {
+    var lista = document.getElementById('add-docs-lista');
+    var div = document.createElement('div');
+    div.style.cssText = 'display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr auto;gap:8px;align-items:end;';
+    div.innerHTML =
+        '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Nome do Documento</label><input type="text" class="add-doc-nome" placeholder="Ex: Certidão Negativa"></div>' +
+        '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Número</label><input type="text" class="add-doc-num" placeholder="Nº"></div>' +
+        '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Vigência</label><input type="date" class="add-doc-vig"></div>' +
+        '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Vencimento</label><input type="date" class="add-doc-venc"></div>' +
+        '<button onclick="this.parentElement.remove()" style="padding:9px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#ef4444;cursor:pointer;font-size:14px;"><i class="ph ph-trash"></i></button>';
+    lista.appendChild(div);
+}
+
+async function salvarEmpresa() {
+    var nome  = document.getElementById('add-emp-nome').value.trim().toUpperCase();
+    var email = document.getElementById('add-emp-email').value.trim();
+    var erro  = document.getElementById('add-emp-erro');
+    if (!nome) { erro.textContent = 'Informe o nome do fornecedor.'; return; }
+
+    var documentos = [];
+    document.querySelectorAll('#add-docs-lista > div').forEach(function(row) {
+        var nDoc = row.querySelector('.add-doc-nome')?.value.trim();
+        var nNum = row.querySelector('.add-doc-num')?.value.trim();
+        var nVig = row.querySelector('.add-doc-vig')?.value;
+        var nVenc= row.querySelector('.add-doc-venc')?.value;
+        if (nDoc) documentos.push({ nome_doc: nDoc, numero_doc: nNum||'', vigencia: nVig||'', vencimento: nVenc||'' });
+    });
+
+    erro.textContent = '';
+    var btn = document.querySelector('#modalAddEmpresa .btn-salvar-usuario');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'comprasAddEmpresa', nome, email, documentos })
+        });
+        fecharModal('modalAddEmpresa');
+        await carregarCompras(true);
+        mostrarToast('✅ Fornecedor adicionado!', 'success');
+    } catch(e) {
+        erro.textContent = 'Erro ao salvar. Tente novamente.';
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> SALVAR FORNECEDOR';
+    }
+}
+
+// --- Docs da empresa ---
+function abrirDocsEmpresa(empId) {
+    var emp = _comprasData.find(function(e){ return e.id === empId; });
+    if (!emp) return;
+    _comprasEmpAtiva = emp;
+    document.getElementById('docs-emp-nome').textContent  = emp.nome;
+    document.getElementById('docs-emp-email').textContent = emp.email || '—';
+    document.getElementById('new-doc-nome').value = '';
+    document.getElementById('new-doc-numero').value = '';
+    document.getElementById('new-doc-vigencia').value = '';
+    document.getElementById('new-doc-vencimento').value = '';
+    document.getElementById('new-doc-erro').textContent = '';
+    _renderDocsTabela(emp.documentos || []);
+    document.getElementById('modalDocsEmpresa').style.display = 'flex';
+}
+
+function _renderDocsTabela(docs) {
+    var tbody = document.getElementById('docs-emp-tbody');
+    if (!docs.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum documento cadastrado</td></tr>';
+        return;
+    }
+    tbody.innerHTML = docs.map(function(doc) {
+        var cfg = _comprasStatusCfg[doc.status] || _comprasStatusCfg['SEM DOCS'];
+        var rowBg = doc.status === 'VENCIDO' ? 'background:rgba(239,68,68,0.05);' : doc.status === 'A VENCER' ? 'background:rgba(245,158,11,0.04);' : '';
+        return '<tr style="border-bottom:1px solid var(--border);' + rowBg + '">' +
+            '<td style="padding:10px 12px;font-weight:700;font-size:13px;">' + (doc.nome_doc||'—') + '</td>' +
+            '<td style="padding:10px 12px;font-size:12px;font-family:monospace;color:var(--text-muted);">' + (doc.numero_doc||'—') + '</td>' +
+            '<td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">' + (doc.vigencia||'—') + '</td>' +
+            '<td style="padding:10px 12px;font-size:12px;font-weight:700;color:' + cfg.cor + ';">' + (doc.vencimento||'—') + '</td>' +
+            '<td style="padding:10px 12px;text-align:center;">' + _comprasStatusBadge(doc.status) + '</td>' +
+            '<td style="padding:10px 12px;text-align:center;">' +
+            '<button onclick="_deletarDoc(\'' + doc.id + '\')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;"><i class="ph ph-trash"></i></button>' +
+            '</td></tr>';
+    }).join('');
+}
+
+async function salvarNovoDocumento() {
+    if (!_comprasEmpAtiva) return;
+    var nome  = document.getElementById('new-doc-nome').value.trim();
+    var num   = document.getElementById('new-doc-numero').value.trim();
+    var vig   = document.getElementById('new-doc-vigencia').value;
+    var venc  = document.getElementById('new-doc-vencimento').value;
+    var erro  = document.getElementById('new-doc-erro');
+    if (!nome) { erro.textContent = 'Informe o nome do documento.'; return; }
+    if (!venc) { erro.textContent = 'Informe a data de vencimento.'; return; }
+    erro.textContent = '';
+    try {
+        await fetch(URL_SCRIPT, {
+            method: 'POST', mode: 'no-cors',
+            body: JSON.stringify({ tipo: 'comprasAddDocumento', empresa_id: _comprasEmpAtiva.id, nome_doc: nome, numero_doc: num, vigencia: vig, vencimento: venc })
+        });
+        document.getElementById('new-doc-nome').value = '';
+        document.getElementById('new-doc-numero').value = '';
+        document.getElementById('new-doc-vigencia').value = '';
+        document.getElementById('new-doc-vencimento').value = '';
+        await carregarCompras(true);
+        var empAtual = _comprasData.find(function(e){ return e.id === _comprasEmpAtiva.id; });
+        if (empAtual) { _comprasEmpAtiva = empAtual; _renderDocsTabela(empAtual.documentos || []); }
+        mostrarToast('✅ Documento adicionado!', 'success');
+    } catch(e) {
+        erro.textContent = 'Erro ao salvar.';
+    }
+}
+
+async function _deletarDoc(docId) {
+    if (!confirm('Remover este documento?')) return;
+    try {
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: 'comprasDeleteDocumento', doc_id: docId }) });
+        await carregarCompras(true);
+        var empAtual = _comprasData.find(function(e){ return e.id === _comprasEmpAtiva?.id; });
+        if (empAtual) { _comprasEmpAtiva = empAtual; _renderDocsTabela(empAtual.documentos || []); }
+        mostrarToast('Documento removido.', 'success');
+    } catch(e) { mostrarToast('Erro ao remover.', 'error'); }
+}
+
+async function confirmarDeleteEmpresa() {
+    if (!_comprasEmpAtiva) return;
+    if (!confirm('Remover o fornecedor "' + _comprasEmpAtiva.nome + '" e todos os seus documentos?')) return;
+    try {
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: 'comprasDeleteEmpresa', empresa_id: _comprasEmpAtiva.id }) });
+        fecharModal('modalDocsEmpresa');
+        await carregarCompras(true);
+        mostrarToast('Fornecedor removido.', 'success');
+    } catch(e) { mostrarToast('Erro ao remover.', 'error'); }
+}

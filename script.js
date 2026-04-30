@@ -2413,6 +2413,61 @@ function switchTab(aba) {
     }
 }
 
+// --- NAVEGAÇÃO POR SETAS NO FORMULÁRIO ---
+// Ordem: f_nf(0) → f_data(1) → f_fornecedor(2) → f_razao(3) → f_vencimento(4) → f_setor(5) → f_lote(6)
+const _NAV_IDS = ['f_nf','f_data','f_fornecedor','f_razao','f_vencimento','f_setor','f_lote'];
+
+function navForm(e, el) {
+    const isSelect = el.tagName === 'SELECT';
+
+    // Não interfere no autocomplete de fornecedor se a lista estiver aberta
+    const acList = document.getElementById('ac-list');
+    if (acList && acList.style.display !== 'none' &&
+        (e.key === 'ArrowDown' || e.key === 'ArrowUp')) return;
+
+    // Setas esquerda/direita sempre navegam entre campos
+    // Seta cima/baixo também navega (exceto em select, onde muda opção)
+    let irProximo = false, irAnterior = false;
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        if (isSelect && e.key === 'ArrowDown') return; // deixa mudar opção
+        irProximo = true;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        if (isSelect && e.key === 'ArrowUp') return; // deixa mudar opção
+        irAnterior = true;
+    } else if (e.key === 'Enter') {
+        return; // Enter confirma o formulário normalmente
+    } else {
+        return;
+    }
+
+    e.preventDefault();
+    const idx = parseInt(el.getAttribute('data-nav') ?? '-1');
+    if (idx < 0) return;
+
+    const nextIdx = irProximo ? idx + 1 : idx - 1;
+    const nextId  = _NAV_IDS[nextIdx];
+    if (nextId) {
+        const next = document.getElementById(nextId);
+        if (next) {
+            next.focus();
+            if (next.select) next.select();
+        }
+    }
+}
+
+function limparFormulario() {
+    document.getElementById('f_nf').value = '';
+    document.getElementById('f_fornecedor').value = '';
+    document.getElementById('f_razao').value = 'HC';
+    document.getElementById('f_vencimento').value = '';
+    document.getElementById('f_setor').value = '';
+    document.getElementById('f_lote').value = 'Sim';
+    // Desmarca todos os radios
+    document.querySelectorAll('#notaForm input[type="radio"]').forEach(r => r.checked = false);
+    document.getElementById('f_nf').focus();
+}
+
 // --- LÓGICA DE FORMULÁRIOS ---
 
 function configurarStatusCard(aba) {
@@ -2424,13 +2479,7 @@ function configurarStatusCard(aba) {
                 <div class="radio-group">
                     <label class="radio-item"><input type="radio" name="gSis" value="Oracle"> ORACLE</label>
                     <label class="radio-item"><input type="radio" name="gSis" value="MV"> MV</label>
-                </div>
-            </div>
-            <div class="status-row">
-                <span class="status-label">Processo:</span>
-                <div class="radio-group">
-                    <label class="radio-item"><input type="radio" name="gPro" value="Manual"> MANUAL</label>
-                    <label class="radio-item"><input type="radio" name="gPro" value="Reprocessada"> REPROCESSADA</label>
+                    <label class="radio-item"><input type="radio" name="gSis" value="Hosplog"> HOSPLOG</label>
                 </div>
             </div>`;
     } else if (aba === 'Recebimento') {
@@ -2449,18 +2498,20 @@ function configurarStatusCard(aba) {
 
 function configurarTableHeader() {
     const head = document.getElementById('tableHeader');
-    head.innerHTML = `<th>NF</th><th>FORNECEDOR</th><th>RAZÃO</th><th>VENC.</th><th>VALOR</th><th>AÇÃO</th>`;
+    head.innerHTML = `<th>NF</th><th>FORNECEDOR</th><th>RAZÃO</th><th>VENC.</th><th>SETOR</th><th>AÇÃO</th>`;
 }
 
 function adicionarNota() {
     const nf = document.getElementById('f_nf').value;
     if (!nf) return alert("Número da NF é obrigatório!");
 
-    // Data de inclusão = hoje (não mais digitada pelo usuário)
-    const _hoje = new Date();
-    const _dataHoje = _hoje.getFullYear() + '-' +
-        String(_hoje.getMonth()+1).padStart(2,'0') + '-' +
-        String(_hoje.getDate()).padStart(2,'0');
+    // Data de digitação — digitada pelo usuário
+    const _dataInput = document.getElementById('f_data').value;
+    if (!_dataInput) return alert("Informe a data de digitação!");
+    const _dataHoje = _dataInput; // já está no formato YYYY-MM-DD
+
+    // Vencimento direto do input date (YYYY-MM-DD)
+    const _vencFormatado = document.getElementById('f_vencimento').value;
 
     const nota = {
         destino:         abaAtual,
@@ -2469,19 +2520,20 @@ function adicionarNota() {
         nf:              nf,
         fornecedor:      document.getElementById('f_fornecedor').value,
         razaoSocial:     document.getElementById('f_razao').value,
-        vencimento:      document.getElementById('f_vencimento').value,
+        vencimento:      _vencFormatado,
         valor:           0,
         setor:           document.getElementById('f_setor').value || "GERAL",
         possuiLote:      document.getElementById('f_lote').value,
         numAdiantamento: document.getElementById('f_num_adi').value,
         statusDigitacao: abaAtual === 'Digitadas'
-            ? (document.querySelector('input[name="gSis"]:checked')?.value + " | " + document.querySelector('input[name="gPro"]:checked')?.value)
+            ? (document.querySelector('input[name="gSis"]:checked')?.value || '')
             : ""
     };
 
     listas[abaAtual].push(nota);
     atualizarTabela();
     document.getElementById('f_nf').value = "";
+    document.getElementById('f_vencimento').value = "";
     document.getElementById('f_nf').focus();
 }
 
@@ -2495,7 +2547,7 @@ function atualizarTabela() {
                 <td>${n.fornecedor}</td>
                 <td>${n.razaoSocial}</td>
                 <td>${formatarDataBR(n.vencimento)}</td>
-                <td>R$ ${formatarValor(n.valor)}</td>
+                <td>${n.setor || '—'}</td>
                 <td><button onclick="removerNota(${i})" style="border:none;background:none;cursor:pointer;color:var(--danger)"><i class="ph ph-trash" style="font-size:20px"></i></button></td>
             </tr>`;
     });
@@ -2507,12 +2559,152 @@ function removerNota(i) {
     atualizarTabela();
 }
 
-// --- SINCRONIZAÇÃO ---
+// --- EXPORTAR LOTE CSV COM CORES ---
 
-async function enviarTudo() {
+function abrirModalCSVLote() {
+    fecharModal('modalCSVLote');
+    document.getElementById('modalCSVLote').style.display = 'flex';
+
+    const inpFundo = document.getElementById('csvCorFundo');
+    const inpFonte = document.getElementById('csvCorFonte');
+
+    function atualizarPrevia() {
+        const fundo = inpFundo.value;
+        const fonte = inpFonte.value;
+        document.getElementById('csvPrevia').style.background = fundo;
+        document.getElementById('csvCorFundoLabel').textContent = fundo;
+        document.getElementById('csvCorFonteLabel').textContent = fonte;
+        ['csvPrevCol1','csvPrevCol2','csvPrevCol3','csvPrevCol4','csvPrevCol5'].forEach(id => {
+            document.getElementById(id).style.color = fonte;
+        });
+    }
+
+    inpFundo.oninput = atualizarPrevia;
+    inpFonte.oninput = atualizarPrevia;
+    atualizarPrevia();
+}
+
+function confirmarExportarCSVLote() {
+    const corFundo = document.getElementById('csvCorFundo').value;
+    const corFonte = document.getElementById('csvCorFonte').value;
+    const notas = listas[abaAtual] || [];
+    if (!notas.length) { mostrarToast('Nenhuma nota no lote.', 'error'); return; }
+
+    try {
+        const wb = XLSX.utils.book_new();
+        const cabecalho = ['NF', 'FORNECEDOR', 'RAZÃO SOCIAL', 'VENCIMENTO', 'SETOR'];
+        const linhas = notas.map(n => [
+            n.nf,
+            n.fornecedor,
+            n.razaoSocial,
+            formatarDataBR(n.vencimento),
+            n.setor || ''
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([cabecalho, ...linhas]);
+
+        // Larguras das colunas
+        ws['!cols'] = [{ wch: 14 }, { wch: 35 }, { wch: 18 }, { wch: 14 }, { wch: 22 }];
+
+        // Estilo do cabeçalho
+        const hexParaARGB = hex => 'FF' + hex.replace('#','').toUpperCase();
+        const estiloHdr = {
+            font: { bold: true, color: { rgb: hexParaARGB(corFonte) }, sz: 11 },
+            fill: { fgColor: { rgb: hexParaARGB(corFundo) }, patternType: 'solid' },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+                bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+                right:  { style: 'thin', color: { rgb: 'CCCCCC' } }
+            }
+        };
+        cabecalho.forEach((_, ci) => {
+            const cell = XLSX.utils.encode_cell({ r: 0, c: ci });
+            if (ws[cell]) ws[cell].s = estiloHdr;
+        });
+
+        // Estilo das linhas de dados (zebra)
+        linhas.forEach((_, ri) => {
+            const bgZebra = ri % 2 === 0 ? 'FFFFFF' : 'F8FAFC';
+            cabecalho.forEach((_, ci) => {
+                const cell = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
+                if (!ws[cell]) ws[cell] = { v: '', t: 's' };
+                ws[cell].s = {
+                    fill: { fgColor: { rgb: bgZebra }, patternType: 'solid' },
+                    alignment: { vertical: 'center' },
+                    border: {
+                        bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                        right:  { style: 'thin', color: { rgb: 'E2E8F0' } }
+                    }
+                };
+            });
+        });
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Lote');
+        const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        XLSX.writeFile(wb, `lote_${abaAtual.toLowerCase()}_${hoje}.xlsx`);
+        fecharModal('modalCSVLote');
+        mostrarToast('✅ Arquivo exportado com sucesso!', 'success');
+        tocarSomMSN();
+    } catch(e) {
+        console.error(e);
+        mostrarToast('Erro ao gerar arquivo.', 'error');
+    }
+}
+
+
+
+function enviarTudo() {
+    if (!listas[abaAtual] || !listas[abaAtual].length) {
+        mostrarToast('Nenhuma nota no lote.', 'error'); return;
+    }
+    // Resetar para etapa 1
+    document.getElementById('envioStep1').style.display = 'block';
+    document.getElementById('envioStep2').style.display = 'none';
+    document.getElementById('modalConfirmaEnvio').style.display = 'flex';
+}
+
+function abrirSelecaoNotasErro() {
+    const lista = document.getElementById('envioNotasLista');
+    lista.innerHTML = '';
+    listas[abaAtual].forEach((n, i) => {
+        lista.innerHTML += `
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;transition:all .15s;"
+                onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='var(--border)'">
+                <input type="checkbox" data-idx="${i}" value="${i}"
+                    style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;flex-shrink:0;">
+                <div>
+                    <span style="font-weight:800;font-size:13px;">NF ${n.nf}</span>
+                    <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${n.fornecedor} — ${n.razaoSocial}</span>
+                </div>
+            </label>`;
+    });
+    document.getElementById('envioStep1').style.display = 'none';
+    document.getElementById('envioStep2').style.display = 'block';
+}
+
+async function confirmarEnvioComErrosSelecionados() {
+    const checks = document.querySelectorAll('#envioNotasLista input[type="checkbox"]:checked');
+    const idxsComErro = new Set([...checks].map(c => parseInt(c.value)));
+    fecharModal('modalConfirmaEnvio');
+
+    listas[abaAtual].forEach((n, i) => {
+        if (idxsComErro.has(i)) {
+            n.statusDigitacao = (n.statusDigitacao ? n.statusDigitacao + ' ' : '') + '(erro de reprocessamento)';
+        }
+    });
+
+    await _executarEnvio();
+}
+
+async function confirmarEnvioRelatorio(notasComErro) {
+    fecharModal('modalConfirmaEnvio');
+    await _executarEnvio();
+}
+
+async function _executarEnvio() {
     const btn = document.getElementById('btnEnviar');
     btn.disabled = true;
-    btn.innerText = "SINCRONIZANDO...";
+    btn.innerText = "ENVIANDO...";
     const total = listas[abaAtual].length;
     try {
         await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(listas[abaAtual]) });
@@ -2524,7 +2716,7 @@ async function enviarTudo() {
         mostrarToast('Erro ao conectar com o Google Sheets.', 'error');
     } finally {
         btn.disabled = false;
-        btn.innerText = "🚀 SINCRONIZAR COM PLANILHA";
+        btn.innerText = "🗒️ ENVIAR RELATÓRIO DE NOTAS DIGITADAS";
     }
 }
 

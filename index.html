@@ -981,7 +981,11 @@
                     <div class="form-grid">
                         <div class="field-group">
                             <label>Número NF</label>
-                            <input type="text" id="f_nf" required placeholder="000.000">
+                            <input type="text" id="f_nf" required placeholder="000.000" data-nav="0" onkeydown="navForm(event,this)">
+                        </div>
+                        <div class="field-group">
+                            <label>Data de Digitação</label>
+                            <input type="date" id="f_data" required data-nav="1" onkeydown="navForm(event,this)">
                         </div>
                         <div class="field-group fg-2">
                             <label>Fornecedor</label>
@@ -989,32 +993,49 @@
                                 <input type="text" id="f_fornecedor" required
                                     autocomplete="off"
                                     oninput="acFornecedor(this.value)"
-                                    onkeydown="acNavegar(event)"
-                                    placeholder="Digite para buscar...">
+                                    onkeydown="acNavegar(event);navForm(event,this)"
+                                    placeholder="Digite para buscar..."
+                                    data-nav="2">
                                 <ul id="ac-list" class="ac-dropdown" style="display:none"></ul>
                             </div>
                         </div>
                         <div class="field-group">
                             <label>Razão Social</label>
-                            <select id="f_razao">
+                            <select id="f_razao" data-nav="3" onkeydown="navForm(event,this)">
                                 <option value="HC">HC</option>
                                 <option value="FZ">FZ</option>
                                 <option value="OUTROS">OUTROS</option>
                             </select>
                         </div>
+                        <div class="field-group" style="display:flex;align-items:flex-end;">
+                            <button type="button" onclick="limparFormulario()"
+                                style="width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:800;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;"
+                                onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
+                                onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+                                <i class="ph ph-eraser"></i> LIMPAR
+                            </button>
+                        </div>
                         
                         <div class="field-group">
                             <label>Vencimento</label>
-                            <input type="date" id="f_vencimento" required>
+                            <input type="date" id="f_vencimento" required data-nav="4" onkeydown="navForm(event,this)">
                         </div>
                         
                         <div class="field-group">
                             <label>Setor Destino</label>
-                            <input type="text" id="f_setor">
+                            <select id="f_setor" data-nav="5" onkeydown="navForm(event,this)">
+                                <option value="">Selecione...</option>
+                                <option value="ALX GERAL">ALX GERAL</option>
+                                <option value="ESPECIAIS">ESPECIAIS</option>
+                                <option value="NUTRIÇÃO">NUTRIÇÃO</option>
+                                <option value="ENG DE MANUTENÇÃO">ENG DE MANUTENÇÃO</option>
+                                <option value="ENG CLINICA">ENG CLINICA</option>
+                                <option value="DEMAIS ÁREAS">DEMAIS ÁREAS</option>
+                            </select>
                         </div>
                         <div class="field-group" id="fieldLote">
                             <label>Possui Lote?</label>
-                            <select id="f_lote">
+                            <select id="f_lote" data-nav="6" onkeydown="navForm(event,this)">
                                 <option value="Sim">Sim</option>
                                 <option value="Não">Não</option>
                             </select>
@@ -1080,10 +1101,11 @@
                 </div>
 
                 <div class="actions-footer" id="areaAcoes" style="display:none">
-                    <button class="btn-copy" onclick="copiarProtocolo()">📋 COPIAR E-MAIL</button>
-                    <button class="btn-sync" id="btnEnviar" onclick="enviarTudo()">🚀 SINCRONIZAR COM PLANILHA</button>
-                    <button class="btn-export-csv" onclick="exportarTabelaCSV('tabelaDados', 'lote_' + abaAtual.toLowerCase())" title="Exportar lote atual como CSV">
-                        <i class="ph ph-file-csv"></i> CSV
+                    <button class="btn-sync" id="btnEnviar" onclick="enviarTudo()" style="background:#0284c7;">
+                        🗒️ ENVIAR RELATÓRIO DE NOTAS DIGITADAS
+                    </button>
+                    <button class="btn-sync" onclick="abrirModalCSVLote()" title="Baixar planilha do protocolo" style="background:#16a34a;">
+                        <i class="ph ph-file-xls"></i> BAIXAR PLANILHA DO PROTOCOLO
                     </button>
                 </div>
                 <div id="syncStatus" style="display:none; text-align:center; margin-top:10px; font-size:12px; font-weight:700;"></div>
@@ -2324,6 +2346,121 @@
                 </button>
                 <button class="btn-saida-confirmar" onclick="confirmarDeletarUsuario()">
                     <i class="ph ph-trash"></i> SIM, REMOVER
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL CONFIRMAÇÃO ENVIO — ERRO DE REPROCESSAMENTO
+    ====================================================== -->
+    <div id="modalConfirmaEnvio" class="modal" style="display:none;">
+        <div class="modal-content saida-confirm-content" style="max-width:480px;">
+
+            <!-- ETAPA 1: Sim ou Não -->
+            <div id="envioStep1">
+                <div class="saida-confirm-header">
+                    <div class="saida-confirm-icon-wrap" style="background:rgba(2,132,199,0.1);">
+                        <i class="ph ph-paper-plane-tilt saida-confirm-icon" style="color:#0284c7;"></i>
+                    </div>
+                    <div>
+                        <h3 class="saida-confirm-titulo" style="color:#0284c7;">ENVIAR RELATÓRIO</h3>
+                        <p class="saida-confirm-subtitulo">Houve alguma nota com <strong>erro de reprocessamento</strong> neste lote?</p>
+                    </div>
+                </div>
+                <div class="saida-confirm-btns" style="flex-direction:column;gap:10px;">
+                    <button onclick="abrirSelecaoNotasErro()"
+                        style="width:100%;padding:13px;border-radius:10px;border:none;background:#f59e0b;color:#fff;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="ph ph-warning"></i> SIM — SELECIONAR NOTAS
+                    </button>
+                    <button onclick="confirmarEnvioRelatorio([])"
+                        style="width:100%;padding:13px;border-radius:10px;border:none;background:#16a34a;color:#fff;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="ph ph-check-circle"></i> NÃO — ENVIAR NORMALMENTE
+                    </button>
+                    <button onclick="fecharModal('modalConfirmaEnvio')"
+                        style="width:100%;padding:11px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
+                        CANCELAR
+                    </button>
+                </div>
+            </div>
+
+            <!-- ETAPA 2: Quais notas tiveram erro -->
+            <div id="envioStep2" style="display:none;">
+                <div class="saida-confirm-header">
+                    <div class="saida-confirm-icon-wrap" style="background:rgba(245,158,11,0.1);">
+                        <i class="ph ph-warning saida-confirm-icon" style="color:#f59e0b;"></i>
+                    </div>
+                    <div>
+                        <h3 class="saida-confirm-titulo" style="color:#f59e0b;">QUAIS NOTAS?</h3>
+                        <p class="saida-confirm-subtitulo">Marque as notas que tiveram erro de reprocessamento.</p>
+                    </div>
+                </div>
+                <div id="envioNotasLista"
+                    style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;margin:12px 0;padding-right:4px;">
+                    <!-- preenchido pelo JS -->
+                </div>
+                <div class="saida-confirm-btns" style="flex-direction:column;gap:10px;margin-top:4px;">
+                    <button onclick="confirmarEnvioComErrosSelecionados()"
+                        style="width:100%;padding:13px;border-radius:10px;border:none;background:#0284c7;color:#fff;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="ph ph-paper-plane-tilt"></i> CONFIRMAR E ENVIAR
+                    </button>
+                    <button onclick="document.getElementById('envioStep2').style.display='none';document.getElementById('envioStep1').style.display='block';"
+                        style="width:100%;padding:11px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
+                        <i class="ph ph-arrow-left"></i> VOLTAR
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MODAL EXPORTAR CSV DO LOTE COM CORES
+    ====================================================== -->
+    <div id="modalCSVLote" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header">
+                <h3><i class="ph ph-file-csv" style="color:#16a34a;"></i> EXPORTAR LOTE CSV</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalCSVLote')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin:10px 0 20px;">Personalize as cores do cabeçalho antes de baixar.</p>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px;">
+                <div class="field-group">
+                    <label>Cor do cabeçalho</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" id="csvCorFundo" value="#1e3a5f"
+                            style="width:44px;height:36px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:2px;">
+                        <span id="csvCorFundoLabel" style="font-size:12px;font-family:monospace;color:var(--text-muted);">#1e3a5f</span>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Cor da fonte</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" id="csvCorFonte" value="#ffffff"
+                            style="width:44px;height:36px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:2px;">
+                        <span id="csvCorFonteLabel" style="font-size:12px;font-family:monospace;color:var(--text-muted);">#ffffff</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Prévia do cabeçalho -->
+            <div style="margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+                <div id="csvPrevia" style="display:grid;grid-template-columns:repeat(5,1fr);background:#1e3a5f;padding:8px 12px;gap:4px;">
+                    <span id="csvPrevCol1" style="font-size:11px;font-weight:800;color:#fff;text-transform:uppercase;">NF</span>
+                    <span id="csvPrevCol2" style="font-size:11px;font-weight:800;color:#fff;text-transform:uppercase;">FORNECEDOR</span>
+                    <span id="csvPrevCol3" style="font-size:11px;font-weight:800;color:#fff;text-transform:uppercase;">RAZÃO</span>
+                    <span id="csvPrevCol4" style="font-size:11px;font-weight:800;color:#fff;text-transform:uppercase;">VENC.</span>
+                    <span id="csvPrevCol5" style="font-size:11px;font-weight:800;color:#fff;text-transform:uppercase;">SETOR</span>
+                </div>
+                <div style="padding:8px 12px;font-size:11px;color:var(--text-muted);text-align:center;">
+                    prévia do cabeçalho
+                </div>
+            </div>
+            <div class="saida-confirm-btns" style="margin-top:8px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalCSVLote')">
+                    <i class="ph ph-x-circle"></i> CANCELAR
+                </button>
+                <button class="btn-salvar-usuario" onclick="confirmarExportarCSVLote()" style="background:#16a34a;">
+                    <i class="ph ph-download-simple"></i> BAIXAR CSV
                 </button>
             </div>
         </div>

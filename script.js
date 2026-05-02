@@ -21,6 +21,8 @@ function entrarComoSuprimentos() {
     }
 }
 
+
+
 function entrarComoCompras() {
     modoAtual = 'compras';
     document.getElementById('seletorInterface').style.display = 'none';
@@ -32,7 +34,6 @@ function entrarComoCompras() {
         _dadosLoginPendente = null;
     }
 }
-
 
 function entrarComoOpme() {
     modoAtual = 'opme';
@@ -1290,7 +1291,7 @@ function entrarNoSistema(data) {
             badge.style.background = 'rgba(2,132,199,0.15)';
             badge.style.color = '#0284c7';
             badge.style.border = '1px solid rgba(2,132,199,0.25)';
-        } else if (LOGINS_ACESSO_MULTIPLO.includes(loginAtual)) {
+        }  else if (LOGINS_ACESSO_MULTIPLO.includes(loginAtual)) {
             badge.textContent = 'SUPRIMENTOS';
             badge.style.display = 'inline';
             badge.style.background = 'rgba(6,182,212,0.15)';
@@ -1391,6 +1392,17 @@ function configurarNavPorUsuario() {
         }
         document.getElementById('carrinhoHeaderBtn').style.display = 'none';
         document.getElementById('notifHeaderBtn').style.display = 'flex';
+        document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
+        return;
+    }
+
+    if (modoAtual === 'compras') {
+        const fnC  = document.getElementById('fn-compras');
+        const divC = document.getElementById('fn-div-compras');
+        if (fnC)  fnC.style.display  = 'flex';
+        if (divC) divC.style.display = 'block';
+        document.getElementById('carrinhoHeaderBtn').style.display = 'none';
+        document.getElementById('notifHeaderBtn').style.display    = 'none';
         document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
         return;
     }
@@ -2346,23 +2358,19 @@ function switchTab(aba) {
         return;
     }
 
-    // Em modo Compras só permite Compras
     if (modoAtual === 'compras' && aba !== 'Compras') {
         switchTab('Compras');
         return;
     }
 
     if (aba === 'Compras') {
-        document.getElementById('view-dashboard').style.display  = 'none';
-        document.getElementById('view-forms').style.display      = 'none';
-        document.getElementById('view-projecao').style.display   = 'none';
-        document.getElementById('view-admin').style.display      = 'none';
+        ['view-dashboard','view-forms','view-projecao','view-admin'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.style.display = 'none';
+        });
         var vc = document.getElementById('view-compras');
         if (vc) vc.style.display = 'block';
         var fnC = document.getElementById('fn-compras');
         if (fnC) { fnC.style.display = 'flex'; fnC.classList.add('active'); }
-        var divC = document.getElementById('fn-div-compras');
-        if (divC) divC.style.display = 'block';
         carregarCompras();
         return;
     } else {
@@ -2553,7 +2561,9 @@ function adicionarNota() {
     // Data de digitação — digitada pelo usuário
     const _dataInput = document.getElementById('f_data').value;
     if (!_dataInput) return alert("Informe a data de digitação!");
-    const _dataHoje = _dataInput; // já está no formato YYYY-MM-DD
+    // Converter YYYY-MM-DD → dd/MM/yyyy para evitar bug de fuso (UTC-3)
+    const [_ano, _mes, _dia] = _dataInput.split('-');
+    const _dataHoje = `${_dia}/${_mes}/${_ano}`;
 
     // Vencimento direto do input date (YYYY-MM-DD)
     const _vencFormatado = document.getElementById('f_vencimento').value;
@@ -5869,8 +5879,8 @@ document.addEventListener('click', e => {
 // MÓDULO COMPRAS — Controle de Vigência de Documentos
 // ============================================================
 
-var _comprasData    = [];   // cache local
-var _comprasEmpAtiva = null; // empresa aberta no modal
+var _comprasData     = [];
+var _comprasEmpAtiva = null;
 
 var _comprasStatusCfg = {
     'VENCIDO':  { bg:'rgba(239,68,68,0.12)',  cor:'#ef4444', label:'VENCIDO'   },
@@ -5898,19 +5908,13 @@ async function carregarCompras(forcar) {
         _renderCompras(_comprasData);
     } catch(err) {
         document.getElementById('compras-loading').style.display = 'none';
-        // Se o GAS ainda não tem o endpoint, mostra vazio sem travar
         _comprasData = [];
         _renderCompras([]);
-        if (!err.message.includes('JSON')) {
-            mostrarToast('Erro ao carregar: ' + err.message, 'error');
-        }
     }
 }
 
 function _renderCompras(lista) {
     document.getElementById('compras-loading').style.display = 'none';
-
-    // Cards de resumo
     var total    = lista.length;
     var vencidos = lista.filter(function(e){ return e.status === 'VENCIDO'; }).length;
     var aVencer  = lista.filter(function(e){ return e.status === 'A VENCER'; }).length;
@@ -5920,7 +5924,6 @@ function _renderCompras(lista) {
         _cardCompras(vencidos,'#ef4444', 'ph-warning',         'Vencidos') +
         _cardCompras(aVencer, '#f59e0b', 'ph-clock-countdown', 'A Vencer') +
         _cardCompras(ok,      '#16a34a', 'ph-check-circle',    'OK');
-
     if (!lista.length) {
         document.getElementById('compras-tabela-wrap').style.display = 'none';
         document.getElementById('compras-vazio').style.display = 'block';
@@ -5928,7 +5931,6 @@ function _renderCompras(lista) {
     }
     document.getElementById('compras-vazio').style.display = 'none';
     document.getElementById('compras-tabela-wrap').style.display = 'block';
-
     var tbody = document.getElementById('compras-tbody');
     tbody.innerHTML = lista.map(function(emp) {
         return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="abrirDocsEmpresa(\'' + emp.id + '\')" onmouseover="this.style.background=\'var(--bg-system)\'" onmouseout="this.style.background=\'\'">' +
@@ -5936,34 +5938,29 @@ function _renderCompras(lista) {
             '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted);">' + (emp.email||'—') + '</td>' +
             '<td style="padding:12px 14px;text-align:center;font-size:12px;color:var(--text-muted);">' + (emp.documentos||[]).length + '</td>' +
             '<td style="padding:12px 14px;text-align:center;">' + _comprasStatusBadge(emp.status) + '</td>' +
-            '<td style="padding:12px 14px;text-align:center;">' +
-            '<button onclick="event.stopPropagation();abrirDocsEmpresa(\'' + emp.id + '\')" style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.25);border-radius:7px;padding:5px 10px;cursor:pointer;color:#0284c7;font-size:12px;font-weight:700;">Ver docs</button>' +
-            '</td></tr>';
+            '<td style="padding:12px 14px;text-align:center;"><button onclick="event.stopPropagation();abrirDocsEmpresa(\'' + emp.id + '\')" style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.25);border-radius:7px;padding:5px 10px;cursor:pointer;color:#0284c7;font-size:12px;font-weight:700;">Ver docs</button></td>' +
+            '</tr>';
     }).join('');
 }
 
 function _cardCompras(num, cor, icon, label) {
-    return '<div style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border-left:4px solid ' + cor + ';box-shadow:var(--shadow-sm,0 1px 4px rgba(0,0,0,.06));">' +
-        '<div style="display:flex;align-items:center;gap:8px;">' +
-        '<i class="ph ' + icon + '" style="font-size:18px;color:' + cor + ';"></i>' +
+    return '<div style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border-left:4px solid ' + cor + ';">' +
+        '<div style="display:flex;align-items:center;gap:8px;"><i class="ph ' + icon + '" style="font-size:18px;color:' + cor + ';"></i>' +
         '<span style="font-size:26px;font-weight:900;color:' + cor + ';">' + num + '</span></div>' +
-        '<p style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-top:4px;">' + label + '</p>' +
-        '</div>';
+        '<p style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-top:4px;">' + label + '</p></div>';
 }
 
 function filtrarCompras() {
     var q = (document.getElementById('compras-busca')?.value || '').toLowerCase();
-    var filtrado = q ? _comprasData.filter(function(e){ return e.nome.toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q); }) : _comprasData;
-    _renderCompras(filtrado);
+    _renderCompras(q ? _comprasData.filter(function(e){ return e.nome.toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q); }) : _comprasData);
 }
 
-// --- Add Empresa ---
 function abrirModalAddEmpresa() {
     document.getElementById('add-emp-nome').value  = '';
     document.getElementById('add-emp-email').value = '';
     document.getElementById('add-emp-erro').textContent = '';
     document.getElementById('add-docs-lista').innerHTML = '';
-    addLinhaDoc(); // começa com uma linha
+    addLinhaDoc();
     document.getElementById('modalAddEmpresa').style.display = 'flex';
     setTimeout(function(){ document.getElementById('add-emp-nome').focus(); }, 50);
 }
@@ -5986,45 +5983,31 @@ async function salvarEmpresa() {
     var email = document.getElementById('add-emp-email').value.trim();
     var erro  = document.getElementById('add-emp-erro');
     if (!nome) { erro.textContent = 'Informe o nome do fornecedor.'; return; }
-
     var documentos = [];
     document.querySelectorAll('#add-docs-lista > div').forEach(function(row) {
         var nDoc = row.querySelector('.add-doc-nome')?.value.trim();
-        var nNum = row.querySelector('.add-doc-num')?.value.trim();
-        var nVig = row.querySelector('.add-doc-vig')?.value;
-        var nVenc= row.querySelector('.add-doc-venc')?.value;
-        if (nDoc) documentos.push({ nome_doc: nDoc, numero_doc: nNum||'', vigencia: nVig||'', vencimento: nVenc||'' });
+        if (nDoc) documentos.push({ nome_doc: nDoc, numero_doc: row.querySelector('.add-doc-num')?.value.trim()||'', vigencia: row.querySelector('.add-doc-vig')?.value||'', vencimento: row.querySelector('.add-doc-venc')?.value||'' });
     });
-
     erro.textContent = '';
     var btn = document.querySelector('#modalAddEmpresa .btn-salvar-usuario');
     btn.disabled = true; btn.textContent = 'Salvando...';
     try {
-        await fetch(URL_SCRIPT, {
-            method: 'POST', mode: 'no-cors',
-            body: JSON.stringify({ tipo: 'comprasAddEmpresa', nome, email, documentos })
-        });
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: 'comprasAddEmpresa', nome, email, documentos }) });
         fecharModal('modalAddEmpresa');
         await carregarCompras(true);
-        mostrarToast('✅ Fornecedor adicionado!', 'success');
-    } catch(e) {
-        erro.textContent = 'Erro ao salvar. Tente novamente.';
-    } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> SALVAR FORNECEDOR';
-    }
+        mostrarToast('Fornecedor adicionado!', 'success');
+    } catch(e) { erro.textContent = 'Erro ao salvar.'; }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> SALVAR FORNECEDOR'; }
 }
 
-// --- Docs da empresa ---
 function abrirDocsEmpresa(empId) {
     var emp = _comprasData.find(function(e){ return e.id === empId; });
     if (!emp) return;
     _comprasEmpAtiva = emp;
     document.getElementById('docs-emp-nome').textContent  = emp.nome;
     document.getElementById('docs-emp-email').textContent = emp.email || '—';
-    document.getElementById('new-doc-nome').value = '';
-    document.getElementById('new-doc-numero').value = '';
-    document.getElementById('new-doc-vigencia').value = '';
-    document.getElementById('new-doc-vencimento').value = '';
+    ['new-doc-nome','new-doc-numero'].forEach(function(id){ document.getElementById(id).value = ''; });
+    ['new-doc-vigencia','new-doc-vencimento'].forEach(function(id){ document.getElementById(id).value = ''; });
     document.getElementById('new-doc-erro').textContent = '';
     _renderDocsTabela(emp.documentos || []);
     document.getElementById('modalDocsEmpresa').style.display = 'flex';
@@ -6032,51 +6015,40 @@ function abrirDocsEmpresa(empId) {
 
 function _renderDocsTabela(docs) {
     var tbody = document.getElementById('docs-emp-tbody');
-    if (!docs.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum documento cadastrado</td></tr>';
-        return;
-    }
+    if (!docs.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum documento cadastrado</td></tr>'; return; }
+    var cores = { 'VENCIDO':'#ef4444', 'A VENCER':'#f59e0b', 'OK':'#16a34a', 'SEM DATA':'#64748b' };
     tbody.innerHTML = docs.map(function(doc) {
-        var cfg = _comprasStatusCfg[doc.status] || _comprasStatusCfg['SEM DOCS'];
+        var cor = cores[doc.status] || '#64748b';
         var rowBg = doc.status === 'VENCIDO' ? 'background:rgba(239,68,68,0.05);' : doc.status === 'A VENCER' ? 'background:rgba(245,158,11,0.04);' : '';
         return '<tr style="border-bottom:1px solid var(--border);' + rowBg + '">' +
             '<td style="padding:10px 12px;font-weight:700;font-size:13px;">' + (doc.nome_doc||'—') + '</td>' +
             '<td style="padding:10px 12px;font-size:12px;font-family:monospace;color:var(--text-muted);">' + (doc.numero_doc||'—') + '</td>' +
             '<td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">' + (doc.vigencia||'—') + '</td>' +
-            '<td style="padding:10px 12px;font-size:12px;font-weight:700;color:' + cfg.cor + ';">' + (doc.vencimento||'—') + '</td>' +
+            '<td style="padding:10px 12px;font-size:12px;font-weight:700;color:' + cor + ';">' + (doc.vencimento||'—') + '</td>' +
             '<td style="padding:10px 12px;text-align:center;">' + _comprasStatusBadge(doc.status) + '</td>' +
-            '<td style="padding:10px 12px;text-align:center;">' +
-            '<button onclick="_deletarDoc(\'' + doc.id + '\')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;"><i class="ph ph-trash"></i></button>' +
-            '</td></tr>';
+            '<td style="padding:10px 12px;text-align:center;"><button onclick="_deletarDoc(\'' + doc.id + '\')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;"><i class="ph ph-trash"></i></button></td></tr>';
     }).join('');
 }
 
 async function salvarNovoDocumento() {
     if (!_comprasEmpAtiva) return;
-    var nome  = document.getElementById('new-doc-nome').value.trim();
-    var num   = document.getElementById('new-doc-numero').value.trim();
-    var vig   = document.getElementById('new-doc-vigencia').value;
-    var venc  = document.getElementById('new-doc-vencimento').value;
-    var erro  = document.getElementById('new-doc-erro');
+    var nome = document.getElementById('new-doc-nome').value.trim();
+    var num  = document.getElementById('new-doc-numero').value.trim();
+    var vig  = document.getElementById('new-doc-vigencia').value;
+    var venc = document.getElementById('new-doc-vencimento').value;
+    var erro = document.getElementById('new-doc-erro');
     if (!nome) { erro.textContent = 'Informe o nome do documento.'; return; }
     if (!venc) { erro.textContent = 'Informe a data de vencimento.'; return; }
     erro.textContent = '';
     try {
-        await fetch(URL_SCRIPT, {
-            method: 'POST', mode: 'no-cors',
-            body: JSON.stringify({ tipo: 'comprasAddDocumento', empresa_id: _comprasEmpAtiva.id, nome_doc: nome, numero_doc: num, vigencia: vig, vencimento: venc })
-        });
-        document.getElementById('new-doc-nome').value = '';
-        document.getElementById('new-doc-numero').value = '';
-        document.getElementById('new-doc-vigencia').value = '';
-        document.getElementById('new-doc-vencimento').value = '';
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: 'comprasAddDocumento', empresa_id: _comprasEmpAtiva.id, nome_doc: nome, numero_doc: num, vigencia: vig, vencimento: venc }) });
+        ['new-doc-nome','new-doc-numero'].forEach(function(id){ document.getElementById(id).value = ''; });
+        ['new-doc-vigencia','new-doc-vencimento'].forEach(function(id){ document.getElementById(id).value = ''; });
         await carregarCompras(true);
         var empAtual = _comprasData.find(function(e){ return e.id === _comprasEmpAtiva.id; });
         if (empAtual) { _comprasEmpAtiva = empAtual; _renderDocsTabela(empAtual.documentos || []); }
-        mostrarToast('✅ Documento adicionado!', 'success');
-    } catch(e) {
-        erro.textContent = 'Erro ao salvar.';
-    }
+        mostrarToast('Documento adicionado!', 'success');
+    } catch(e) { erro.textContent = 'Erro ao salvar.'; }
 }
 
 async function _deletarDoc(docId) {

@@ -1178,7 +1178,7 @@ async function carregarPizzasDashboard() {
                 if (!data.erro && data.itens) {
                     desenharMiniPizza(canvasId, legendaId, totalId, data.itens);
                     // Carrega statusCompra para este comprador e desenha o gráfico de processo
-                    const resStatus = await fetch(`${URL_SCRIPT}?action=getStatusCompra&comprador=${encodeURIComponent(nomeUsuario)}&t=${Date.now()}`);
+                    const resStatus = await fetch(addAuth(`${URL_SCRIPT}?action=getStatusCompra&comprador=${encodeURIComponent(nomeUsuario)}&t=${Date.now()}`));
                     const dataStatus = await resStatus.json();
                     const mapa = {};
                     (dataStatus.itens || []).forEach(i => { mapa[i.codigo] = i; });

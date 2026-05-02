@@ -5933,11 +5933,24 @@ function _renderCompras(lista) {
     document.getElementById('compras-tabela-wrap').style.display = 'block';
     var tbody = document.getElementById('compras-tbody');
     tbody.innerHTML = lista.map(function(emp) {
+        var docs   = emp.documentos || [];
+        var ativos = docs.filter(function(d){ return d.ativo !== false; });
+        var cv = ativos.filter(function(d){ return d.status==='VENCIDO'; }).length;
+        var ca = ativos.filter(function(d){ return d.status==='A VENCER'; }).length;
+        var co = ativos.filter(function(d){ return d.status==='OK'; }).length;
+        var cs = ativos.filter(function(d){ return d.status==='SEM DATA'; }).length;
+        var badges = '';
+        if (cv) badges += '<span style="background:rgba(239,68,68,0.12);color:#ef4444;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #ef444433;margin-right:4px;">('+cv+') VENCIDO</span>';
+        if (ca) badges += '<span style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #f59e0b33;margin-right:4px;">('+ca+') A VENCER</span>';
+        if (co) badges += '<span style="background:rgba(22,163,74,0.1);color:#16a34a;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #16a34a33;margin-right:4px;">('+co+') OK</span>';
+        if (cs) badges += '<span style="background:rgba(100,116,139,0.1);color:#64748b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #64748b33;">('+cs+') SEM DATA</span>';
+        if (!badges) badges = '<span style="color:var(--text-muted);font-size:11px;">—</span>';
         return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="abrirDocsEmpresa(\'' + emp.id + '\')" onmouseover="this.style.background=\'var(--bg-system)\'" onmouseout="this.style.background=\'\'">' +
             '<td style="padding:12px 14px;font-weight:800;font-size:13px;">' + (emp.nome||'—') + '</td>' +
+            '<td style="padding:12px 14px;font-size:11px;color:var(--text-muted);font-family:monospace;">' + (emp.cnpj||'—') + '</td>' +
             '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted);">' + (emp.email||'—') + '</td>' +
-            '<td style="padding:12px 14px;text-align:center;font-size:12px;color:var(--text-muted);">' + (emp.documentos||[]).length + '</td>' +
-            '<td style="padding:12px 14px;text-align:center;">' + _comprasStatusBadge(emp.status) + '</td>' +
+            '<td style="padding:12px 14px;text-align:center;font-size:12px;color:var(--text-muted);">' + ativos.length + '</td>' +
+            '<td style="padding:12px 14px;">' + badges + '</td>' +
             '<td style="padding:12px 14px;text-align:center;"><button onclick="event.stopPropagation();abrirDocsEmpresa(\'' + emp.id + '\')" style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.25);border-radius:7px;padding:5px 10px;cursor:pointer;color:#0284c7;font-size:12px;font-weight:700;">Ver docs</button></td>' +
             '</tr>';
     }).join('');
@@ -5952,11 +5965,21 @@ function _cardCompras(num, cor, icon, label) {
 
 function filtrarCompras() {
     var q = (document.getElementById('compras-busca')?.value || '').toLowerCase();
-    _renderCompras(q ? _comprasData.filter(function(e){ return e.nome.toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q); }) : _comprasData);
+    _renderCompras(q ? _comprasData.filter(function(e){ return e.nome.toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q) || (e.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) || (e.cnpj||'').toLowerCase().includes(q); }) : _comprasData);
+}
+
+function mascararCNPJ(input) {
+    var v = input.value.replace(/\D/g,'').slice(0,14);
+    if (v.length > 12) v = v.slice(0,2)+'.'+v.slice(2,5)+'.'+v.slice(5,8)+'/'+v.slice(8,12)+'-'+v.slice(12);
+    else if (v.length > 8) v = v.slice(0,2)+'.'+v.slice(2,5)+'.'+v.slice(5,8)+'/'+v.slice(8);
+    else if (v.length > 5) v = v.slice(0,2)+'.'+v.slice(2,5)+'.'+v.slice(5);
+    else if (v.length > 2) v = v.slice(0,2)+'.'+v.slice(2);
+    input.value = v;
 }
 
 function abrirModalAddEmpresa() {
     document.getElementById('add-emp-nome').value  = '';
+    document.getElementById('add-emp-cnpj').value  = '';
     document.getElementById('add-emp-email').value = '';
     document.getElementById('add-emp-erro').textContent = '';
     document.getElementById('add-docs-lista').innerHTML = '';
@@ -5968,7 +5991,7 @@ function abrirModalAddEmpresa() {
 function addLinhaDoc() {
     var lista = document.getElementById('add-docs-lista');
     var div = document.createElement('div');
-    div.style.cssText = 'display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr auto;gap:8px;align-items:end;';
+    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 40px;gap:8px;align-items:end;';
     div.innerHTML =
         '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Nome do Documento</label><input type="text" class="add-doc-nome" placeholder="Ex: Certidão Negativa"></div>' +
         '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Número</label><input type="text" class="add-doc-num" placeholder="Nº"></div>' +
@@ -5980,6 +6003,7 @@ function addLinhaDoc() {
 
 async function salvarEmpresa() {
     var nome  = document.getElementById('add-emp-nome').value.trim().toUpperCase();
+    var cnpj  = document.getElementById('add-emp-cnpj').value.trim();
     var email = document.getElementById('add-emp-email').value.trim();
     var erro  = document.getElementById('add-emp-erro');
     if (!nome) { erro.textContent = 'Informe o nome do fornecedor.'; return; }
@@ -5992,12 +6016,46 @@ async function salvarEmpresa() {
     var btn = document.querySelector('#modalAddEmpresa .btn-salvar-usuario');
     btn.disabled = true; btn.textContent = 'Salvando...';
     try {
-        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: 'comprasAddEmpresa', nome, email, documentos }) });
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: 'comprasAddEmpresa', nome, cnpj, email, documentos }) });
         fecharModal('modalAddEmpresa');
         await carregarCompras(true);
         mostrarToast('Fornecedor adicionado!', 'success');
     } catch(e) { erro.textContent = 'Erro ao salvar.'; }
     finally { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> SALVAR FORNECEDOR'; }
+}
+
+function abrirRenovarDoc(docId, nomeDoc) {
+    fecharModal('modalDocsEmpresa'); // fecha o modal atual primeiro
+    document.getElementById('renovar-doc-nome').textContent  = nomeDoc;
+    document.getElementById('renovar-doc-numero').value      = '';
+    document.getElementById('renovar-doc-vigencia').value    = '';
+    document.getElementById('renovar-doc-vencimento').value  = '';
+    document.getElementById('renovar-doc-erro').textContent  = '';
+    document.getElementById('renovar-doc-id-origem').value   = docId;
+    document.getElementById('modalRenovarDoc').style.display = 'flex';
+}
+
+async function confirmarRenovacao() {
+    if (!_comprasEmpAtiva) return;
+    var num   = document.getElementById('renovar-doc-numero').value.trim();
+    var vig   = document.getElementById('renovar-doc-vigencia').value;
+    var venc  = document.getElementById('renovar-doc-vencimento').value;
+    var nome  = document.getElementById('renovar-doc-nome').textContent;
+    var erro  = document.getElementById('renovar-doc-erro');
+    if (!venc) { erro.textContent = 'Informe o vencimento.'; return; }
+    erro.textContent = '';
+    try {
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+            tipo: 'comprasAddDocumento', empresa_id: _comprasEmpAtiva.id,
+            nome_doc: nome, numero_doc: num, vigencia: vig, vencimento: venc
+        })});
+        fecharModal('modalRenovarDoc');
+        await carregarCompras(true);
+        var emp = _comprasData.find(function(e){ return e.id === _comprasEmpAtiva.id; });
+        if (emp) { _comprasEmpAtiva = emp; _renderDocsTabela(emp.documentos || []); }
+        document.getElementById('modalDocsEmpresa').style.display = 'flex';
+        mostrarToast('Documento renovado!', 'success');
+    } catch(e) { erro.textContent = 'Erro ao salvar.'; }
 }
 
 function abrirDocsEmpresa(empId) {
@@ -6006,6 +6064,7 @@ function abrirDocsEmpresa(empId) {
     _comprasEmpAtiva = emp;
     document.getElementById('docs-emp-nome').textContent  = emp.nome;
     document.getElementById('docs-emp-email').textContent = emp.email || '—';
+    document.getElementById('docs-emp-cnpj').textContent  = emp.cnpj ? 'CNPJ: ' + emp.cnpj : '';
     ['new-doc-nome','new-doc-numero'].forEach(function(id){ document.getElementById(id).value = ''; });
     ['new-doc-vigencia','new-doc-vencimento'].forEach(function(id){ document.getElementById(id).value = ''; });
     document.getElementById('new-doc-erro').textContent = '';
@@ -6015,19 +6074,51 @@ function abrirDocsEmpresa(empId) {
 
 function _renderDocsTabela(docs) {
     var tbody = document.getElementById('docs-emp-tbody');
-    if (!docs.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum documento cadastrado</td></tr>'; return; }
+    if (!docs.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum documento cadastrado</td></tr>';
+        return;
+    }
+
+    // ativo undefined → considera ativo (compatibilidade com GAS antigo)
+    var ativos    = docs.filter(function(d){ return d.ativo !== false; });
+    var historico = docs.filter(function(d){ return d.ativo === false; });
+
     var cores = { 'VENCIDO':'#ef4444', 'A VENCER':'#f59e0b', 'OK':'#16a34a', 'SEM DATA':'#64748b' };
-    tbody.innerHTML = docs.map(function(doc) {
-        var cor = cores[doc.status] || '#64748b';
-        var rowBg = doc.status === 'VENCIDO' ? 'background:rgba(239,68,68,0.05);' : doc.status === 'A VENCER' ? 'background:rgba(245,158,11,0.04);' : '';
+
+    function renderLinha(doc, ehHistorico) {
+        var cor    = cores[doc.status] || '#64748b';
+        var rowBg  = ehHistorico ? 'opacity:0.45;' : (doc.status === 'VENCIDO' ? 'background:rgba(239,68,68,0.05);' : doc.status === 'A VENCER' ? 'background:rgba(245,158,11,0.04);' : '');
+        var badge  = _comprasStatusBadge(doc.status);
+        var acoes  = '';
+
+        if (!ehHistorico && (doc.status === 'VENCIDO' || doc.status === 'A VENCER')) {
+            acoes += '<button onclick="abrirRenovarDoc(\'' + doc.id + '\',\'' + doc.nome_doc.replace(/'/g,"\\'") + '\')" ' +
+                'style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.3);border-radius:6px;padding:4px 10px;cursor:pointer;color:#0284c7;font-size:11px;font-weight:800;margin-right:4px;">RENOVAR</button>';
+        }
+        if (!ehHistorico) {
+            acoes += '<button onclick="_deletarDoc(\'' + doc.id + '\')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;"><i class="ph ph-trash"></i></button>';
+        }
+
         return '<tr style="border-bottom:1px solid var(--border);' + rowBg + '">' +
-            '<td style="padding:10px 12px;font-weight:700;font-size:13px;">' + (doc.nome_doc||'—') + '</td>' +
+            '<td style="padding:10px 12px;font-weight:700;font-size:13px;">' +
+                (ehHistorico ? '<span style="font-size:9px;font-weight:800;color:var(--text-muted);margin-right:4px;">HIST.</span>' : '') +
+                (doc.nome_doc||'—') + '</td>' +
             '<td style="padding:10px 12px;font-size:12px;font-family:monospace;color:var(--text-muted);">' + (doc.numero_doc||'—') + '</td>' +
             '<td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">' + (doc.vigencia||'—') + '</td>' +
             '<td style="padding:10px 12px;font-size:12px;font-weight:700;color:' + cor + ';">' + (doc.vencimento||'—') + '</td>' +
-            '<td style="padding:10px 12px;text-align:center;">' + _comprasStatusBadge(doc.status) + '</td>' +
-            '<td style="padding:10px 12px;text-align:center;"><button onclick="_deletarDoc(\'' + doc.id + '\')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;cursor:pointer;color:#f87171;"><i class="ph ph-trash"></i></button></td></tr>';
-    }).join('');
+            '<td style="padding:10px 12px;text-align:center;">' + badge + '</td>' +
+            '<td style="padding:10px 12px;text-align:center;">' + acoes + '</td>' +
+            '</tr>';
+    }
+
+    var html = ativos.map(function(d){ return renderLinha(d, false); }).join('');
+
+    if (historico.length) {
+        html += '<tr><td colspan="6" style="padding:6px 12px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;background:var(--bg-system);">Histórico de renovações</td></tr>';
+        html += historico.map(function(d){ return renderLinha(d, true); }).join('');
+    }
+
+    tbody.innerHTML = html;
 }
 
 async function salvarNovoDocumento() {

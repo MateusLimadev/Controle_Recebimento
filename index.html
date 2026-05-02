@@ -2037,6 +2037,7 @@
                 <thead>
                     <tr style="background:var(--bg-system);">
                         <th style="padding:11px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">FORNECEDOR</th>
+                        <th style="padding:11px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">CNPJ</th>
                         <th style="padding:11px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">E-MAIL</th>
                         <th style="padding:11px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">DOCS</th>
                         <th style="padding:11px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">STATUS</th>
@@ -2059,16 +2060,43 @@
     <!-- =====================================================
          MODAL ADICIONAR FORNECEDOR — COMPRAS
     ====================================================== -->
+    <!-- MODAL RENOVAR DOCUMENTO — COMPRAS -->
+    <div id="modalRenovarDoc" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:80vw;width:80vw;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3><i class="ph ph-arrows-clockwise" style="color:#0284c7;"></i> RENOVAR DOCUMENTO</h3>
+                <i class="ph ph-x" onclick="fecharModal('modalRenovarDoc')" style="cursor:pointer;font-size:24px;"></i>
+            </div>
+            <p style="font-size:13px;font-weight:800;color:var(--text-main);margin:12px 0 4px;" id="renovar-doc-nome">—</p>
+            <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">O documento anterior ficará salvo no histórico.</p>
+            <input type="hidden" id="renovar-doc-id-origem">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:4px;">
+                <div class="field-group" style="margin:0;"><label>Número</label><input type="text" id="renovar-doc-numero" placeholder="Nº do doc"></div>
+                <div class="field-group" style="margin:0;"><label>Vigência</label><input type="date" id="renovar-doc-vigencia"></div>
+                <div class="field-group" style="margin:0;"><label>Vencimento</label><input type="date" id="renovar-doc-vencimento"></div>
+            </div>
+            <div id="renovar-doc-erro" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:8px;"></div>
+            <div class="saida-confirm-btns" style="margin-top:16px;">
+                <button class="btn-saida-cancelar" onclick="fecharModal('modalRenovarDoc')"><i class="ph ph-x-circle"></i> CANCELAR</button>
+                <button onclick="confirmarRenovacao()" class="btn-salvar-usuario" style="background:#0284c7;"><i class="ph ph-arrows-clockwise"></i> RENOVAR</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalAddEmpresa" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:680px;" onclick="event.stopPropagation()">
+        <div class="modal-content" style="max-width:80vw;width:80vw;" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h3><i class="ph ph-buildings" style="color:#0284c7;"></i> NOVO FORNECEDOR</h3>
                 <i class="ph ph-x" onclick="fecharModal('modalAddEmpresa')" style="cursor:pointer;font-size:24px;"></i>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 20px;">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin:18px 0 20px;">
                 <div class="field-group">
                     <label>Nome do Fornecedor</label>
                     <input type="text" id="add-emp-nome" placeholder="Ex: BOSTON SCIENTIFIC" style="text-transform:uppercase;">
+                </div>
+                <div class="field-group">
+                    <label>CNPJ</label>
+                    <input type="text" id="add-emp-cnpj" placeholder="00.000.000/0000-00" maxlength="18" oninput="mascararCNPJ(this)">
                 </div>
                 <div class="field-group">
                     <label>E-mail</label>
@@ -2100,65 +2128,50 @@
          MODAL DOCUMENTOS DO FORNECEDOR — COMPRAS
     ====================================================== -->
     <div id="modalDocsEmpresa" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:700px;" onclick="event.stopPropagation()">
+        <div class="modal-content" style="max-width:80vw;width:80vw;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
             <div class="modal-header">
-                <h3><i class="ph ph-file-text" style="color:#0284c7;"></i> <span id="docs-emp-nome">—</span></h3>
+                <h3 style="font-size:14px;"><i class="ph ph-file-text" style="color:#0284c7;"></i> <span id="docs-emp-nome">—</span></h3>
                 <i class="ph ph-x" onclick="fecharModal('modalDocsEmpresa')" style="cursor:pointer;font-size:24px;"></i>
             </div>
-            <p id="docs-emp-email" style="font-size:12px;color:var(--text-muted);margin:6px 0 18px;"></p>
+            <p id="docs-emp-email" style="font-size:12px;color:var(--text-muted);margin:2px 0 2px;"></p>
+            <p id="docs-emp-cnpj" style="font-size:12px;color:var(--text-muted);margin:0 0 14px;font-family:monospace;"></p>
 
-            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
-                <table style="width:100%;border-collapse:collapse;" id="docs-emp-tabela">
+            <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;" id="docs-emp-tabela">
                     <thead>
                         <tr style="background:var(--bg-system);">
-                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">DOCUMENTO</th>
-                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">NÚMERO</th>
-                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">VIGÊNCIA</th>
-                            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">VENCIMENTO</th>
-                            <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">STATUS</th>
-                            <th></th>
+                            <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:30%;">DOCUMENTO</th>
+                            <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:15%;">NÚMERO</th>
+                            <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:14%;">VIGÊNCIA</th>
+                            <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:14%;">VENC.</th>
+                            <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:12%;">STATUS</th>
+                            <th style="width:15%;"></th>
                         </tr>
                     </thead>
                     <tbody id="docs-emp-tbody"></tbody>
                 </table>
             </div>
 
-            <!-- Adicionar novo documento inline -->
-            <div style="margin-top:16px;padding:14px;border-radius:10px;border:1.5px dashed var(--border);background:var(--bg-system);">
+            <!-- Adicionar novo documento -->
+            <div style="margin-top:14px;padding:12px;border-radius:10px;border:1.5px dashed var(--border);background:var(--bg-system);">
                 <p style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Adicionar novo documento</p>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;">
-                    <div class="field-group" style="margin:0;">
-                        <label>Nome</label>
-                        <input type="text" id="new-doc-nome" placeholder="Ex: Certidão">
-                    </div>
-                    <div class="field-group" style="margin:0;">
-                        <label>Número</label>
-                        <input type="text" id="new-doc-numero" placeholder="Nº do doc">
-                    </div>
-                    <div class="field-group" style="margin:0;">
-                        <label>Vigência</label>
-                        <input type="date" id="new-doc-vigencia">
-                    </div>
-                    <div class="field-group" style="margin:0;">
-                        <label>Vencimento</label>
-                        <input type="date" id="new-doc-vencimento">
-                    </div>
-                    <button onclick="salvarNovoDocumento()"
-                        style="padding:9px 14px;border-radius:9px;border:none;background:#0284c7;color:#fff;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;">
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 40px;gap:8px;align-items:end;">
+                    <div class="field-group" style="margin:0;"><label style="font-size:10px;">Nome</label><input type="text" id="new-doc-nome" placeholder="Ex: Certidão"></div>
+                    <div class="field-group" style="margin:0;"><label style="font-size:10px;">Número</label><input type="text" id="new-doc-numero" placeholder="Nº"></div>
+                    <div class="field-group" style="margin:0;"><label style="font-size:10px;">Vigência</label><input type="date" id="new-doc-vigencia"></div>
+                    <div class="field-group" style="margin:0;"><label style="font-size:10px;">Vencimento</label><input type="date" id="new-doc-vencimento"></div>
+                    <button onclick="salvarNovoDocumento()" style="padding:9px;border-radius:9px;border:none;background:#0284c7;color:#fff;font-weight:800;cursor:pointer;align-self:end;">
                         <i class="ph ph-plus"></i>
                     </button>
                 </div>
                 <div id="new-doc-erro" style="color:var(--danger);font-size:12px;min-height:14px;margin-top:6px;"></div>
             </div>
 
-            <!-- Botão remover empresa -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
-                <button onclick="confirmarDeleteEmpresa()"
-                    style="padding:9px 14px;border-radius:9px;border:1.5px solid var(--danger);background:transparent;color:var(--danger);font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+                <button onclick="confirmarDeleteEmpresa()" style="padding:9px 14px;border-radius:9px;border:1.5px solid var(--danger);background:transparent;color:var(--danger);font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">
                     <i class="ph ph-trash"></i> REMOVER FORNECEDOR
                 </button>
-                <button onclick="fecharModal('modalDocsEmpresa')"
-                    style="padding:9px 18px;border-radius:9px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
+                <button onclick="fecharModal('modalDocsEmpresa')" style="padding:9px 18px;border-radius:9px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;">
                     FECHAR
                 </button>
             </div>

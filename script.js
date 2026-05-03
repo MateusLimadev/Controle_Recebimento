@@ -2427,8 +2427,7 @@ function switchTab(aba) {
         document.getElementById('view-admin').style.display       = 'none';
         const _vpo = document.getElementById('view-projecao-opme');
         if (_vpo) _vpo.style.display = 'block';
-        // Se ainda não rodou a projeção nesta sessão, mostra estado inicial
-        // (nada a carregar automaticamente — usuário clica em "Rodar Projeção")
+        _carregarCopData(); // carrega e exibe a data da última COP
     } else if (aba === 'AdminOpme') {
         document.getElementById('view-dashboard').style.display   = 'none';
         document.getElementById('view-forms').style.display       = 'none';
@@ -5322,6 +5321,50 @@ var opmeDescs    = {
     c6: 'Consumo médio mensal &lt; 2 unidades · Cobertura &gt; 45 dias (atenção especial)'
 };
 
+let copDataOPME = '';
+
+// Busca a data da COP do backend e atualiza o display
+async function _carregarCopData() {
+    try {
+        const res  = await fetch(addAuth(URL_SCRIPT + '?action=getCopDataAtualizacao'));
+        const data = await res.json();
+        copDataOPME = data.data || '';
+    } catch(e) { copDataOPME = ''; }
+    _atualizarDisplayCopData();
+}
+
+function _atualizarDisplayCopData() {
+    const el = document.getElementById('opme-cop-data-display');
+    if (el) el.textContent = copDataOPME ? '📅 Última COP: ' + copDataOPME : '📅 Data COP: não definida';
+
+    // Input admin: só aparece para administrador
+    const adminWrap = document.getElementById('opme-admin-cop-wrap');
+    const ehAdmin   = usuarioAtual && (usuarioAtual.role === 'administrador' || String(usuarioAtual.permissoes||'').toLowerCase().includes('administrador'));
+    if (adminWrap) adminWrap.style.display = ehAdmin ? 'flex' : 'none';
+
+    // Preenche o input com a data atual (convertendo DD/MM/YYYY → YYYY-MM-DD)
+    const inp = document.getElementById('opme-cop-data-input');
+    if (inp && copDataOPME) {
+        const p = copDataOPME.split('/');
+        if (p.length === 3) inp.value = p[2] + '-' + p[1] + '-' + p[0];
+    }
+}
+
+async function salvarCopDataAtualizacao() {
+    const inp = document.getElementById('opme-cop-data-input');
+    if (!inp || !inp.value) { mostrarToast('Informe a data da COP.', 'error'); return; }
+    const p = inp.value.split('-');
+    const dataFmt = p[2] + '/' + p[1] + '/' + p[0]; // DD/MM/YYYY
+    try {
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+            tipo: 'salvarCopDataAtualizacao', data: dataFmt
+        })});
+        copDataOPME = dataFmt;
+        _atualizarDisplayCopData();
+        mostrarToast('Data da COP atualizada: ' + dataFmt, 'success');
+    } catch(e) { mostrarToast('Erro ao salvar data da COP.', 'error'); }
+}
+
 async function rodarProjecaoOPME() {
     // Oculta estado inicial, mostra loading
     document.getElementById('opme-initial-state').style.display  = 'none';
@@ -5359,6 +5402,10 @@ async function rodarProjecaoOPME() {
         }
 
         opmeData = data;
+
+        // Atualiza display da data de atualização da COP
+        if (data.copDataAtualizacao) { copDataOPME = data.copDataAtualizacao; }
+        _atualizarDisplayCopData();
 
         // Atualiza cards
         ['c2','c4','c5','c6'].forEach(k => {
@@ -5448,7 +5495,7 @@ function _renderTblOPME(criterio, itens) {
         '<th onclick="_sortOPME(\'' + criterio + '\',\'cobertura\')">Cob. (dias) ↕</th>' +
         '<th onclick="_sortOPME(\'' + criterio + '\',\'cmmMensal\')">CMM/mês ↕</th>' +
         '<th>CMD/dia</th><th>RP</th><th>Empenho</th><th>COP</th>' +
-        (isc5 ? '<th onclick="_sortOPME(\'' + criterio + '\',\'entregaPendente\')">Entrega Pend. ↕</th><th>Nº Empenho(s)</th>' : '') +
+        (isc5 ? '<th onclick="_sortOPME(\'' + criterio + '\',\'qtdEmpenhada\')">Qtd Empenhada ↕</th><th onclick="_sortOPME(\'' + criterio + '\',\'qtdRecebida\')">Qtd Recebida ↕</th><th>Nº Empenho(s)</th>' : '') +
         '</tr></thead>' +
         '<tbody id="opme-tbody-' + criterio + '">' +
         itens.map(function(it){ return _linhaOPME(it, isc5); }).join('') +
@@ -5468,7 +5515,9 @@ function _linhaOPME(it, mostrarEmp) {
         ? '<span class="bd-rp">COM RP</span>'
         : '<span class="bd-norp">SEM RP</span>';
     var empB = it.temEmpenho
-        ? '<span class="bd-emp">ATIVO</span>'
+        ? (it.jaEmpenhou
+            ? '<span style="background:#16a34a;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap;letter-spacing:.3px;">JÁ EMPENHOU</span>'
+            : '<span style="background:#64748b;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap;letter-spacing:.3px;">NÃO EMPENHADO</span>')
         : '<span class="bd-noemp">NENHUM</span>';
 
     // Badge COP: bloqueioCompra = true → NÃO compra via COP
@@ -5501,8 +5550,21 @@ function _linhaOPME(it, mostrarEmp) {
         '<td>' + empB + '</td>' +
         '<td>' + copB + '</td>' +
         (mostrarEmp
-            ? '<td style="color:#f59e0b;font-weight:700">' + (it.entregaPendente||0) + '</td>' +
-              '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
+            ? (it.jaEmpenhou
+                // JÁ EMPENHOU desta COP → mostra as quantidades normalmente
+                ? '<td style="color:#f59e0b;font-weight:700">' + (it.qtdEmpenhada||0) + '</td>' +
+                  '<td style="color:#16a34a;font-weight:700">' + (it.qtdRecebida||0) + '</td>' +
+                  '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
+                // NÃO EMPENHADO desta COP
+                : (it.qtdRecebida > 0 && it.qtdRecebida >= it.qtdEmpenhada
+                    // Último empenho foi totalmente recebido
+                    ? '<td colspan="2" style="font-size:10px;font-weight:800;color:#16a34a;letter-spacing:.3px;white-space:nowrap;">✅ ÚLTIMO EMPENHO RECEBIDO TOTAL</td>' +
+                      '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
+                    // Empenho anterior, não totalmente recebido → mostra as quantidades
+                    : '<td style="color:#f59e0b;font-weight:700">' + (it.qtdEmpenhada||0) + '</td>' +
+                      '<td style="color:#16a34a;font-weight:700">' + (it.qtdRecebida||0) + '</td>' +
+                      '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
+                ))
             : '') +
         '</tr>';
 }

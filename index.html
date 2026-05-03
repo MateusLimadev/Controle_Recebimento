@@ -11,7 +11,7 @@
 
     <!-- ── ESTILOS PROJEÇÃO OPME ── -->
     <style>
-    #view-projecao-opme{padding:24px 32px;max-width:1300px;margin:0 auto}
+    #view-projecao-opme{padding:24px 32px;max-width:90vw;margin:0 auto;width:90vw}
     .opme-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
     .opme-hdr-title{font-size:20px;font-weight:900;color:var(--text-main)}
     .opme-hdr-sub{font-size:12px;color:var(--text-muted);margin-top:3px}
@@ -1639,6 +1639,18 @@
                 <div>
                     <div class="opme-hdr-title">📦 Projeção de Compras OPME</div>
                     <div class="opme-hdr-sub">Classificação automática por cobertura, RP e empenho — atualizado a cada COP</div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;">
+                        <span id="opme-cop-data-display" style="font-size:12px;color:var(--text-muted);font-weight:600;background:var(--bg-system);padding:3px 10px;border-radius:20px;border:1px solid var(--border);">📅 Data COP: —</span>
+                        <!-- Visível apenas para administrador -->
+                        <div id="opme-admin-cop-wrap" style="display:none;align-items:center;gap:6px;">
+                            <input type="date" id="opme-cop-data-input"
+                                style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-system);color:var(--text-main);cursor:pointer;">
+                            <button onclick="salvarCopDataAtualizacao()"
+                                style="font-size:11px;padding:4px 12px;border-radius:6px;background:#0284c7;color:#fff;border:none;cursor:pointer;font-weight:800;white-space:nowrap;">
+                                💾 Salvar Data COP
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                     <button class="opme-btn opme-btn-run" onclick="rodarProjecaoOPME()">🔄 Rodar Projeção</button>

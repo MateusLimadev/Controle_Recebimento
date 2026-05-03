@@ -1391,7 +1391,8 @@ function configurarNavPorUsuario() {
             if (d) d.style.display = 'block';
             if (b) b.style.display = 'flex';
         }
-        document.getElementById('carrinhoHeaderBtn').style.display = 'none';
+        document.getElementById('carrinhoHeaderBtn').style.display    = 'none';
+        document.getElementById('opmeCarrinhoHeaderBtn').style.display = 'flex';
         document.getElementById('notifHeaderBtn').style.display = 'flex';
         document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
         return;
@@ -1402,7 +1403,8 @@ function configurarNavPorUsuario() {
         const divC = document.getElementById('fn-div-compras');
         if (fnC)  fnC.style.display  = 'flex';
         if (divC) divC.style.display = 'block';
-        document.getElementById('carrinhoHeaderBtn').style.display = 'none';
+        document.getElementById('carrinhoHeaderBtn').style.display    = 'none';
+        document.getElementById('opmeCarrinhoHeaderBtn').style.display = 'none';
         document.getElementById('notifHeaderBtn').style.display    = 'none';
         document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
         return;
@@ -1450,7 +1452,8 @@ function configurarNavPorUsuario() {
     document.getElementById('btn-recebimento').style.display = 'inline-flex';
     document.getElementById('btn-adiantamento').style.display = 'inline-flex';
 
-    document.getElementById('carrinhoHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
+    document.getElementById('carrinhoHeaderBtn').style.display    = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
+    document.getElementById('opmeCarrinhoHeaderBtn').style.display = 'none';
     document.getElementById('btn-admin').style.display = temPermissao('administrador') ? 'inline-flex' : 'none';
     document.getElementById('notifHeaderBtn').style.display = temPermissao('comprador') || temPermissao('administrador') ? 'flex' : 'none';
     document.getElementById('userNameHeader').innerText = usuarioAtual.nome;
@@ -5340,7 +5343,7 @@ function atualizarContadorCarrinhoOPME() {
     if (!el) return;
     if (carrinhoOPME.length > 0) {
         el.textContent = carrinhoOPME.length;
-        el.style.display = 'inline-block';
+        el.style.display = 'flex';
     } else {
         el.style.display = 'none';
     }
@@ -5350,24 +5353,22 @@ function toggleCarrinhoOPME(btn) {
     const idx  = carrinhoOPME.findIndex(i => i.codigo === cod);
     if (idx >= 0) {
         carrinhoOPME.splice(idx, 1);
-        btn.innerHTML = '🛒';
+        btn.classList.remove('no-carrinho');
+        btn.querySelector('i').className = 'ph ph-shopping-cart';
         btn.title = 'Adicionar ao carrinho';
-        btn.style.background = 'transparent';
-        btn.style.color = 'var(--text-muted)';
     } else {
         carrinhoOPME.push({
-            codigo:     cod,
-            descricao:  btn.dataset.descricao,
-            cobertura:  parseFloat(btn.dataset.cobertura) || 0,
-            cmdDiario:  parseFloat(btn.dataset.cmd) || 0,
-            cmmMensal:  parseFloat(btn.dataset.cmm) || 0,
-            criterio:   btn.dataset.criterio || '',
-            qtd:        0
+            codigo:    cod,
+            descricao: btn.dataset.descricao,
+            cobertura: parseFloat(btn.dataset.cobertura) || 0,
+            cmdDiario: parseFloat(btn.dataset.cmd) || 0,
+            cmmMensal: parseFloat(btn.dataset.cmm) || 0,
+            criterio:  btn.dataset.criterio || '',
+            qtd:       0
         });
-        btn.innerHTML = '✅';
+        btn.classList.add('no-carrinho');
+        btn.querySelector('i').className = 'ph ph-check-circle';
         btn.title = 'Remover do carrinho';
-        btn.style.background = 'rgba(22,163,74,.15)';
-        btn.style.color = '#16a34a';
     }
     atualizarContadorCarrinhoOPME();
 }
@@ -5406,13 +5407,11 @@ function renderizarCarrinhoOPME() {
 function removerDoCarrinhoOPME(idx) {
     const cod = carrinhoOPME[idx].codigo;
     carrinhoOPME.splice(idx, 1);
-    // Reseta botão na tabela
     const btn = document.querySelector(`.opme-cart-btn[data-codigo="${cod}"]`);
     if (btn) {
-        btn.innerHTML = '🛒';
+        btn.classList.remove('no-carrinho');
+        btn.querySelector('i').className = 'ph ph-shopping-cart';
         btn.title = 'Adicionar ao carrinho';
-        btn.style.background = 'transparent';
-        btn.style.color = 'var(--text-muted)';
     }
     atualizarContadorCarrinhoOPME();
     renderizarCarrinhoOPME();
@@ -5420,7 +5419,8 @@ function removerDoCarrinhoOPME(idx) {
 function limparCarrinhoOPME() {
     carrinhoOPME = [];
     document.querySelectorAll('.opme-cart-btn').forEach(b => {
-        b.innerHTML = '🛒'; b.style.background = 'transparent'; b.style.color = 'var(--text-muted)';
+        b.classList.remove('no-carrinho');
+        if (b.querySelector('i')) b.querySelector('i').className = 'ph ph-shopping-cart';
     });
     atualizarContadorCarrinhoOPME();
     renderizarCarrinhoOPME();
@@ -5718,10 +5718,17 @@ function _linhaOPME(it, mostrarEmp) {
                 ))
             : '') +
         '<td style="text-align:center;">' +
-          '<button class="opme-cart-btn" data-codigo="' + it.codigo + '" data-descricao="' + (it.descricao||'').replace(/"/g,'&quot;') + '" data-cobertura="' + (it.cobertura||0) + '" data-cmd="' + (it.cmdDiario||0) + '" data-cmm="' + (it.cmmMensal||0) + '" data-criterio="' + (it.criterio||'') + '" ' +
-          'onclick="toggleCarrinhoOPME(this)" title="' + (noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho') + '" ' +
-          'style="background:' + (noCarrinho ? 'rgba(22,163,74,.15)' : 'transparent') + ';color:' + (noCarrinho ? '#16a34a' : 'var(--text-muted)') + ';border:none;cursor:pointer;font-size:16px;border-radius:6px;padding:4px 6px;transition:all .15s;">' +
-          (noCarrinho ? '✅' : '🛒') + '</button>' +
+          '<button class="btn-add-carrinho opme-cart-btn' + (noCarrinho ? ' no-carrinho' : '') + '" ' +
+          'data-codigo="' + it.codigo + '" ' +
+          'data-descricao="' + (it.descricao||'').replace(/"/g,'&quot;') + '" ' +
+          'data-cobertura="' + (it.cobertura||0) + '" ' +
+          'data-cmd="' + (it.cmdDiario||0) + '" ' +
+          'data-cmm="' + (it.cmmMensal||0) + '" ' +
+          'data-criterio="' + (it.criterio||'') + '" ' +
+          'onclick="toggleCarrinhoOPME(this)" ' +
+          'title="' + (noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho') + '">' +
+          '<i class="' + (noCarrinho ? 'ph ph-check-circle' : 'ph ph-shopping-cart') + '"></i>' +
+          '</button>' +
         '</td>' +
         '</tr>';
 }

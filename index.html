@@ -218,6 +218,11 @@
                 <span>COMPRAS</span>
                 <span id="carrinhoContador" class="carrinho-contador" style="display:none">0</span>
             </div>
+            <div class="carrinho-btn" id="opmeCarrinhoHeaderBtn" onclick="abrirCarrinhoOPME()" title="Carrinho OPME" style="display:none;">
+                <i class="ph ph-shopping-cart"></i>
+                <span>CARRINHO</span>
+                <span id="opme-carrinho-contador" class="carrinho-contador" style="display:none">0</span>
+            </div>
             <div class="logout-btn" onclick="logout()">
                 <i class="ph ph-sign-out"></i>
                 <span>SAIR</span>
@@ -358,7 +363,7 @@
 
     <!-- CARRINHO OPME -->
     <div id="opmeCarrinhoOverlay" onclick="fecharCarrinhoOPME()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1199;"></div>
-    <div id="opmeCarrinhoDrawer" style="position:fixed;top:0;right:0;height:100vh;width:480px;max-width:95vw;background:var(--card-bg);z-index:1200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 24px rgba(0,0,0,.2);">
+    <div id="opmeCarrinhoDrawer" style="position:fixed;top:0;right:0;height:100vh;width:50vw;max-width:95vw;min-width:480px;background:var(--card-bg);z-index:1200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 24px rgba(0,0,0,.2);">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);">
             <div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-size:20px;">🛒</span>
@@ -1696,11 +1701,6 @@
                     <button class="opme-btn opme-btn-run" onclick="rodarProjecaoOPME()">🔄 Rodar Projeção</button>
                     <button class="opme-btn opme-btn-save" id="btn-salvar-cop-opme" onclick="salvarCopOPME()" disabled>💾 Salvar COP</button>
                     <button class="opme-btn opme-btn-cop" onclick="abrirCopOPME()">📋 Ver Alerta COP</button>
-                    <button class="opme-btn" id="opme-carrinho-btn" onclick="abrirCarrinhoOPME()"
-                        style="background:#16a34a;color:#fff;position:relative;display:flex;align-items:center;gap:6px;">
-                        🛒 Carrinho
-                        <span id="opme-carrinho-contador" style="display:none;background:#fff;color:#16a34a;font-size:10px;font-weight:900;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;">0</span>
-                    </button>
                 </div>
             </div>
 

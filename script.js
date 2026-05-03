@@ -6001,7 +6001,7 @@ function addLinhaDoc() {
     div.innerHTML =
         '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Nome do Documento</label><input type="text" class="add-doc-nome" placeholder="Ex: Certidão Negativa"></div>' +
         '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Número</label><input type="text" class="add-doc-num" placeholder="Nº"></div>' +
-        '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Vigência</label><input type="date" class="add-doc-vig"></div>' +
+        '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Emissão</label><input type="date" class="add-doc-vig"></div>' +
         '<div class="field-group" style="margin:0;"><label style="font-size:10px;">Vencimento</label><input type="date" class="add-doc-venc"></div>' +
         '<button onclick="this.parentElement.remove()" style="padding:9px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#ef4444;cursor:pointer;font-size:14px;"><i class="ph ph-trash"></i></button>';
     lista.appendChild(div);

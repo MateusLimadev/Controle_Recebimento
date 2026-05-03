@@ -2006,7 +2006,7 @@
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
             <div>
                 <h2 style="font-size:20px;font-weight:900;color:var(--text-main);display:flex;align-items:center;gap:10px;">
-                    <i class="ph ph-file-text" style="color:#0284c7;"></i> Controle de Vigência de Documentos
+                    <i class="ph ph-file-text" style="color:#0284c7;"></i> Controle de Emissão de Documentos
                 </h2>
                 <p style="font-size:12px;color:var(--text-muted);margin-top:3px;">Acompanhe os documentos de fornecedores e seus vencimentos</p>
             </div>
@@ -2072,7 +2072,7 @@
             <input type="hidden" id="renovar-doc-id-origem">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:4px;">
                 <div class="field-group" style="margin:0;"><label>Número</label><input type="text" id="renovar-doc-numero" placeholder="Nº do doc"></div>
-                <div class="field-group" style="margin:0;"><label>Vigência</label><input type="date" id="renovar-doc-vigencia"></div>
+                <div class="field-group" style="margin:0;"><label>Emissão</label><input type="date" id="renovar-doc-vigencia"></div>
                 <div class="field-group" style="margin:0;"><label>Vencimento</label><input type="date" id="renovar-doc-vencimento"></div>
             </div>
             <div id="renovar-doc-erro" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:8px;"></div>
@@ -2142,7 +2142,7 @@
                         <tr style="background:var(--bg-system);">
                             <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:30%;">DOCUMENTO</th>
                             <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:15%;">NÚMERO</th>
-                            <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:14%;">VIGÊNCIA</th>
+                            <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:14%;">EMISSÃO</th>
                             <th style="padding:9px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:14%;">VENC.</th>
                             <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--text-muted);width:12%;">STATUS</th>
                             <th style="width:15%;"></th>
@@ -2158,7 +2158,7 @@
                 <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 40px;gap:8px;align-items:end;">
                     <div class="field-group" style="margin:0;"><label style="font-size:10px;">Nome</label><input type="text" id="new-doc-nome" placeholder="Ex: Certidão"></div>
                     <div class="field-group" style="margin:0;"><label style="font-size:10px;">Número</label><input type="text" id="new-doc-numero" placeholder="Nº"></div>
-                    <div class="field-group" style="margin:0;"><label style="font-size:10px;">Vigência</label><input type="date" id="new-doc-vigencia"></div>
+                    <div class="field-group" style="margin:0;"><label style="font-size:10px;">Emissão</label><input type="date" id="new-doc-vigencia"></div>
                     <div class="field-group" style="margin:0;"><label style="font-size:10px;">Vencimento</label><input type="date" id="new-doc-vencimento"></div>
                     <button onclick="salvarNovoDocumento()" style="padding:9px;border-radius:9px;border:none;background:#0284c7;color:#fff;font-weight:800;cursor:pointer;align-self:end;">
                         <i class="ph ph-plus"></i>

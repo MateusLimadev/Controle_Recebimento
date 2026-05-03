@@ -356,6 +356,46 @@
         </div>
     </div>
 
+    <!-- CARRINHO OPME -->
+    <div id="opmeCarrinhoOverlay" onclick="fecharCarrinhoOPME()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1199;"></div>
+    <div id="opmeCarrinhoDrawer" style="position:fixed;top:0;right:0;height:100vh;width:480px;max-width:95vw;background:var(--card-bg);z-index:1200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 24px rgba(0,0,0,.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:20px;">🛒</span>
+                <h3 style="margin:0;font-size:15px;font-weight:900;color:var(--text-main);">CARRINHO OPME</h3>
+                <span id="opmeCarrinhoQtdHdr" style="font-size:11px;font-weight:700;color:var(--text-muted);">0 itens</span>
+            </div>
+            <button onclick="fecharCarrinhoOPME()" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="opmeCarrinhoVazio" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-muted);">
+            <span style="font-size:40px;">🛒</span>
+            <p style="font-weight:700;margin:0;">Nenhum item adicionado.</p>
+            <small>Clique no 🛒 ao lado de um item na projeção OPME.</small>
+        </div>
+        <div id="opmeCarrinhoLista" style="flex:1;overflow-y:auto;display:none;padding:12px 16px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                    <tr style="background:var(--bg-system);">
+                        <th style="padding:8px;text-align:left;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">Código</th>
+                        <th style="padding:8px;text-align:left;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">Descrição</th>
+                        <th style="padding:8px;text-align:center;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">COB</th>
+                        <th style="padding:8px;text-align:center;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">Qtd</th>
+                        <th style="padding:8px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="opmeCarrinhoTbody"></tbody>
+            </table>
+        </div>
+        <div id="opmeCarrinhoFooter" style="display:none;padding:16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
+            <button onclick="exportarCarrinhoOPMECSV()" style="width:100%;padding:10px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i class="ph ph-table"></i> EXPORTAR XLS
+            </button>
+            <button onclick="limparCarrinhoOPME()" style="width:100%;padding:8px;background:transparent;color:var(--danger,#ef4444);border:1px solid var(--danger,#ef4444);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">
+                <i class="ph ph-trash"></i> LIMPAR CARRINHO
+            </button>
+        </div>
+    </div>
+
     <!-- MODAL BUSCA GLOBAL -->
     <div id="searchModal" class="modal" style="display: none;">
         <div class="modal-content">
@@ -1656,6 +1696,11 @@
                     <button class="opme-btn opme-btn-run" onclick="rodarProjecaoOPME()">🔄 Rodar Projeção</button>
                     <button class="opme-btn opme-btn-save" id="btn-salvar-cop-opme" onclick="salvarCopOPME()" disabled>💾 Salvar COP</button>
                     <button class="opme-btn opme-btn-cop" onclick="abrirCopOPME()">📋 Ver Alerta COP</button>
+                    <button class="opme-btn" id="opme-carrinho-btn" onclick="abrirCarrinhoOPME()"
+                        style="background:#16a34a;color:#fff;position:relative;display:flex;align-items:center;gap:6px;">
+                        🛒 Carrinho
+                        <span id="opme-carrinho-contador" style="display:none;background:#fff;color:#16a34a;font-size:10px;font-weight:900;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;">0</span>
+                    </button>
                 </div>
             </div>
 

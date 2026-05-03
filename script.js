@@ -5321,7 +5321,158 @@ var opmeDescs    = {
     c6: 'Consumo médio mensal &lt; 2 unidades · Cobertura &gt; 45 dias (atenção especial)'
 };
 
-let copDataOPME = '';
+let copDataOPME  = '';
+let carrinhoOPME = [];   // { codigo, descricao, cobertura, cmdDiario, cmmMensal, criterio, qtd }
+let opmeInfoSAM  = {};   // { codigoMV: { codigoSAM, descricaoCompleta, unidade } }
+
+// ── CARRINHO OPME ──────────────────────────────────────────
+function abrirCarrinhoOPME() {
+    document.getElementById('opmeCarrinhoOverlay').style.display = 'block';
+    document.getElementById('opmeCarrinhoDrawer').style.transform = 'translateX(0)';
+    renderizarCarrinhoOPME();
+}
+function fecharCarrinhoOPME() {
+    document.getElementById('opmeCarrinhoOverlay').style.display = 'none';
+    document.getElementById('opmeCarrinhoDrawer').style.transform = 'translateX(100%)';
+}
+function atualizarContadorCarrinhoOPME() {
+    const el = document.getElementById('opme-carrinho-contador');
+    if (!el) return;
+    if (carrinhoOPME.length > 0) {
+        el.textContent = carrinhoOPME.length;
+        el.style.display = 'inline-block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+function toggleCarrinhoOPME(btn) {
+    const cod  = btn.dataset.codigo;
+    const idx  = carrinhoOPME.findIndex(i => i.codigo === cod);
+    if (idx >= 0) {
+        carrinhoOPME.splice(idx, 1);
+        btn.innerHTML = '🛒';
+        btn.title = 'Adicionar ao carrinho';
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-muted)';
+    } else {
+        carrinhoOPME.push({
+            codigo:     cod,
+            descricao:  btn.dataset.descricao,
+            cobertura:  parseFloat(btn.dataset.cobertura) || 0,
+            cmdDiario:  parseFloat(btn.dataset.cmd) || 0,
+            cmmMensal:  parseFloat(btn.dataset.cmm) || 0,
+            criterio:   btn.dataset.criterio || '',
+            qtd:        0
+        });
+        btn.innerHTML = '✅';
+        btn.title = 'Remover do carrinho';
+        btn.style.background = 'rgba(22,163,74,.15)';
+        btn.style.color = '#16a34a';
+    }
+    atualizarContadorCarrinhoOPME();
+}
+function renderizarCarrinhoOPME() {
+    const vazio  = document.getElementById('opmeCarrinhoVazio');
+    const lista  = document.getElementById('opmeCarrinhoLista');
+    const footer = document.getElementById('opmeCarrinhoFooter');
+    const qtdHdr = document.getElementById('opmeCarrinhoQtdHdr');
+    if (qtdHdr) qtdHdr.textContent = carrinhoOPME.length + ' ' + (carrinhoOPME.length === 1 ? 'item' : 'itens');
+    if (carrinhoOPME.length === 0) {
+        vazio.style.display  = 'flex';
+        lista.style.display  = 'none';
+        footer.style.display = 'none';
+        return;
+    }
+    vazio.style.display  = 'none';
+    lista.style.display  = 'block';
+    footer.style.display = 'flex';
+    const tbody = document.getElementById('opmeCarrinhoTbody');
+    tbody.innerHTML = carrinhoOPME.map((it, idx) =>
+        `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">${it.codigo}</td>
+            <td style="padding:8px;font-size:11px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${it.descricao}">${it.descricao}</td>
+            <td style="padding:8px;text-align:center;font-size:11px;">${it.cobertura > 0 ? it.cobertura + ' d' : '⚠ ZERO'}</td>
+            <td style="padding:8px;text-align:center;">
+                <input type="number" min="0" value="${it.qtd || ''}" placeholder="0"
+                    onchange="carrinhoOPME[${idx}].qtd = parseFloat(this.value) || 0"
+                    style="width:60px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-system);color:var(--text-main);font-size:12px;text-align:center;">
+            </td>
+            <td style="padding:8px;text-align:center;">
+                <button onclick="removerDoCarrinhoOPME(${idx})" style="background:transparent;border:none;cursor:pointer;color:#f87171;font-size:16px;"><i class="ph ph-trash"></i></button>
+            </td>
+        </tr>`
+    ).join('');
+}
+function removerDoCarrinhoOPME(idx) {
+    const cod = carrinhoOPME[idx].codigo;
+    carrinhoOPME.splice(idx, 1);
+    // Reseta botão na tabela
+    const btn = document.querySelector(`.opme-cart-btn[data-codigo="${cod}"]`);
+    if (btn) {
+        btn.innerHTML = '🛒';
+        btn.title = 'Adicionar ao carrinho';
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-muted)';
+    }
+    atualizarContadorCarrinhoOPME();
+    renderizarCarrinhoOPME();
+}
+function limparCarrinhoOPME() {
+    carrinhoOPME = [];
+    document.querySelectorAll('.opme-cart-btn').forEach(b => {
+        b.innerHTML = '🛒'; b.style.background = 'transparent'; b.style.color = 'var(--text-muted)';
+    });
+    atualizarContadorCarrinhoOPME();
+    renderizarCarrinhoOPME();
+}
+function exportarCarrinhoOPMECSV() {
+    if (!carrinhoOPME.length) return;
+    const hoje = new Date().toLocaleDateString('pt-BR');
+
+    const cols = ['DATA','CÓDIGO MV','CÓDIGO SAM','DESCRIÇÃO','DESCRIÇÃO COMPLETA','UNIDADE','CMD','CMM','QTDADE COMPRAR'];
+
+    const thStyle = 'background:#94a3b8;font-weight:bold;color:#0f172a;padding:9px 14px;border:1px solid #64748b;font-size:11pt;text-align:center;white-space:nowrap;';
+    const tdStyle = 'padding:7px 12px;border:1px solid #cbd5e1;font-size:10pt;vertical-align:middle;';
+
+    const headerHtml = cols.map(c => `<th style="${thStyle}">${c}</th>`).join('');
+
+    const rowsHtml = carrinhoOPME.map((it, i) => {
+        const sam  = opmeInfoSAM[it.codigo] || {};
+        const bg   = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+        const cells = [
+            hoje,
+            it.codigo,
+            sam.codigoSAM || '',
+            it.descricao || '',
+            sam.descricaoCompleta || '',
+            sam.unidade || '',
+            it.cmdDiario  ? it.cmdDiario.toFixed(4).replace('.', ',')  : '',
+            it.cmmMensal  ? it.cmmMensal.toFixed(2).replace('.', ',')  : '',
+            it.qtd        || ''
+        ];
+        return '<tr style="background:' + bg + '">' +
+            cells.map(c => `<td style="${tdStyle}">${String(c).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>`).join('') +
+            '</tr>';
+    }).join('');
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="UTF-8"></head>
+<body>
+<table style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;">
+  <thead><tr>${headerHtml}</tr></thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+</body></html>`;
+
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `carrinho_opme_${hoje.replace(/\//g,'-')}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 // Busca a data da COP do backend e atualiza o display
 async function _carregarCopData() {
@@ -5402,6 +5553,7 @@ async function rodarProjecaoOPME() {
         }
 
         opmeData = data;
+        if (data.infoSAM) opmeInfoSAM = data.infoSAM;
 
         // Atualiza display da data de atualização da COP
         if (data.copDataAtualizacao) { copDataOPME = data.copDataAtualizacao; }
@@ -5496,6 +5648,7 @@ function _renderTblOPME(criterio, itens) {
         '<th onclick="_sortOPME(\'' + criterio + '\',\'cmmMensal\')">CMM/mês ↕</th>' +
         '<th>CMD/dia</th><th>RP</th><th>Empenho</th><th>COP</th>' +
         (isc5 ? '<th onclick="_sortOPME(\'' + criterio + '\',\'qtdEmpenhada\')">Qtd Empenhada ↕</th><th onclick="_sortOPME(\'' + criterio + '\',\'qtdRecebida\')">Qtd Recebida ↕</th><th>Nº Empenho(s)</th>' : '') +
+        '<th style="text-align:center;">🛒</th>' +
         '</tr></thead>' +
         '<tbody id="opme-tbody-' + criterio + '">' +
         itens.map(function(it){ return _linhaOPME(it, isc5); }).join('') +
@@ -5540,6 +5693,8 @@ function _linhaOPME(it, mostrarEmp) {
         ? ' style="background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;"'
         : '';
 
+    var noCarrinho = carrinhoOPME.some(function(c){ return c.codigo === it.codigo; });
+
     return '<tr data-cod="' + it.codigo + '" data-desc="' + (it.descricao||'').toLowerCase() + '" data-viaCop="' + (!it.bloqueioCompra) + '"' + rowStyle + '>' +
         '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--accent)">' + it.codigo + '</td>' +
         '<td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (it.descricao||'') + '">' + (it.descricao||'') + '</td>' +
@@ -5551,21 +5706,23 @@ function _linhaOPME(it, mostrarEmp) {
         '<td>' + copB + '</td>' +
         (mostrarEmp
             ? (it.jaEmpenhou
-                // JÁ EMPENHOU desta COP → mostra as quantidades normalmente
                 ? '<td style="color:#f59e0b;font-weight:700">' + (it.qtdEmpenhada||0) + '</td>' +
                   '<td style="color:#16a34a;font-weight:700">' + (it.qtdRecebida||0) + '</td>' +
                   '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
-                // NÃO EMPENHADO desta COP
                 : (it.qtdRecebida > 0 && it.qtdRecebida >= it.qtdEmpenhada
-                    // Último empenho foi totalmente recebido
                     ? '<td colspan="2" style="font-size:10px;font-weight:800;color:#16a34a;letter-spacing:.3px;white-space:nowrap;">✅ ÚLTIMO EMPENHO RECEBIDO TOTAL</td>' +
                       '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
-                    // Empenho anterior, não totalmente recebido → mostra as quantidades
                     : '<td style="color:#f59e0b;font-weight:700">' + (it.qtdEmpenhada||0) + '</td>' +
                       '<td style="color:#16a34a;font-weight:700">' + (it.qtdRecebida||0) + '</td>' +
                       '<td style="font-size:11px;color:var(--text-muted)">' + ((it.numerosEmpenho||[]).join(', ')||'—') + '</td>'
                 ))
             : '') +
+        '<td style="text-align:center;">' +
+          '<button class="opme-cart-btn" data-codigo="' + it.codigo + '" data-descricao="' + (it.descricao||'').replace(/"/g,'&quot;') + '" data-cobertura="' + (it.cobertura||0) + '" data-cmd="' + (it.cmdDiario||0) + '" data-cmm="' + (it.cmmMensal||0) + '" data-criterio="' + (it.criterio||'') + '" ' +
+          'onclick="toggleCarrinhoOPME(this)" title="' + (noCarrinho ? 'Remover do carrinho' : 'Adicionar ao carrinho') + '" ' +
+          'style="background:' + (noCarrinho ? 'rgba(22,163,74,.15)' : 'transparent') + ';color:' + (noCarrinho ? '#16a34a' : 'var(--text-muted)') + ';border:none;cursor:pointer;font-size:16px;border-radius:6px;padding:4px 6px;transition:all .15s;">' +
+          (noCarrinho ? '✅' : '🛒') + '</button>' +
+        '</td>' +
         '</tr>';
 }
 

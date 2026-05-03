@@ -5940,12 +5940,13 @@ function _renderCompras(lista) {
         var ca = ativos.filter(function(d){ return d.status==='A VENCER'; }).length;
         var co = ativos.filter(function(d){ return d.status==='OK'; }).length;
         var cs = ativos.filter(function(d){ return d.status==='SEM DATA'; }).length;
-        var badges = '';
-        if (cv) badges += '<span style="background:rgba(239,68,68,0.12);color:#ef4444;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #ef444433;margin-right:4px;">('+cv+') VENCIDO</span>';
-        if (ca) badges += '<span style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #f59e0b33;margin-right:4px;">('+ca+') A VENCER</span>';
-        if (co) badges += '<span style="background:rgba(22,163,74,0.1);color:#16a34a;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #16a34a33;margin-right:4px;">('+co+') OK</span>';
-        if (cs) badges += '<span style="background:rgba(100,116,139,0.1);color:#64748b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #64748b33;">('+cs+') SEM DATA</span>';
-        if (!badges) badges = '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+        var badges = '<div style="display:flex;flex-direction:column;gap:3px;">';
+        if (cv) badges += '<span style="background:rgba(239,68,68,0.12);color:#ef4444;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #ef444433;white-space:nowrap;">('+cv+') VENCIDO</span>';
+        if (ca) badges += '<span style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #f59e0b33;white-space:nowrap;">('+ca+') A VENCER</span>';
+        if (co) badges += '<span style="background:rgba(22,163,74,0.1);color:#16a34a;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #16a34a33;white-space:nowrap;">('+co+') OK</span>';
+        if (cs) badges += '<span style="background:rgba(100,116,139,0.1);color:#64748b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #64748b33;white-space:nowrap;">('+cs+') SEM DATA</span>';
+        if (cv+ca+co+cs === 0) badges += '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+        badges += '</div>';
         var temPendencia = emp.status === 'VENCIDO' || emp.status === 'A VENCER';
         var btnAvisar = temPendencia && emp.email
             ? '<button onclick="event.stopPropagation();enviarAvisoFornecedor(\'' + emp.id + '\')" title="Enviar aviso por e-mail" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);border-radius:7px;padding:5px 10px;cursor:pointer;color:#f59e0b;font-size:12px;font-weight:700;margin-right:6px;"><i class="ph ph-envelope"></i> AVISAR</button>'

@@ -1262,7 +1262,8 @@ function entrarNoSistema(data) {
         nome: data.nome,
         role: data.role,
         permissoes: permsRaw.toString().split(',').map(p => p.trim().toLowerCase()),
-        prefixos: data.prefixos ? data.prefixos.toString().split('|').map(p => p.trim()).filter(Boolean) : []
+        prefixos: data.prefixos ? data.prefixos.toString().split('|').map(p => p.trim()).filter(Boolean) : [],
+        email: data.email || ''
     };
 
     // Registra os prefixos próprios no dicionário global
@@ -5945,13 +5946,17 @@ function _renderCompras(lista) {
         if (co) badges += '<span style="background:rgba(22,163,74,0.1);color:#16a34a;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #16a34a33;margin-right:4px;">('+co+') OK</span>';
         if (cs) badges += '<span style="background:rgba(100,116,139,0.1);color:#64748b;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #64748b33;">('+cs+') SEM DATA</span>';
         if (!badges) badges = '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+        var temPendencia = emp.status === 'VENCIDO' || emp.status === 'A VENCER';
+        var btnAvisar = temPendencia && emp.email
+            ? '<button onclick="event.stopPropagation();enviarAvisoFornecedor(\'' + emp.id + '\')" title="Enviar aviso por e-mail" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);border-radius:7px;padding:5px 10px;cursor:pointer;color:#f59e0b;font-size:12px;font-weight:700;margin-right:6px;"><i class="ph ph-envelope"></i> AVISAR</button>'
+            : '';
         return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="abrirDocsEmpresa(\'' + emp.id + '\')" onmouseover="this.style.background=\'var(--bg-system)\'" onmouseout="this.style.background=\'\'">' +
             '<td style="padding:12px 14px;font-weight:800;font-size:13px;">' + (emp.nome||'—') + '</td>' +
             '<td style="padding:12px 14px;font-size:11px;color:var(--text-muted);font-family:monospace;">' + (emp.cnpj||'—') + '</td>' +
             '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted);">' + (emp.email||'—') + '</td>' +
             '<td style="padding:12px 14px;text-align:center;font-size:12px;color:var(--text-muted);">' + ativos.length + '</td>' +
             '<td style="padding:12px 14px;">' + badges + '</td>' +
-            '<td style="padding:12px 14px;text-align:center;"><button onclick="event.stopPropagation();abrirDocsEmpresa(\'' + emp.id + '\')" style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.25);border-radius:7px;padding:5px 10px;cursor:pointer;color:#0284c7;font-size:12px;font-weight:700;">Ver docs</button></td>' +
+            '<td style="padding:12px 14px;text-align:right;white-space:nowrap;">' + btnAvisar + '<button onclick="event.stopPropagation();abrirDocsEmpresa(\'' + emp.id + '\')" style="background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.25);border-radius:7px;padding:5px 10px;cursor:pointer;color:#0284c7;font-size:12px;font-weight:700;">Ver docs</button></td>' +
             '</tr>';
     }).join('');
 }
@@ -6022,6 +6027,27 @@ async function salvarEmpresa() {
         mostrarToast('Fornecedor adicionado!', 'success');
     } catch(e) { erro.textContent = 'Erro ao salvar.'; }
     finally { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> SALVAR FORNECEDOR'; }
+}
+
+async function enviarAvisoFornecedor(empId) {
+    var emp = _comprasData.find(function(e){ return e.id === empId; });
+    if (!emp) return;
+    if (!emp.email) { mostrarToast('E-mail não cadastrado para este fornecedor.', 'error'); return; }
+    if (!confirm('Enviar aviso de documentos pendentes para ' + emp.nome + ' (' + emp.email + ')?')) return;
+    mostrarToast('Enviando...', 'info');
+    try {
+        var res  = await fetch(URL_SCRIPT, { method: 'POST', body: JSON.stringify({
+            tipo:           'comprasEnviarAviso',
+            empresa_id:     empId,
+            emailRemetente: usuarioAtual.email || '',
+            nomeRemetente:  usuarioAtual.nome  || ''
+        })});
+        var data = await res.json();
+        if (data.erro) { mostrarToast('Erro: ' + data.erro, 'error'); return; }
+        mostrarToast('Aviso enviado para ' + emp.email + '!', 'success');
+    } catch(e) {
+        mostrarToast('Erro ao enviar aviso.', 'error');
+    }
 }
 
 function abrirRenovarDoc(docId, nomeDoc) {
